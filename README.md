@@ -6,6 +6,14 @@ An Android Guitar Pro score reader and practice player, with embedded audio play
 
 当前源码版本：**1.14.0** · 最低系统：**Android 8.0 / API 26** · 项目代码：[MIT](LICENSE)
 
+## 下载与安装
+
+**[直接下载 StringPage 1.14.0 APK](https://github.com/TOGETOGE01/StringPage/releases/download/v1.14.0/StringPage-1.14.0.apk)** · [版本说明与附件](https://github.com/TOGETOGE01/StringPage/releases/tag/v1.14.0) · [所有版本](https://github.com/TOGETOGE01/StringPage/releases)
+
+下载 `.apk` 文件到安卓设备安装，最低 Android 8.0。该安装包包含 ARM64、ARMv7、x86 和 x86_64，沿用项目发布签名。Release 页面中的 `Source code` 是源码压缩包，直接安装请选 APK 附件。
+
+SHA-256：`97e1aa86d274af66878d3d082f520db9a3c365bb7141ae21f61d4e3febc81bee`。也可下载[校验文件](https://github.com/TOGETOGE01/StringPage/releases/download/v1.14.0/SHA256-1.14.0-apk.txt)。
+
 ## 功能
 
 - **本地读谱**：读取 `.gp3`、`.gp4`、`.gp5`、`.gpx`、`.gp`，提供五线谱、六线谱、组合显示、声部切换、缩放和全屏。
@@ -29,7 +37,7 @@ An Android Guitar Pro score reader and practice player, with embedded audio play
 
 ## 快速开始
 
-1. 安装自己构建的 Debug APK。
+1. 从上面的下载入口安装发布 APK，也可以按构建说明自行生成 Debug APK。
 2. 点击“导入”，通过系统文件选择器选择一个或多个 GP 文件；也可以先打开内置原创练习曲。
 3. 选择音源并播放。含可读取内嵌录音的文件可切换到“内嵌原曲”；没有录音的文件使用合成音源。
 4. 点击谱面定位，设置速度及循环区间。采样播放需先导入并分配音色库，然后点击“准备播放”。
@@ -116,3 +124,4 @@ docs/USER_GUIDE.md        详细使用与限制说明
 项目新增代码采用 [MIT License](LICENSE)。第三方代码、字体和音色保留其各自许可证，详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。主要依赖包括 alphaTab、AndroidX、GeneralUser GS、r8brain、Bravura 与 AlphaSkia；MIT 不替代这些资源的原有授权。
 
 StringPage 是独立项目，与 Arobas Music / Guitar Pro 无隶属或官方合作关系。Guitar Pro 和 RSE 名称仅用于说明文件兼容性与实现目标。
+
