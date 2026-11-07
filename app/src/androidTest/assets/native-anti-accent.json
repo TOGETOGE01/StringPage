@@ -1,0 +1,699 @@
+{
+  "status": "passed",
+  "moduleSha256": "053e31d8c78b052198918cdd16e0af91e2631daa2c08d7b2db2d93d69d040d81",
+  "scope": "Pure GPCore antiAccentFromString on caller-owned const std::string.\nNo score/application objects, commercial PCM, or original file mutations.\n",
+  "rows": [
+    {
+      "text": "",
+      "value": 0
+    },
+    {
+      "text": "None",
+      "value": 0
+    },
+    {
+      "text": "unknown",
+      "value": 0
+    },
+    {
+      "text": "Normal ",
+      "value": 0
+    },
+    {
+      "text": " Normal",
+      "value": 0
+    },
+    {
+      "text": "\tStrong",
+      "value": 0
+    },
+    {
+      "text": "Soft\n",
+      "value": 0
+    },
+    {
+      "text": "Heavy",
+      "value": 0
+    },
+    {
+      "text": "Light",
+      "value": 0
+    },
+    {
+      "text": "VeryHeavy",
+      "value": 0
+    },
+    {
+      "text": "ExtraHeavy",
+      "value": 0
+    },
+    {
+      "text": "\u017foft",
+      "value": 0
+    },
+    {
+      "text": "\u017ftrong",
+      "value": 0
+    },
+    {
+      "text": "N\u00f6rmal",
+      "value": 0
+    },
+    {
+      "text": "none",
+      "value": 0
+    },
+    {
+      "text": "nonE",
+      "value": 0
+    },
+    {
+      "text": "noNe",
+      "value": 0
+    },
+    {
+      "text": "noNE",
+      "value": 0
+    },
+    {
+      "text": "nOne",
+      "value": 0
+    },
+    {
+      "text": "nOnE",
+      "value": 0
+    },
+    {
+      "text": "nONe",
+      "value": 0
+    },
+    {
+      "text": "nONE",
+      "value": 0
+    },
+    {
+      "text": "NonE",
+      "value": 0
+    },
+    {
+      "text": "NoNe",
+      "value": 0
+    },
+    {
+      "text": "NoNE",
+      "value": 0
+    },
+    {
+      "text": "NOne",
+      "value": 0
+    },
+    {
+      "text": "NOnE",
+      "value": 0
+    },
+    {
+      "text": "NONe",
+      "value": 0
+    },
+    {
+      "text": "NONE",
+      "value": 0
+    },
+    {
+      "text": "soft",
+      "value": 1
+    },
+    {
+      "text": "sofT",
+      "value": 1
+    },
+    {
+      "text": "soFt",
+      "value": 1
+    },
+    {
+      "text": "soFT",
+      "value": 1
+    },
+    {
+      "text": "sOft",
+      "value": 1
+    },
+    {
+      "text": "sOfT",
+      "value": 1
+    },
+    {
+      "text": "sOFt",
+      "value": 1
+    },
+    {
+      "text": "sOFT",
+      "value": 1
+    },
+    {
+      "text": "Soft",
+      "value": 1
+    },
+    {
+      "text": "SofT",
+      "value": 1
+    },
+    {
+      "text": "SoFt",
+      "value": 1
+    },
+    {
+      "text": "SoFT",
+      "value": 1
+    },
+    {
+      "text": "SOft",
+      "value": 1
+    },
+    {
+      "text": "SOfT",
+      "value": 1
+    },
+    {
+      "text": "SOFt",
+      "value": 1
+    },
+    {
+      "text": "SOFT",
+      "value": 1
+    },
+    {
+      "text": "normal",
+      "value": 2
+    },
+    {
+      "text": "normaL",
+      "value": 2
+    },
+    {
+      "text": "normAl",
+      "value": 2
+    },
+    {
+      "text": "normAL",
+      "value": 2
+    },
+    {
+      "text": "norMal",
+      "value": 2
+    },
+    {
+      "text": "norMaL",
+      "value": 2
+    },
+    {
+      "text": "norMAl",
+      "value": 2
+    },
+    {
+      "text": "norMAL",
+      "value": 2
+    },
+    {
+      "text": "noRmal",
+      "value": 2
+    },
+    {
+      "text": "noRmaL",
+      "value": 2
+    },
+    {
+      "text": "noRmAl",
+      "value": 2
+    },
+    {
+      "text": "noRmAL",
+      "value": 2
+    },
+    {
+      "text": "noRMal",
+      "value": 2
+    },
+    {
+      "text": "noRMaL",
+      "value": 2
+    },
+    {
+      "text": "noRMAl",
+      "value": 2
+    },
+    {
+      "text": "noRMAL",
+      "value": 2
+    },
+    {
+      "text": "nOrmal",
+      "value": 2
+    },
+    {
+      "text": "nOrmaL",
+      "value": 2
+    },
+    {
+      "text": "nOrmAl",
+      "value": 2
+    },
+    {
+      "text": "nOrmAL",
+      "value": 2
+    },
+    {
+      "text": "nOrMal",
+      "value": 2
+    },
+    {
+      "text": "nOrMaL",
+      "value": 2
+    },
+    {
+      "text": "nOrMAl",
+      "value": 2
+    },
+    {
+      "text": "nOrMAL",
+      "value": 2
+    },
+    {
+      "text": "nORmal",
+      "value": 2
+    },
+    {
+      "text": "nORmaL",
+      "value": 2
+    },
+    {
+      "text": "nORmAl",
+      "value": 2
+    },
+    {
+      "text": "nORmAL",
+      "value": 2
+    },
+    {
+      "text": "nORMal",
+      "value": 2
+    },
+    {
+      "text": "nORMaL",
+      "value": 2
+    },
+    {
+      "text": "nORMAl",
+      "value": 2
+    },
+    {
+      "text": "nORMAL",
+      "value": 2
+    },
+    {
+      "text": "Normal",
+      "value": 2
+    },
+    {
+      "text": "NormaL",
+      "value": 2
+    },
+    {
+      "text": "NormAl",
+      "value": 2
+    },
+    {
+      "text": "NormAL",
+      "value": 2
+    },
+    {
+      "text": "NorMal",
+      "value": 2
+    },
+    {
+      "text": "NorMaL",
+      "value": 2
+    },
+    {
+      "text": "NorMAl",
+      "value": 2
+    },
+    {
+      "text": "NorMAL",
+      "value": 2
+    },
+    {
+      "text": "NoRmal",
+      "value": 2
+    },
+    {
+      "text": "NoRmaL",
+      "value": 2
+    },
+    {
+      "text": "NoRmAl",
+      "value": 2
+    },
+    {
+      "text": "NoRmAL",
+      "value": 2
+    },
+    {
+      "text": "NoRMal",
+      "value": 2
+    },
+    {
+      "text": "NoRMaL",
+      "value": 2
+    },
+    {
+      "text": "NoRMAl",
+      "value": 2
+    },
+    {
+      "text": "NoRMAL",
+      "value": 2
+    },
+    {
+      "text": "NOrmal",
+      "value": 2
+    },
+    {
+      "text": "NOrmaL",
+      "value": 2
+    },
+    {
+      "text": "NOrmAl",
+      "value": 2
+    },
+    {
+      "text": "NOrmAL",
+      "value": 2
+    },
+    {
+      "text": "NOrMal",
+      "value": 2
+    },
+    {
+      "text": "NOrMaL",
+      "value": 2
+    },
+    {
+      "text": "NOrMAl",
+      "value": 2
+    },
+    {
+      "text": "NOrMAL",
+      "value": 2
+    },
+    {
+      "text": "NORmal",
+      "value": 2
+    },
+    {
+      "text": "NORmaL",
+      "value": 2
+    },
+    {
+      "text": "NORmAl",
+      "value": 2
+    },
+    {
+      "text": "NORmAL",
+      "value": 2
+    },
+    {
+      "text": "NORMal",
+      "value": 2
+    },
+    {
+      "text": "NORMaL",
+      "value": 2
+    },
+    {
+      "text": "NORMAl",
+      "value": 2
+    },
+    {
+      "text": "NORMAL",
+      "value": 2
+    },
+    {
+      "text": "strong",
+      "value": 3
+    },
+    {
+      "text": "stronG",
+      "value": 3
+    },
+    {
+      "text": "stroNg",
+      "value": 3
+    },
+    {
+      "text": "stroNG",
+      "value": 3
+    },
+    {
+      "text": "strOng",
+      "value": 3
+    },
+    {
+      "text": "strOnG",
+      "value": 3
+    },
+    {
+      "text": "strONg",
+      "value": 3
+    },
+    {
+      "text": "strONG",
+      "value": 3
+    },
+    {
+      "text": "stRong",
+      "value": 3
+    },
+    {
+      "text": "stRonG",
+      "value": 3
+    },
+    {
+      "text": "stRoNg",
+      "value": 3
+    },
+    {
+      "text": "stRoNG",
+      "value": 3
+    },
+    {
+      "text": "stROng",
+      "value": 3
+    },
+    {
+      "text": "stROnG",
+      "value": 3
+    },
+    {
+      "text": "stRONg",
+      "value": 3
+    },
+    {
+      "text": "stRONG",
+      "value": 3
+    },
+    {
+      "text": "sTrong",
+      "value": 3
+    },
+    {
+      "text": "sTronG",
+      "value": 3
+    },
+    {
+      "text": "sTroNg",
+      "value": 3
+    },
+    {
+      "text": "sTroNG",
+      "value": 3
+    },
+    {
+      "text": "sTrOng",
+      "value": 3
+    },
+    {
+      "text": "sTrOnG",
+      "value": 3
+    },
+    {
+      "text": "sTrONg",
+      "value": 3
+    },
+    {
+      "text": "sTrONG",
+      "value": 3
+    },
+    {
+      "text": "sTRong",
+      "value": 3
+    },
+    {
+      "text": "sTRonG",
+      "value": 3
+    },
+    {
+      "text": "sTRoNg",
+      "value": 3
+    },
+    {
+      "text": "sTRoNG",
+      "value": 3
+    },
+    {
+      "text": "sTROng",
+      "value": 3
+    },
+    {
+      "text": "sTROnG",
+      "value": 3
+    },
+    {
+      "text": "sTRONg",
+      "value": 3
+    },
+    {
+      "text": "sTRONG",
+      "value": 3
+    },
+    {
+      "text": "Strong",
+      "value": 3
+    },
+    {
+      "text": "StronG",
+      "value": 3
+    },
+    {
+      "text": "StroNg",
+      "value": 3
+    },
+    {
+      "text": "StroNG",
+      "value": 3
+    },
+    {
+      "text": "StrOng",
+      "value": 3
+    },
+    {
+      "text": "StrOnG",
+      "value": 3
+    },
+    {
+      "text": "StrONg",
+      "value": 3
+    },
+    {
+      "text": "StrONG",
+      "value": 3
+    },
+    {
+      "text": "StRong",
+      "value": 3
+    },
+    {
+      "text": "StRonG",
+      "value": 3
+    },
+    {
+      "text": "StRoNg",
+      "value": 3
+    },
+    {
+      "text": "StRoNG",
+      "value": 3
+    },
+    {
+      "text": "StROng",
+      "value": 3
+    },
+    {
+      "text": "StROnG",
+      "value": 3
+    },
+    {
+      "text": "StRONg",
+      "value": 3
+    },
+    {
+      "text": "StRONG",
+      "value": 3
+    },
+    {
+      "text": "STrong",
+      "value": 3
+    },
+    {
+      "text": "STronG",
+      "value": 3
+    },
+    {
+      "text": "STroNg",
+      "value": 3
+    },
+    {
+      "text": "STroNG",
+      "value": 3
+    },
+    {
+      "text": "STrOng",
+      "value": 3
+    },
+    {
+      "text": "STrOnG",
+      "value": 3
+    },
+    {
+      "text": "STrONg",
+      "value": 3
+    },
+    {
+      "text": "STrONG",
+      "value": 3
+    },
+    {
+      "text": "STRong",
+      "value": 3
+    },
+    {
+      "text": "STRonG",
+      "value": 3
+    },
+    {
+      "text": "STRoNg",
+      "value": 3
+    },
+    {
+      "text": "STRoNG",
+      "value": 3
+    },
+    {
+      "text": "STROng",
+      "value": 3
+    },
+    {
+      "text": "STROnG",
+      "value": 3
+    },
+    {
+      "text": "STRONg",
+      "value": 3
+    },
+    {
+      "text": "STRONG",
+      "value": 3
+    }
+  ]
+}

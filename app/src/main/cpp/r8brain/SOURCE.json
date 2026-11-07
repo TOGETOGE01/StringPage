@@ -1,0 +1,79 @@
+{
+  "upstream": "https://github.com/avaneev/r8brain-free-src",
+  "tag": "version-1.6",
+  "commit": "ace65a520b4d135e3e8eddeee8dccdbc4366e8bb",
+  "files": [
+    {
+      "file": "CDSPBlockConvolver.h",
+      "upstreamSha256": "dcec850ee71868205ba7431bd35627dcdc4d0a50aea67a1fb303edbb05f6200c",
+      "vendoredSha256": "dcec850ee71868205ba7431bd35627dcdc4d0a50aea67a1fb303edbb05f6200c",
+      "modified": false
+    },
+    {
+      "file": "CDSPFIRFilter.h",
+      "upstreamSha256": "7cb1609dacd0079f00bb1bf605ffa40debeb1b157838713f03690350eed3ee15",
+      "vendoredSha256": "7cb1609dacd0079f00bb1bf605ffa40debeb1b157838713f03690350eed3ee15",
+      "modified": false
+    },
+    {
+      "file": "CDSPFracInterpolator.h",
+      "upstreamSha256": "324c18c8410fdca0d68914129799828442bf530a3ee1150af54670de22ad6698",
+      "vendoredSha256": "324c18c8410fdca0d68914129799828442bf530a3ee1150af54670de22ad6698",
+      "modified": false
+    },
+    {
+      "file": "CDSPProcessor.h",
+      "upstreamSha256": "49c48eb84a1313fd095dbcadd501ac8d4d30856cdff024b44d04b113980b87a2",
+      "vendoredSha256": "49c48eb84a1313fd095dbcadd501ac8d4d30856cdff024b44d04b113980b87a2",
+      "modified": false
+    },
+    {
+      "file": "CDSPRealFFT.h",
+      "upstreamSha256": "68c794885c0ffd3d6387a98d1b05b80a710ef38671c7e5a29fcc779ddb82498d",
+      "vendoredSha256": "68c794885c0ffd3d6387a98d1b05b80a710ef38671c7e5a29fcc779ddb82498d",
+      "modified": false
+    },
+    {
+      "file": "CDSPResampler.h",
+      "upstreamSha256": "9bd711ee971e490f8383bfcea617e6e210f2503dc2ff450b5a45de734b663649",
+      "vendoredSha256": "9bd711ee971e490f8383bfcea617e6e210f2503dc2ff450b5a45de734b663649",
+      "modified": false
+    },
+    {
+      "file": "CDSPSincFilterGen.h",
+      "upstreamSha256": "761fd3f11732d1cefff87d2af4617df353c31dc5017ee4da9d914bdfc4955059",
+      "vendoredSha256": "c35d536eb5e76d0a426cdb1f5c58d595d7cfe7fea7415e63dbea2ffac0532a3d",
+      "modified": true
+    },
+    {
+      "file": "fft4g.h",
+      "upstreamSha256": "70f4d88aa44122950a88d17f9fa594fe65921e7bfdca546fa7900b3cfd4ddd1a",
+      "vendoredSha256": "70f4d88aa44122950a88d17f9fa594fe65921e7bfdca546fa7900b3cfd4ddd1a",
+      "modified": false
+    },
+    {
+      "file": "r8bbase.cpp",
+      "upstreamSha256": "e34f88a984973880cbb1e216c25f30524daead546826f026a3563c59ac7f4ba2",
+      "vendoredSha256": "e34f88a984973880cbb1e216c25f30524daead546826f026a3563c59ac7f4ba2",
+      "modified": false
+    },
+    {
+      "file": "r8bbase.h",
+      "upstreamSha256": "1822e6364c8afc741e2e66c034eea9bebd5aff8e73fb397861b22cb8b1a00e40",
+      "vendoredSha256": "1822e6364c8afc741e2e66c034eea9bebd5aff8e73fb397861b22cb8b1a00e40",
+      "modified": false
+    },
+    {
+      "file": "r8bconf.h",
+      "upstreamSha256": "177f3cafc962ca43278efc325756d0d580bfc81dbb39f4a5369199e16a4831b7",
+      "vendoredSha256": "177f3cafc962ca43278efc325756d0d580bfc81dbb39f4a5369199e16a4831b7",
+      "modified": false
+    },
+    {
+      "file": "r8butil.h",
+      "upstreamSha256": "a9e735c14c7f6105ea29aedc9aaaf746465ea4c9434a6f802690ee05654ecdf4",
+      "vendoredSha256": "a9e735c14c7f6105ea29aedc9aaaf746465ea4c9434a6f802690ee05654ecdf4",
+      "modified": false
+    }
+  ]
+}

@@ -1,0 +1,621 @@
+{
+  "status": "passed",
+  "scope": "Original decoder cue-key handling. Modified comments stay in memory only.",
+  "rows": [
+    {
+      "name": "cue",
+      "comments": [
+        {
+          "key": "cue",
+          "offsets": [
+            953,
+            9060
+          ]
+        }
+      ],
+      "cues": [
+        953,
+        9060,
+        0
+      ],
+      "rate": 44100,
+      "streamCues": [
+        0,
+        0,
+        0
+      ],
+      "streamLoopStart": 6000,
+      "vtable": [
+        "0x2d330",
+        "0x2d9c0",
+        "0x2db50",
+        "0x2dba0",
+        "0x2db60",
+        "0x2d9b0",
+        "0x2db40",
+        "0x2dd00"
+      ],
+      "cueEntries": [
+        [
+          1,
+          9060
+        ],
+        [
+          0,
+          953
+        ]
+      ]
+    },
+    {
+      "name": "CUE",
+      "comments": [
+        {
+          "key": "CUE",
+          "offsets": [
+            953,
+            9060
+          ]
+        }
+      ],
+      "cues": [
+        0,
+        0,
+        0
+      ],
+      "rate": 44100,
+      "streamCues": [
+        0,
+        0,
+        0
+      ],
+      "streamLoopStart": 6000,
+      "vtable": [
+        "0x2d330",
+        "0x2d9c0",
+        "0x2db50",
+        "0x2dba0",
+        "0x2db60",
+        "0x2d9b0",
+        "0x2db40",
+        "0x2dd00"
+      ],
+      "cueEntries": [
+        [
+          1,
+          0
+        ],
+        [
+          0,
+          0
+        ]
+      ]
+    },
+    {
+      "name": "cUe",
+      "comments": [
+        {
+          "key": "cUe",
+          "offsets": [
+            953,
+            9060
+          ]
+        }
+      ],
+      "cues": [
+        0,
+        0,
+        0
+      ],
+      "rate": 44100,
+      "streamCues": [
+        0,
+        0,
+        0
+      ],
+      "streamLoopStart": 6000,
+      "vtable": [
+        "0x2d330",
+        "0x2d9c0",
+        "0x2db50",
+        "0x2dba0",
+        "0x2db60",
+        "0x2d9b0",
+        "0x2db40",
+        "0x2dd00"
+      ],
+      "cueEntries": [
+        [
+          1,
+          0
+        ],
+        [
+          0,
+          0
+        ]
+      ]
+    },
+    {
+      "name": "cue ",
+      "comments": [
+        {
+          "key": "cue ",
+          "offsets": [
+            953,
+            9060
+          ]
+        }
+      ],
+      "cues": [
+        0,
+        0,
+        0
+      ],
+      "rate": 44100,
+      "streamCues": [
+        0,
+        0,
+        0
+      ],
+      "streamLoopStart": 6000,
+      "vtable": [
+        "0x2d330",
+        "0x2d9c0",
+        "0x2db50",
+        "0x2dba0",
+        "0x2db60",
+        "0x2d9b0",
+        "0x2db40",
+        "0x2dd00"
+      ],
+      "cueEntries": [
+        [
+          1,
+          0
+        ],
+        [
+          0,
+          0
+        ]
+      ]
+    },
+    {
+      "name": " cue",
+      "comments": [
+        {
+          "key": " cue",
+          "offsets": [
+            953,
+            9060
+          ]
+        }
+      ],
+      "cues": [
+        0,
+        0,
+        0
+      ],
+      "rate": 44100,
+      "streamCues": [
+        0,
+        0,
+        0
+      ],
+      "streamLoopStart": 6000,
+      "vtable": [
+        "0x2d330",
+        "0x2d9c0",
+        "0x2db50",
+        "0x2dba0",
+        "0x2db60",
+        "0x2d9b0",
+        "0x2db40",
+        "0x2dd00"
+      ],
+      "cueEntries": [
+        [
+          1,
+          0
+        ],
+        [
+          0,
+          0
+        ]
+      ]
+    },
+    {
+      "name": "cue\t",
+      "comments": [
+        {
+          "key": "cue\t",
+          "offsets": [
+            953,
+            9060
+          ]
+        }
+      ],
+      "cues": [
+        0,
+        0,
+        0
+      ],
+      "rate": 44100,
+      "streamCues": [
+        0,
+        0,
+        0
+      ],
+      "streamLoopStart": 6000,
+      "vtable": [
+        "0x2d330",
+        "0x2d9c0",
+        "0x2db50",
+        "0x2dba0",
+        "0x2db60",
+        "0x2d9b0",
+        "0x2db40",
+        "0x2dd00"
+      ],
+      "cueEntries": [
+        [
+          1,
+          0
+        ],
+        [
+          0,
+          0
+        ]
+      ]
+    },
+    {
+      "name": "canonical-first",
+      "comments": [
+        {
+          "key": "cue",
+          "offsets": [
+            953,
+            9060
+          ]
+        },
+        {
+          "key": "cue",
+          "offsets": [
+            111,
+            222
+          ]
+        }
+      ],
+      "cues": [
+        111,
+        222,
+        0
+      ],
+      "rate": 44100,
+      "streamCues": [
+        0,
+        0,
+        0
+      ],
+      "streamLoopStart": 6000,
+      "vtable": [
+        "0x2d330",
+        "0x2d9c0",
+        "0x2db50",
+        "0x2dba0",
+        "0x2db60",
+        "0x2d9b0",
+        "0x2db40",
+        "0x2dd00"
+      ],
+      "cueEntries": [
+        [
+          1,
+          222
+        ],
+        [
+          0,
+          111
+        ]
+      ]
+    },
+    {
+      "name": "canonical-second",
+      "comments": [
+        {
+          "key": "cue ",
+          "offsets": [
+            111,
+            222
+          ]
+        },
+        {
+          "key": "cue",
+          "offsets": [
+            953,
+            9060
+          ]
+        }
+      ],
+      "cues": [
+        953,
+        9060,
+        0
+      ],
+      "rate": 44100,
+      "streamCues": [
+        0,
+        0,
+        0
+      ],
+      "streamLoopStart": 6000,
+      "vtable": [
+        "0x2d330",
+        "0x2d9c0",
+        "0x2db50",
+        "0x2dba0",
+        "0x2db60",
+        "0x2d9b0",
+        "0x2db40",
+        "0x2dd00"
+      ],
+      "cueEntries": [
+        [
+          1,
+          9060
+        ],
+        [
+          0,
+          953
+        ]
+      ]
+    },
+    {
+      "name": "canonical-then-spaced",
+      "comments": [
+        {
+          "key": "cue",
+          "offsets": [
+            953,
+            9060
+          ]
+        },
+        {
+          "key": "cue ",
+          "offsets": [
+            111,
+            222
+          ]
+        }
+      ],
+      "cues": [
+        953,
+        9060,
+        0
+      ],
+      "rate": 44100,
+      "streamCues": [
+        0,
+        0,
+        0
+      ],
+      "streamLoopStart": 6000,
+      "vtable": [
+        "0x2d330",
+        "0x2d9c0",
+        "0x2db50",
+        "0x2dba0",
+        "0x2db60",
+        "0x2d9b0",
+        "0x2db40",
+        "0x2dd00"
+      ],
+      "cueEntries": [
+        [
+          1,
+          9060
+        ],
+        [
+          0,
+          953
+        ]
+      ]
+    },
+    {
+      "name": "one-then-two",
+      "comments": [
+        {
+          "key": "cue",
+          "offsets": [
+            123
+          ]
+        },
+        {
+          "key": "cue",
+          "offsets": [
+            953,
+            9060
+          ]
+        }
+      ],
+      "cues": [
+        953,
+        9060,
+        0
+      ],
+      "rate": 44100,
+      "streamCues": [
+        0,
+        0,
+        0
+      ],
+      "streamLoopStart": 6000,
+      "vtable": [
+        "0x2d330",
+        "0x2d9c0",
+        "0x2db50",
+        "0x2dba0",
+        "0x2db60",
+        "0x2d9b0",
+        "0x2db40",
+        "0x2dd00"
+      ],
+      "cueEntries": [
+        [
+          1,
+          9060
+        ],
+        [
+          0,
+          953
+        ]
+      ]
+    },
+    {
+      "name": "two-then-one",
+      "comments": [
+        {
+          "key": "cue",
+          "offsets": [
+            953,
+            9060
+          ]
+        },
+        {
+          "key": "cue",
+          "offsets": [
+            123
+          ]
+        }
+      ],
+      "cues": [
+        0,
+        0,
+        0
+      ],
+      "rate": 44100,
+      "streamCues": [
+        0,
+        0,
+        0
+      ],
+      "streamLoopStart": 6000,
+      "vtable": [
+        "0x2d330",
+        "0x2d9c0",
+        "0x2db50",
+        "0x2dba0",
+        "0x2db60",
+        "0x2d9b0",
+        "0x2db40",
+        "0x2dd00"
+      ],
+      "cueEntries": [
+        [
+          1,
+          0
+        ],
+        [
+          0,
+          0
+        ]
+      ]
+    },
+    {
+      "name": "zero-then-two",
+      "comments": [
+        {
+          "key": "cue",
+          "offsets": []
+        },
+        {
+          "key": "cue",
+          "offsets": [
+            953,
+            9060
+          ]
+        }
+      ],
+      "cues": [
+        953,
+        9060,
+        0
+      ],
+      "rate": 44100,
+      "streamCues": [
+        0,
+        0,
+        0
+      ],
+      "streamLoopStart": 6000,
+      "vtable": [
+        "0x2d330",
+        "0x2d9c0",
+        "0x2db50",
+        "0x2dba0",
+        "0x2db60",
+        "0x2d9b0",
+        "0x2db40",
+        "0x2dd00"
+      ],
+      "cueEntries": [
+        [
+          1,
+          9060
+        ],
+        [
+          0,
+          953
+        ]
+      ]
+    },
+    {
+      "name": "signed",
+      "comments": [
+        {
+          "key": "cue",
+          "offsets": [
+            -7,
+            -2147483648
+          ]
+        }
+      ],
+      "cues": [
+        -7,
+        -2147483648,
+        0
+      ],
+      "rate": 44100,
+      "streamCues": [
+        0,
+        0,
+        0
+      ],
+      "streamLoopStart": 6000,
+      "vtable": [
+        "0x2d330",
+        "0x2d9c0",
+        "0x2db50",
+        "0x2dba0",
+        "0x2db60",
+        "0x2d9b0",
+        "0x2db40",
+        "0x2dd00"
+      ],
+      "cueEntries": [
+        [
+          1,
+          -2147483648
+        ],
+        [
+          0,
+          -7
+        ]
+      ]
+    }
+  ],
+  "canariesIntact": true,
+  "pairedDestructors": true,
+  "modules": {
+    "AMUtils.dll": "ef1f535f07223482dd468301ce519f7e306d99b4be6a63cdb276f62e11dd906d",
+    "AMAudio.dll": "ac8fc00cc30e8b3e051cb8fcc037b5df11936eb2c64edca2ddb8444d10b924e3"
+  }
+}

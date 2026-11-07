@@ -1,0 +1,1360 @@
+{
+  "status": "passed",
+  "scope": "Original coordinate-delta callback values, with native initialization and\nowned argument buffers. Exact floats are recorded as bits, including overflow.\n",
+  "moduleSha256": "f004d24e65c4ea4ba1d82fcc991417e7abddd7ece402358b92c8f906dab4e4d9",
+  "cases": 270,
+  "bitMismatches": 0,
+  "guardsIntact": true,
+  "rows": [
+    {
+      "kind": "amplitude",
+      "delta": -64,
+      "bits": 471862992
+    },
+    {
+      "kind": "amplitude",
+      "delta": -63,
+      "bits": 481038317
+    },
+    {
+      "kind": "amplitude",
+      "delta": -62,
+      "bits": 490272645
+    },
+    {
+      "kind": "amplitude",
+      "delta": -61,
+      "bits": 499570403
+    },
+    {
+      "kind": "amplitude",
+      "delta": -60,
+      "bits": 508936347
+    },
+    {
+      "kind": "amplitude",
+      "delta": -59,
+      "bits": 518375591
+    },
+    {
+      "kind": "amplitude",
+      "delta": -58,
+      "bits": 527893633
+    },
+    {
+      "kind": "amplitude",
+      "delta": -57,
+      "bits": 537183648
+    },
+    {
+      "kind": "amplitude",
+      "delta": -56,
+      "bits": 546224857
+    },
+    {
+      "kind": "amplitude",
+      "delta": -55,
+      "bits": 555315011
+    },
+    {
+      "kind": "amplitude",
+      "delta": -54,
+      "bits": 564457781
+    },
+    {
+      "kind": "amplitude",
+      "delta": -53,
+      "bits": 573657114
+    },
+    {
+      "kind": "amplitude",
+      "delta": -52,
+      "bits": 582917251
+    },
+    {
+      "kind": "amplitude",
+      "delta": -51,
+      "bits": 592242752
+    },
+    {
+      "kind": "amplitude",
+      "delta": -50,
+      "bits": 601638521
+    },
+    {
+      "kind": "amplitude",
+      "delta": -49,
+      "bits": 611109827
+    },
+    {
+      "kind": "amplitude",
+      "delta": -48,
+      "bits": 620662335
+    },
+    {
+      "kind": "amplitude",
+      "delta": -47,
+      "bits": 629723868
+    },
+    {
+      "kind": "amplitude",
+      "delta": -46,
+      "bits": 638784992
+    },
+    {
+      "kind": "amplitude",
+      "delta": -45,
+      "bits": 647896555
+    },
+    {
+      "kind": "amplitude",
+      "delta": -44,
+      "bits": 657062339
+    },
+    {
+      "kind": "amplitude",
+      "delta": -43,
+      "bits": 666286412
+    },
+    {
+      "kind": "amplitude",
+      "delta": -42,
+      "bits": 675573145
+    },
+    {
+      "kind": "amplitude",
+      "delta": -41,
+      "bits": 684927237
+    },
+    {
+      "kind": "amplitude",
+      "delta": -40,
+      "bits": 694353740
+    },
+    {
+      "kind": "amplitude",
+      "delta": -39,
+      "bits": 703858086
+    },
+    {
+      "kind": "amplitude",
+      "delta": -38,
+      "bits": 713238896
+    },
+    {
+      "kind": "amplitude",
+      "delta": -37,
+      "bits": 722272191
+    },
+    {
+      "kind": "amplitude",
+      "delta": -36,
+      "bits": 731353838
+    },
+    {
+      "kind": "amplitude",
+      "delta": -35,
+      "bits": 740487463
+    },
+    {
+      "kind": "amplitude",
+      "delta": -34,
+      "bits": 749676964
+    },
+    {
+      "kind": "amplitude",
+      "delta": -33,
+      "bits": 758926532
+    },
+    {
+      "kind": "amplitude",
+      "delta": -32,
+      "bits": 768240672
+    },
+    {
+      "kind": "amplitude",
+      "delta": -31,
+      "bits": 777624227
+    },
+    {
+      "kind": "amplitude",
+      "delta": -30,
+      "bits": 787082403
+    },
+    {
+      "kind": "amplitude",
+      "delta": -29,
+      "bits": 796620796
+    },
+    {
+      "kind": "amplitude",
+      "delta": -28,
+      "bits": 805775896
+    },
+    {
+      "kind": "amplitude",
+      "delta": -27,
+      "bits": 814828865
+    },
+    {
+      "kind": "amplitude",
+      "delta": -26,
+      "bits": 823931660
+    },
+    {
+      "kind": "amplitude",
+      "delta": -25,
+      "bits": 833088020
+    },
+    {
+      "kind": "amplitude",
+      "delta": -24,
+      "bits": 842301962
+    },
+    {
+      "kind": "amplitude",
+      "delta": -23,
+      "bits": 851577803
+    },
+    {
+      "kind": "amplitude",
+      "delta": -22,
+      "bits": 860920187
+    },
+    {
+      "kind": "amplitude",
+      "delta": -21,
+      "bits": 870334104
+    },
+    {
+      "kind": "amplitude",
+      "delta": -20,
+      "bits": 879824919
+    },
+    {
+      "kind": "amplitude",
+      "delta": -19,
+      "bits": 889295424
+    },
+    {
+      "kind": "amplitude",
+      "delta": -18,
+      "bits": 898320901
+    },
+    {
+      "kind": "amplitude",
+      "delta": -17,
+      "bits": 907394144
+    },
+    {
+      "kind": "amplitude",
+      "delta": -16,
+      "bits": 916518734
+    },
+    {
+      "kind": "amplitude",
+      "delta": -15,
+      "bits": 925698522
+    },
+    {
+      "kind": "amplitude",
+      "delta": -14,
+      "bits": 934937650
+    },
+    {
+      "kind": "amplitude",
+      "delta": -13,
+      "bits": 944240566
+    },
+    {
+      "kind": "amplitude",
+      "delta": -12,
+      "bits": 953612055
+    },
+    {
+      "kind": "amplitude",
+      "delta": -11,
+      "bits": 963057261
+    },
+    {
+      "kind": "amplitude",
+      "delta": -10,
+      "bits": 972581711
+    },
+    {
+      "kind": "amplitude",
+      "delta": -9,
+      "bits": 981829243
+    },
+    {
+      "kind": "amplitude",
+      "delta": -8,
+      "bits": 990874155
+    },
+    {
+      "kind": "amplitude",
+      "delta": -7,
+      "bits": 999968290
+    },
+    {
+      "kind": "amplitude",
+      "delta": -6,
+      "bits": 1009115339
+    },
+    {
+      "kind": "amplitude",
+      "delta": -5,
+      "bits": 1018319272
+    },
+    {
+      "kind": "amplitude",
+      "delta": -4,
+      "bits": 1027584354
+    },
+    {
+      "kind": "amplitude",
+      "delta": -3,
+      "bits": 1036915172
+    },
+    {
+      "kind": "amplitude",
+      "delta": -2,
+      "bits": 1046316655
+    },
+    {
+      "kind": "amplitude",
+      "delta": -1,
+      "bits": 1055794104
+    },
+    {
+      "kind": "amplitude",
+      "delta": 0,
+      "bits": 1065353216
+    },
+    {
+      "kind": "amplitude",
+      "delta": 1,
+      "bits": 1074370970
+    },
+    {
+      "kind": "amplitude",
+      "delta": 2,
+      "bits": 1083435910
+    },
+    {
+      "kind": "amplitude",
+      "delta": 3,
+      "bits": 1092551575
+    },
+    {
+      "kind": "amplitude",
+      "delta": 4,
+      "bits": 1101721769
+    },
+    {
+      "kind": "amplitude",
+      "delta": 5,
+      "bits": 1110950582
+    },
+    {
+      "kind": "amplitude",
+      "delta": 6,
+      "bits": 1120242411
+    },
+    {
+      "kind": "amplitude",
+      "delta": 7,
+      "bits": 1129601981
+    },
+    {
+      "kind": "amplitude",
+      "delta": 8,
+      "bits": 1139034374
+    },
+    {
+      "kind": "amplitude",
+      "delta": 9,
+      "bits": 1148545050
+    },
+    {
+      "kind": "amplitude",
+      "delta": 10,
+      "bits": 1157883893
+    },
+    {
+      "kind": "amplitude",
+      "delta": 11,
+      "bits": 1166920846
+    },
+    {
+      "kind": "amplitude",
+      "delta": 12,
+      "bits": 1176006425
+    },
+    {
+      "kind": "amplitude",
+      "delta": 13,
+      "bits": 1185144277
+    },
+    {
+      "kind": "amplitude",
+      "delta": 14,
+      "bits": 1194338322
+    },
+    {
+      "kind": "amplitude",
+      "delta": 15,
+      "bits": 1203592775
+    },
+    {
+      "kind": "amplitude",
+      "delta": 16,
+      "bits": 1212912167
+    },
+    {
+      "kind": "amplitude",
+      "delta": 17,
+      "bits": 1222301367
+    },
+    {
+      "kind": "amplitude",
+      "delta": 18,
+      "bits": 1231765612
+    },
+    {
+      "kind": "amplitude",
+      "delta": 19,
+      "bits": 1241310530
+    },
+    {
+      "kind": "amplitude",
+      "delta": 20,
+      "bits": 1250422381
+    },
+    {
+      "kind": "amplitude",
+      "delta": 21,
+      "bits": 1259479120
+    },
+    {
+      "kind": "amplitude",
+      "delta": 22,
+      "bits": 1268585968
+    },
+    {
+      "kind": "amplitude",
+      "delta": 23,
+      "bits": 1277746684
+    },
+    {
+      "kind": "amplitude",
+      "delta": 24,
+      "bits": 1286965308
+    },
+    {
+      "kind": "amplitude",
+      "delta": 25,
+      "bits": 1296246183
+    },
+    {
+      "kind": "amplitude",
+      "delta": 26,
+      "bits": 1305593979
+    },
+    {
+      "kind": "amplitude",
+      "delta": 27,
+      "bits": 1315013714
+    },
+    {
+      "kind": "amplitude",
+      "delta": 28,
+      "bits": 1324510783
+    },
+    {
+      "kind": "amplitude",
+      "delta": 29,
+      "bits": 1333939829
+    },
+    {
+      "kind": "amplitude",
+      "delta": 30,
+      "bits": 1342968920
+    },
+    {
+      "kind": "amplitude",
+      "delta": 31,
+      "bits": 1352046047
+    },
+    {
+      "kind": "amplitude",
+      "delta": 32,
+      "bits": 1361174813
+    },
+    {
+      "kind": "amplitude",
+      "delta": 33,
+      "bits": 1370359091
+    },
+    {
+      "kind": "amplitude",
+      "delta": 34,
+      "bits": 1379603044
+    },
+    {
+      "kind": "amplitude",
+      "delta": 35,
+      "bits": 1388911148
+    },
+    {
+      "kind": "amplitude",
+      "delta": 36,
+      "bits": 1398288215
+    },
+    {
+      "kind": "amplitude",
+      "delta": 37,
+      "bits": 1407739415
+    },
+    {
+      "kind": "amplitude",
+      "delta": 38,
+      "bits": 1417270311
+    },
+    {
+      "kind": "amplitude",
+      "delta": 39,
+      "bits": 1426475119
+    },
+    {
+      "kind": "amplitude",
+      "delta": 40,
+      "bits": 1435523755
+    },
+    {
+      "kind": "amplitude",
+      "delta": 41,
+      "bits": 1444621893
+    },
+    {
+      "kind": "amplitude",
+      "delta": 42,
+      "bits": 1453773246
+    },
+    {
+      "kind": "amplitude",
+      "delta": 43,
+      "bits": 1462981804
+    },
+    {
+      "kind": "amplitude",
+      "delta": 44,
+      "bits": 1472251859
+    },
+    {
+      "kind": "amplitude",
+      "delta": 45,
+      "bits": 1481588023
+    },
+    {
+      "kind": "amplitude",
+      "delta": 46,
+      "bits": 1490995254
+    },
+    {
+      "kind": "amplitude",
+      "delta": 47,
+      "bits": 1500478881
+    },
+    {
+      "kind": "amplitude",
+      "delta": 48,
+      "bits": 1509997037
+    },
+    {
+      "kind": "amplitude",
+      "delta": 49,
+      "bits": 1519018361
+    },
+    {
+      "kind": "amplitude",
+      "delta": 50,
+      "bits": 1528087138
+    },
+    {
+      "kind": "amplitude",
+      "delta": 51,
+      "bits": 1537206929
+    },
+    {
+      "kind": "amplitude",
+      "delta": 52,
+      "bits": 1546381558
+    },
+    {
+      "kind": "amplitude",
+      "delta": 53,
+      "bits": 1555615138
+    },
+    {
+      "kind": "amplitude",
+      "delta": 54,
+      "bits": 1564912092
+    },
+    {
+      "kind": "amplitude",
+      "delta": 55,
+      "bits": 1574277171
+    },
+    {
+      "kind": "amplitude",
+      "delta": 56,
+      "bits": 1583715486
+    },
+    {
+      "kind": "amplitude",
+      "delta": 57,
+      "bits": 1593232529
+    },
+    {
+      "kind": "amplitude",
+      "delta": 58,
+      "bits": 1602529166
+    },
+    {
+      "kind": "amplitude",
+      "delta": 59,
+      "bits": 1611569798
+    },
+    {
+      "kind": "amplitude",
+      "delta": 60,
+      "bits": 1620659332
+    },
+    {
+      "kind": "amplitude",
+      "delta": 61,
+      "bits": 1629801435
+    },
+    {
+      "kind": "amplitude",
+      "delta": 62,
+      "bits": 1639000050
+    },
+    {
+      "kind": "amplitude",
+      "delta": 63,
+      "bits": 1648259416
+    },
+    {
+      "kind": "amplitude",
+      "delta": 64,
+      "bits": 1657584089
+    },
+    {
+      "kind": "amplitude",
+      "delta": -2147483648,
+      "bits": 0
+    },
+    {
+      "kind": "amplitude",
+      "delta": -16777217,
+      "bits": 0
+    },
+    {
+      "kind": "amplitude",
+      "delta": -16777216,
+      "bits": 0
+    },
+    {
+      "kind": "amplitude",
+      "delta": 16777216,
+      "bits": 2139095040
+    },
+    {
+      "kind": "amplitude",
+      "delta": 16777217,
+      "bits": 2139095040
+    },
+    {
+      "kind": "amplitude",
+      "delta": 2147483647,
+      "bits": 2139095040
+    },
+    {
+      "kind": "pitch",
+      "delta": -64,
+      "bits": 3263168512
+    },
+    {
+      "kind": "pitch",
+      "delta": -63,
+      "bits": 3262906368
+    },
+    {
+      "kind": "pitch",
+      "delta": -62,
+      "bits": 3262644224
+    },
+    {
+      "kind": "pitch",
+      "delta": -61,
+      "bits": 3262382080
+    },
+    {
+      "kind": "pitch",
+      "delta": -60,
+      "bits": 3262119936
+    },
+    {
+      "kind": "pitch",
+      "delta": -59,
+      "bits": 3261857792
+    },
+    {
+      "kind": "pitch",
+      "delta": -58,
+      "bits": 3261595648
+    },
+    {
+      "kind": "pitch",
+      "delta": -57,
+      "bits": 3261333504
+    },
+    {
+      "kind": "pitch",
+      "delta": -56,
+      "bits": 3261071360
+    },
+    {
+      "kind": "pitch",
+      "delta": -55,
+      "bits": 3260809216
+    },
+    {
+      "kind": "pitch",
+      "delta": -54,
+      "bits": 3260547072
+    },
+    {
+      "kind": "pitch",
+      "delta": -53,
+      "bits": 3260284928
+    },
+    {
+      "kind": "pitch",
+      "delta": -52,
+      "bits": 3260022784
+    },
+    {
+      "kind": "pitch",
+      "delta": -51,
+      "bits": 3259760640
+    },
+    {
+      "kind": "pitch",
+      "delta": -50,
+      "bits": 3259498496
+    },
+    {
+      "kind": "pitch",
+      "delta": -49,
+      "bits": 3259236352
+    },
+    {
+      "kind": "pitch",
+      "delta": -48,
+      "bits": 3258974208
+    },
+    {
+      "kind": "pitch",
+      "delta": -47,
+      "bits": 3258712064
+    },
+    {
+      "kind": "pitch",
+      "delta": -46,
+      "bits": 3258449920
+    },
+    {
+      "kind": "pitch",
+      "delta": -45,
+      "bits": 3258187776
+    },
+    {
+      "kind": "pitch",
+      "delta": -44,
+      "bits": 3257925632
+    },
+    {
+      "kind": "pitch",
+      "delta": -43,
+      "bits": 3257663488
+    },
+    {
+      "kind": "pitch",
+      "delta": -42,
+      "bits": 3257401344
+    },
+    {
+      "kind": "pitch",
+      "delta": -41,
+      "bits": 3257139200
+    },
+    {
+      "kind": "pitch",
+      "delta": -40,
+      "bits": 3256877056
+    },
+    {
+      "kind": "pitch",
+      "delta": -39,
+      "bits": 3256614912
+    },
+    {
+      "kind": "pitch",
+      "delta": -38,
+      "bits": 3256352768
+    },
+    {
+      "kind": "pitch",
+      "delta": -37,
+      "bits": 3256090624
+    },
+    {
+      "kind": "pitch",
+      "delta": -36,
+      "bits": 3255828480
+    },
+    {
+      "kind": "pitch",
+      "delta": -35,
+      "bits": 3255566336
+    },
+    {
+      "kind": "pitch",
+      "delta": -34,
+      "bits": 3255304192
+    },
+    {
+      "kind": "pitch",
+      "delta": -33,
+      "bits": 3255042048
+    },
+    {
+      "kind": "pitch",
+      "delta": -32,
+      "bits": 3254779904
+    },
+    {
+      "kind": "pitch",
+      "delta": -31,
+      "bits": 3254255616
+    },
+    {
+      "kind": "pitch",
+      "delta": -30,
+      "bits": 3253731328
+    },
+    {
+      "kind": "pitch",
+      "delta": -29,
+      "bits": 3253207040
+    },
+    {
+      "kind": "pitch",
+      "delta": -28,
+      "bits": 3252682752
+    },
+    {
+      "kind": "pitch",
+      "delta": -27,
+      "bits": 3252158464
+    },
+    {
+      "kind": "pitch",
+      "delta": -26,
+      "bits": 3251634176
+    },
+    {
+      "kind": "pitch",
+      "delta": -25,
+      "bits": 3251109888
+    },
+    {
+      "kind": "pitch",
+      "delta": -24,
+      "bits": 3250585600
+    },
+    {
+      "kind": "pitch",
+      "delta": -23,
+      "bits": 3250061312
+    },
+    {
+      "kind": "pitch",
+      "delta": -22,
+      "bits": 3249537024
+    },
+    {
+      "kind": "pitch",
+      "delta": -21,
+      "bits": 3249012736
+    },
+    {
+      "kind": "pitch",
+      "delta": -20,
+      "bits": 3248488448
+    },
+    {
+      "kind": "pitch",
+      "delta": -19,
+      "bits": 3247964160
+    },
+    {
+      "kind": "pitch",
+      "delta": -18,
+      "bits": 3247439872
+    },
+    {
+      "kind": "pitch",
+      "delta": -17,
+      "bits": 3246915584
+    },
+    {
+      "kind": "pitch",
+      "delta": -16,
+      "bits": 3246391296
+    },
+    {
+      "kind": "pitch",
+      "delta": -15,
+      "bits": 3245342720
+    },
+    {
+      "kind": "pitch",
+      "delta": -14,
+      "bits": 3244294144
+    },
+    {
+      "kind": "pitch",
+      "delta": -13,
+      "bits": 3243245568
+    },
+    {
+      "kind": "pitch",
+      "delta": -12,
+      "bits": 3242196992
+    },
+    {
+      "kind": "pitch",
+      "delta": -11,
+      "bits": 3241148416
+    },
+    {
+      "kind": "pitch",
+      "delta": -10,
+      "bits": 3240099840
+    },
+    {
+      "kind": "pitch",
+      "delta": -9,
+      "bits": 3239051264
+    },
+    {
+      "kind": "pitch",
+      "delta": -8,
+      "bits": 3238002688
+    },
+    {
+      "kind": "pitch",
+      "delta": -7,
+      "bits": 3235905536
+    },
+    {
+      "kind": "pitch",
+      "delta": -6,
+      "bits": 3233808384
+    },
+    {
+      "kind": "pitch",
+      "delta": -5,
+      "bits": 3231711232
+    },
+    {
+      "kind": "pitch",
+      "delta": -4,
+      "bits": 3229614080
+    },
+    {
+      "kind": "pitch",
+      "delta": -3,
+      "bits": 3225419776
+    },
+    {
+      "kind": "pitch",
+      "delta": -2,
+      "bits": 3221225472
+    },
+    {
+      "kind": "pitch",
+      "delta": -1,
+      "bits": 3212836864
+    },
+    {
+      "kind": "pitch",
+      "delta": 0,
+      "bits": 0
+    },
+    {
+      "kind": "pitch",
+      "delta": 1,
+      "bits": 1065353216
+    },
+    {
+      "kind": "pitch",
+      "delta": 2,
+      "bits": 1073741824
+    },
+    {
+      "kind": "pitch",
+      "delta": 3,
+      "bits": 1077936128
+    },
+    {
+      "kind": "pitch",
+      "delta": 4,
+      "bits": 1082130432
+    },
+    {
+      "kind": "pitch",
+      "delta": 5,
+      "bits": 1084227584
+    },
+    {
+      "kind": "pitch",
+      "delta": 6,
+      "bits": 1086324736
+    },
+    {
+      "kind": "pitch",
+      "delta": 7,
+      "bits": 1088421888
+    },
+    {
+      "kind": "pitch",
+      "delta": 8,
+      "bits": 1090519040
+    },
+    {
+      "kind": "pitch",
+      "delta": 9,
+      "bits": 1091567616
+    },
+    {
+      "kind": "pitch",
+      "delta": 10,
+      "bits": 1092616192
+    },
+    {
+      "kind": "pitch",
+      "delta": 11,
+      "bits": 1093664768
+    },
+    {
+      "kind": "pitch",
+      "delta": 12,
+      "bits": 1094713344
+    },
+    {
+      "kind": "pitch",
+      "delta": 13,
+      "bits": 1095761920
+    },
+    {
+      "kind": "pitch",
+      "delta": 14,
+      "bits": 1096810496
+    },
+    {
+      "kind": "pitch",
+      "delta": 15,
+      "bits": 1097859072
+    },
+    {
+      "kind": "pitch",
+      "delta": 16,
+      "bits": 1098907648
+    },
+    {
+      "kind": "pitch",
+      "delta": 17,
+      "bits": 1099431936
+    },
+    {
+      "kind": "pitch",
+      "delta": 18,
+      "bits": 1099956224
+    },
+    {
+      "kind": "pitch",
+      "delta": 19,
+      "bits": 1100480512
+    },
+    {
+      "kind": "pitch",
+      "delta": 20,
+      "bits": 1101004800
+    },
+    {
+      "kind": "pitch",
+      "delta": 21,
+      "bits": 1101529088
+    },
+    {
+      "kind": "pitch",
+      "delta": 22,
+      "bits": 1102053376
+    },
+    {
+      "kind": "pitch",
+      "delta": 23,
+      "bits": 1102577664
+    },
+    {
+      "kind": "pitch",
+      "delta": 24,
+      "bits": 1103101952
+    },
+    {
+      "kind": "pitch",
+      "delta": 25,
+      "bits": 1103626240
+    },
+    {
+      "kind": "pitch",
+      "delta": 26,
+      "bits": 1104150528
+    },
+    {
+      "kind": "pitch",
+      "delta": 27,
+      "bits": 1104674816
+    },
+    {
+      "kind": "pitch",
+      "delta": 28,
+      "bits": 1105199104
+    },
+    {
+      "kind": "pitch",
+      "delta": 29,
+      "bits": 1105723392
+    },
+    {
+      "kind": "pitch",
+      "delta": 30,
+      "bits": 1106247680
+    },
+    {
+      "kind": "pitch",
+      "delta": 31,
+      "bits": 1106771968
+    },
+    {
+      "kind": "pitch",
+      "delta": 32,
+      "bits": 1107296256
+    },
+    {
+      "kind": "pitch",
+      "delta": 33,
+      "bits": 1107558400
+    },
+    {
+      "kind": "pitch",
+      "delta": 34,
+      "bits": 1107820544
+    },
+    {
+      "kind": "pitch",
+      "delta": 35,
+      "bits": 1108082688
+    },
+    {
+      "kind": "pitch",
+      "delta": 36,
+      "bits": 1108344832
+    },
+    {
+      "kind": "pitch",
+      "delta": 37,
+      "bits": 1108606976
+    },
+    {
+      "kind": "pitch",
+      "delta": 38,
+      "bits": 1108869120
+    },
+    {
+      "kind": "pitch",
+      "delta": 39,
+      "bits": 1109131264
+    },
+    {
+      "kind": "pitch",
+      "delta": 40,
+      "bits": 1109393408
+    },
+    {
+      "kind": "pitch",
+      "delta": 41,
+      "bits": 1109655552
+    },
+    {
+      "kind": "pitch",
+      "delta": 42,
+      "bits": 1109917696
+    },
+    {
+      "kind": "pitch",
+      "delta": 43,
+      "bits": 1110179840
+    },
+    {
+      "kind": "pitch",
+      "delta": 44,
+      "bits": 1110441984
+    },
+    {
+      "kind": "pitch",
+      "delta": 45,
+      "bits": 1110704128
+    },
+    {
+      "kind": "pitch",
+      "delta": 46,
+      "bits": 1110966272
+    },
+    {
+      "kind": "pitch",
+      "delta": 47,
+      "bits": 1111228416
+    },
+    {
+      "kind": "pitch",
+      "delta": 48,
+      "bits": 1111490560
+    },
+    {
+      "kind": "pitch",
+      "delta": 49,
+      "bits": 1111752704
+    },
+    {
+      "kind": "pitch",
+      "delta": 50,
+      "bits": 1112014848
+    },
+    {
+      "kind": "pitch",
+      "delta": 51,
+      "bits": 1112276992
+    },
+    {
+      "kind": "pitch",
+      "delta": 52,
+      "bits": 1112539136
+    },
+    {
+      "kind": "pitch",
+      "delta": 53,
+      "bits": 1112801280
+    },
+    {
+      "kind": "pitch",
+      "delta": 54,
+      "bits": 1113063424
+    },
+    {
+      "kind": "pitch",
+      "delta": 55,
+      "bits": 1113325568
+    },
+    {
+      "kind": "pitch",
+      "delta": 56,
+      "bits": 1113587712
+    },
+    {
+      "kind": "pitch",
+      "delta": 57,
+      "bits": 1113849856
+    },
+    {
+      "kind": "pitch",
+      "delta": 58,
+      "bits": 1114112000
+    },
+    {
+      "kind": "pitch",
+      "delta": 59,
+      "bits": 1114374144
+    },
+    {
+      "kind": "pitch",
+      "delta": 60,
+      "bits": 1114636288
+    },
+    {
+      "kind": "pitch",
+      "delta": 61,
+      "bits": 1114898432
+    },
+    {
+      "kind": "pitch",
+      "delta": 62,
+      "bits": 1115160576
+    },
+    {
+      "kind": "pitch",
+      "delta": 63,
+      "bits": 1115422720
+    },
+    {
+      "kind": "pitch",
+      "delta": 64,
+      "bits": 1115684864
+    },
+    {
+      "kind": "pitch",
+      "delta": -2147483648,
+      "bits": 3472883712
+    },
+    {
+      "kind": "pitch",
+      "delta": -16777217,
+      "bits": 3414163456
+    },
+    {
+      "kind": "pitch",
+      "delta": -16777216,
+      "bits": 3414163456
+    },
+    {
+      "kind": "pitch",
+      "delta": 16777216,
+      "bits": 1266679808
+    },
+    {
+      "kind": "pitch",
+      "delta": 16777217,
+      "bits": 1266679808
+    },
+    {
+      "kind": "pitch",
+      "delta": 2147483647,
+      "bits": 1325400064
+    }
+  ]
+}

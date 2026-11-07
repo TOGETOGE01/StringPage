@@ -1,0 +1,2112 @@
+{
+  "status": "passed",
+  "scope": "Read each initialized SoundFontV7's decoder gain field used at makeDecoder\n16f7e. No decodeBlock/PCM rendering. Source hashes, guards and paired destructors.\n",
+  "moduleSha256": "1bfea4c982576cf9e396238bfa9cac1c5cd006c7892a81ce3ffdbef3fd9455f2",
+  "banks": 350,
+  "gains": 1,
+  "seconds": 2.5553225000003295,
+  "guardsIntact": true,
+  "originalsUnchanged": true,
+  "rows": [
+    {
+      "id": "12-Steel",
+      "type": "steelGuitar",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "200A-EPiano",
+      "type": "electricPiano",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "5-Banjo",
+      "type": "banjo",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "5-Strings-Bass",
+      "type": "electricBass",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "7-Strings",
+      "type": "steelGuitar",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Accordion-Jazz",
+      "type": "accordion",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Accordion-Musette",
+      "type": "accordion",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Accordion",
+      "type": "accordion",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Acoustic-Bass",
+      "type": "acousticBass",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "AcousticKick-Percu",
+      "type": "kickDrum",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "AddClavinet-Key",
+      "type": "keySynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "AgogoHigh-Percu",
+      "type": "agogo",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "AgogoLow-Percu",
+      "type": "agogo",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Alto-Sax",
+      "type": "saxophone",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "American-Mandolin",
+      "type": "mandolin",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Ancient-Brass",
+      "type": "brassSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Bagpipe",
+      "type": "bagpipe",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Ballad-Organ",
+      "type": "electricOrgan",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Bandoneon",
+      "type": "bandoneon",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Baritone-Guitar",
+      "type": "electricGuitar",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Baritone-Sax",
+      "type": "saxophone",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "BassClarinet-Solo",
+      "type": "clarinet",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Bassoon-Ensemble",
+      "type": "bassoon",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Bassoon-Solo",
+      "type": "bassoon",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "BassTuba-Solo",
+      "type": "tuba",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "BellTree-Percu",
+      "type": "bellTree",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Blues-Organ",
+      "type": "electricOrgan",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Blues-Steel",
+      "type": "steelGuitar",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "BongoHigh-Percu",
+      "type": "bongo",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "BongoLow-Percu",
+      "type": "bongo",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Bottle-Pad",
+      "type": "padSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Bowed-Brass",
+      "type": "brassSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Brassy-Lead",
+      "type": "leadSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Brilliance-Brass",
+      "type": "brassSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Cabasa-Percu",
+      "type": "cabasa",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Castanets-Percu",
+      "type": "castanets",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "CC-Ukulele",
+      "type": "ukulele",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Celesta-Tuned",
+      "type": "celesta",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Cello-Ensemble-Pizz",
+      "type": "cello",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Cello-Ensemble",
+      "type": "cello",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Cello-Solo-Pizz",
+      "type": "cello",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Cello-Solo",
+      "type": "cello",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Clarinet-Ensemble",
+      "type": "clarinet",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Clarinet-Solo",
+      "type": "clarinet",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Classic-Guitar",
+      "type": "electricGuitar",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Classic-Lead",
+      "type": "leadSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Claves-Percu",
+      "type": "claves",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Clavi-Seq",
+      "type": "seqSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Complex-Pad",
+      "type": "padSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Concerto-Nylon",
+      "type": "nylonGuitar",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "CongaHigh-Percu",
+      "type": "conga",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "CongaLow-Percu",
+      "type": "conga",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Contrabass-Ensemble-Pizz",
+      "type": "contrabass",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Contrabass-Ensemble",
+      "type": "contrabass",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Contrabass-Solo-Pizz",
+      "type": "contrabass",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Contrabass-Solo",
+      "type": "contrabass",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Contrabassoon-Solo",
+      "type": "contrabassoon",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "CowbellBig-Percu",
+      "type": "cowbell",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "CowbellMid-Percu",
+      "type": "cowbell",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "CowbellSmall-Percu",
+      "type": "cowbell",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "CP-EPiano",
+      "type": "electricPiano",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Cuica-Percu",
+      "type": "cuica",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Custom-China",
+      "type": "china",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Custom-Crash01",
+      "type": "crash",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Custom-Crash02",
+      "type": "crash",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Custom-Guitar",
+      "type": "electricGuitar",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Custom-Hihat",
+      "type": "hiHat",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Custom-Kick",
+      "type": "kickDrum",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Custom-Ride",
+      "type": "ride",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Custom-Snare",
+      "type": "snare",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Custom-Splash",
+      "type": "splash",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Custom-Tom01",
+      "type": "tom",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Custom-Tom02",
+      "type": "tom",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Custom-Tom03",
+      "type": "tom",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Custom-Tom04",
+      "type": "tom",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "D-Steel",
+      "type": "steelGuitar",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Dano-Guitar",
+      "type": "electricGuitar",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Dave-Lead",
+      "type": "leadSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Dep-Bass",
+      "type": "bassSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Digi-Seq",
+      "type": "seqSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Disco-Seq",
+      "type": "seqSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Dist-Lead",
+      "type": "leadSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Dobro-Tricone",
+      "type": "steelGuitar",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Drop-Seq",
+      "type": "seqSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Drum606-Crash",
+      "type": "crash",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Drum606-Hihat",
+      "type": "hiHat",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Drum606-Kick",
+      "type": "kickDrum",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Drum606-Snare",
+      "type": "snare",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Drum606-Tom01",
+      "type": "tom",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Drum606-Tom02",
+      "type": "tom",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Drum707-Crash",
+      "type": "crash",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Drum707-Hihat",
+      "type": "hiHat",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Drum707-Kick",
+      "type": "kickDrum",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Drum707-Snare",
+      "type": "snare",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Drum707-Tom01",
+      "type": "tom",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Drum707-Tom02",
+      "type": "tom",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Drum707-Tom03",
+      "type": "tom",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Drum808-Crash",
+      "type": "crash",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Drum808-Hihat",
+      "type": "hiHat",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Drum808-Kick",
+      "type": "kickDrum",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Drum808-Snare",
+      "type": "snare",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Drum808-Tom01",
+      "type": "tom",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Drum808-Tom02",
+      "type": "tom",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Drum808-Tom03",
+      "type": "tom",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Drum909-Crash01",
+      "type": "crash",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Drum909-Crash02",
+      "type": "crash",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Drum909-Hihat",
+      "type": "hiHat",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Drum909-Kick",
+      "type": "kickDrum",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Drum909-Ride",
+      "type": "ride",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Drum909-Snare",
+      "type": "snare",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Drum909-Tom01",
+      "type": "tom",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Drum909-Tom02",
+      "type": "tom",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Drum909-Tom03",
+      "type": "tom",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "DXPiano1-Key",
+      "type": "keySynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "DXPiano2-Key",
+      "type": "keySynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Eastern-APiano",
+      "type": "acousticPiano",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Edge-Seq",
+      "type": "seqSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Electric-Bass",
+      "type": "electricBass",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Electric-Sitar",
+      "type": "electricSitar",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "ElectricSnare-Percu",
+      "type": "snare",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "EnglishHorn-Solo",
+      "type": "englishHorn",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "ES-Guitar",
+      "type": "electricGuitar",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Expressive-Brass",
+      "type": "brassSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Fab-China",
+      "type": "china",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Fab-Crash01",
+      "type": "crash",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Fab-Crash02",
+      "type": "crash",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Fab-Hihat",
+      "type": "hiHat",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Fab-Kick",
+      "type": "kickDrum",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Fab-Ride",
+      "type": "ride",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Fab-Snare",
+      "type": "snare",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Fab-Splash",
+      "type": "splash",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Fab-Tom01",
+      "type": "tom",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Fab-Tom02",
+      "type": "tom",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Fab-Tom03",
+      "type": "tom",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Fat-Lead",
+      "type": "leadSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Flamenco-Guitar",
+      "type": "nylonGuitar",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Flugelhorn",
+      "type": "flugelHorn",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Flute-Ensemble",
+      "type": "flute",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Flute-Lead",
+      "type": "leadSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Flute-Solo",
+      "type": "flute",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "FM-Brass",
+      "type": "brassSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "FMElectro-Bass",
+      "type": "bassSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "FMHouse-Bass",
+      "type": "bassSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "FMLo-Brass",
+      "type": "brassSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "FMPiano-Key",
+      "type": "keySynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "FMSyn-Bass",
+      "type": "bassSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "FreelyHandClap-Percu",
+      "type": "handClap",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "FrenchHorn-Ensemble",
+      "type": "frenchHorn",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "FrenchHorn-Solo",
+      "type": "frenchHorn",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Fretless-Bass",
+      "type": "fretlessBass",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Fretless-JB",
+      "type": "fretlessBass",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Full Harmonica",
+      "type": "harmonica",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Full-Organ",
+      "type": "electricOrgan",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "German-APiano",
+      "type": "acousticPiano",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Gold-Guitar",
+      "type": "electricGuitar",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Golpe-Percu",
+      "type": "unpitched",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Grancassa-Percu",
+      "type": "grancassa",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "GroupHandClap-Percu",
+      "type": "handClap",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Guiro-Percu",
+      "type": "guiro",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Harmonica-Alto",
+      "type": "harmonica",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Harmonica-Bass",
+      "type": "harmonica",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Harmonica-Chromatic",
+      "type": "harmonica",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Harmonica",
+      "type": "harmonica",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Harp-Solo",
+      "type": "harp",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Harpsichord-Key",
+      "type": "harpsichord",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Harpy-Seq",
+      "type": "seqSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "HiSolo-Brass",
+      "type": "brassSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "House-Bass",
+      "type": "bassSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Huge-Pad",
+      "type": "padSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Intimacy-Pad",
+      "type": "padSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Jam-Bass",
+      "type": "bassSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Jazz-Bass",
+      "type": "electricBass",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Jazz-Guitar",
+      "type": "electricGuitar",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Jazz-Organ",
+      "type": "electricOrgan",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "JingleBell-Percu",
+      "type": "jingleBell",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Jumbo-Steel",
+      "type": "steelGuitar",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "L4-Guitar",
+      "type": "electricGuitar",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Lately-Bass",
+      "type": "bassSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "LatinoTambourine-Percu",
+      "type": "tambourine",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "LatinoTriangle-Percu",
+      "type": "triangle",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "LMDrum-Crash",
+      "type": "crash",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "LMDrum-Hihat",
+      "type": "hiHat",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "LMDrum-Kick",
+      "type": "kickDrum",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "LMDrum-Ride",
+      "type": "ride",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "LMDrum-Snare",
+      "type": "snare",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "LMDrum-Tom01",
+      "type": "tom",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "LMDrum-Tom02",
+      "type": "tom",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "LMDrum-Tom03",
+      "type": "tom",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "LMDrum-Tom04",
+      "type": "tom",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "LMDrum-Tom05",
+      "type": "tom",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Low-Pad",
+      "type": "padSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "LowFloorTom-Percu",
+      "type": "tom",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Lucid-Pad",
+      "type": "padSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Lush-Pad",
+      "type": "padSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Macro-Lead",
+      "type": "leadSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Manouche-Guitar",
+      "type": "steelGuitar",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Maracas-Percu",
+      "type": "maraca",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "MarkI-EPiano",
+      "type": "electricPiano",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Master-China",
+      "type": "china",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Master-Crash01",
+      "type": "crash",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Master-Crash02",
+      "type": "crash",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Master-Hihat",
+      "type": "hiHat",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Master-Kick",
+      "type": "kickDrum",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Master-Ride",
+      "type": "ride",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Master-Snare",
+      "type": "snare",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Master-Splash",
+      "type": "splash",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Master-Tom01",
+      "type": "tom",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Master-Tom02",
+      "type": "tom",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Master-Tom03",
+      "type": "tom",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Master-Tom04",
+      "type": "tom",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Master-Tom05",
+      "type": "tom",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Matrix-Brass",
+      "type": "brassSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Mellotron-Brass",
+      "type": "mellotronBrass",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Mellotron-Cello",
+      "type": "mellotronCello",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Mellotron-Choir",
+      "type": "mellotronChoir",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Mellotron-Flute",
+      "type": "mellotronFlute",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Mellotron-Strings",
+      "type": "mellotronStrings",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Mellotron-Violas",
+      "type": "mellotronViolas",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "MetaChoir-Pad",
+      "type": "padSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Metal-Guitar",
+      "type": "electricGuitar",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Metronome-Percu",
+      "type": "snare",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Mini-Pad",
+      "type": "padSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Modern-Bass",
+      "type": "electricBass",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Modern-Brass",
+      "type": "brassSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Modern-Nylon",
+      "type": "nylonGuitar",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Moving-Pad",
+      "type": "padSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Oak-China",
+      "type": "china",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Oak-Crash01",
+      "type": "crash",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Oak-Crash02",
+      "type": "crash",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Oak-Hihat",
+      "type": "hiHat",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Oak-Kick",
+      "type": "kickDrum",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Oak-Ride",
+      "type": "ride",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Oak-Snare",
+      "type": "snare",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Oak-Splash",
+      "type": "splash",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Oak-Tom01",
+      "type": "tom",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Oak-Tom02",
+      "type": "tom",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Oak-Tom03",
+      "type": "tom",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Oak-Tom04",
+      "type": "tom",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "OB-Bass",
+      "type": "bassSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Oboe-Ensemble",
+      "type": "oboe",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Oboe-Solo",
+      "type": "oboe",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "OBStrings-Pad",
+      "type": "padSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "OldSkool-Lead",
+      "type": "leadSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "P5-Seq",
+      "type": "seqSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Peacock-Steel",
+      "type": "steelGuitar",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Piatti-Percu",
+      "type": "piatti",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Piccolo-Solo",
+      "type": "piccolo",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Pop-Seq",
+      "type": "seqSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Pre-Bass",
+      "type": "electricBass",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Randy-Guitar",
+      "type": "electricGuitar",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Recorder-Solo",
+      "type": "recorder",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "RelaxedHandClap-Percu",
+      "type": "handClap",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Reso-Nylon",
+      "type": "resonatorGuitar",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Reverse-Cymbal",
+      "type": "crash",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Rick-Bass",
+      "type": "electricBass",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Rick12-Guitar",
+      "type": "electricGuitar",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Rick6-Guitar",
+      "type": "electricGuitar",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Ride-Percu",
+      "type": "ride",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Rock-Organ",
+      "type": "electricOrgan",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Rockabilly-Guitar",
+      "type": "electricGuitar",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Rosin-Pad",
+      "type": "padSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Rubber-Lead",
+      "type": "leadSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "SAPiano1-Key",
+      "type": "keySynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "SAPiano2-Key",
+      "type": "keySynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Satch-Guitar",
+      "type": "electricGuitar",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "ShakerEgg-Percu",
+      "type": "shaker",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "ShakerStudio-Percu",
+      "type": "shaker",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "ShakerWooden-Percu",
+      "type": "shaker",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Simple-Brass",
+      "type": "brassSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "SnareDrum-Percu",
+      "type": "snare",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "SolinaString-Pad",
+      "type": "padSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Soprano-Sax",
+      "type": "saxophone",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Square-Seq",
+      "type": "seqSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Standard-Guitar",
+      "type": "electricGuitar",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Star-China",
+      "type": "china",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Star-Crash01",
+      "type": "crash",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Star-Crash02",
+      "type": "crash",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Star-Hihat",
+      "type": "hiHat",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Star-Kick",
+      "type": "kickDrum",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Star-Ride",
+      "type": "ride",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Star-Snare",
+      "type": "snare",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Star-Splash",
+      "type": "splash",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Star-Tom01",
+      "type": "tom",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Star-Tom02",
+      "type": "tom",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Star-Tom03",
+      "type": "tom",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Star-Tom04",
+      "type": "tom",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Star-Tom05",
+      "type": "tom",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Stick-Percu",
+      "type": "snare",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Sting-Bass",
+      "type": "electricBass",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Strat-Guitar",
+      "type": "electricGuitar",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "String-Pad",
+      "type": "padSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Surdo-Percu",
+      "type": "surdo",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Sync-Bass",
+      "type": "bassSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Tak-Pad",
+      "type": "padSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Tambourine-Percu",
+      "type": "tambourine",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "TB-Bass",
+      "type": "bassSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Tele-Guitar",
+      "type": "electricGuitar",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Tenor-Sax",
+      "type": "saxophone",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Teutonic-Brass",
+      "type": "brassSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "TimbaleHigh-Percu",
+      "type": "timbale",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "TimbaleLow-Percu",
+      "type": "timbale",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "TimpaniHi-Tuned",
+      "type": "timpani",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "TimpaniLo-Tuned",
+      "type": "timpani",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "TM-Lead",
+      "type": "leadSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Triangle-Percu",
+      "type": "triangle",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Trombone-Ensemble",
+      "type": "trombone",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Trombone-Solo",
+      "type": "trombone",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Trumpet-Ensemble",
+      "type": "trumpet",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Trumpet-Solo",
+      "type": "trumpet",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Trumpet-Sordino-Solo",
+      "type": "trumpet",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "TX-Brass",
+      "type": "brassSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Upright-APiano",
+      "type": "acousticPiano",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Upright-Bass",
+      "type": "uprightBass",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Vibraphone-Tuned",
+      "type": "vibraphone",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Vibraslap-Percu",
+      "type": "vibraslap",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Vintage-China",
+      "type": "china",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Vintage-Crash01",
+      "type": "crash",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Vintage-Crash02",
+      "type": "crash",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Vintage-Hihat",
+      "type": "hiHat",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Vintage-Kick",
+      "type": "kickDrum",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Vintage-Ride",
+      "type": "ride",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Vintage-Snare",
+      "type": "snare",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Vintage-Splash",
+      "type": "cymbal",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Vintage-Tom01",
+      "type": "tom",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Vintage-Tom02",
+      "type": "tom",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Vintage-Tom03",
+      "type": "tom",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Vintage-Tom04",
+      "type": "tom",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Vintage-Tom05",
+      "type": "tom",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Viola-Ensemble-Pizz",
+      "type": "viola",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Viola-Ensemble",
+      "type": "viola",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Viola-Solo-Pizz",
+      "type": "viola",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Viola-Solo",
+      "type": "viola",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Violin-Bass",
+      "type": "electricBass",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Violin-Solo-Pizz",
+      "type": "violin",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Violin-Solo",
+      "type": "violin",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Violin1-Ensemble-Pizz",
+      "type": "violin",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Violin1-Ensemble",
+      "type": "violin",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Vocal-Pad",
+      "type": "padSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Vox-Pad",
+      "type": "padSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Warm-Pad",
+      "type": "padSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Whisper-Pad",
+      "type": "padSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "WhistleHigh-Percu",
+      "type": "whistle",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "WhistleLow-Percu",
+      "type": "whistle",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Wide-Pad",
+      "type": "padSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Wonder-Lead",
+      "type": "leadSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "WoodblockHigh-Percu",
+      "type": "woodblock",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "WoodblockLow-Percu",
+      "type": "woodblock",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Woody-Seq",
+      "type": "seqSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "WunderString-Pad",
+      "type": "padSynthesizer",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    },
+    {
+      "id": "Xylophone-Tuned",
+      "type": "xylophone",
+      "gain": 0.825404167175293,
+      "bits": 1062423984
+    }
+  ]
+}

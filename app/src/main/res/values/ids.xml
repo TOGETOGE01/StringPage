@@ -1,0 +1,23 @@
+<resources>
+    <item name="recent_toggle" type="id" />
+    <item name="recent_list" type="id" />
+    <item name="manage_recents" type="id" />
+    <item name="recent_search" type="id" />
+    <item name="recent_manager_list" type="id" />
+    <item name="more_actions" type="id" />
+    <item name="score_view" type="id" />
+    <item name="score_title" type="id" />
+    <item name="audio_source" type="id" />
+    <item name="track_select" type="id" />
+    <item name="playback_status" type="id" />
+    <item name="time_position" type="id" />
+    <item name="play_pause" type="id" />
+    <item name="speed_select" type="id" />
+    <item name="loop_select" type="id" />
+    <item name="progress" type="id" />
+    <item name="full_screen" type="id" />
+    <item name="import_file" type="id" />
+    <item name="library_panel" type="id" />
+    <item name="practice_panel" type="id" />
+    <item name="notation_select" type="id" />
+</resources>

@@ -1,0 +1,568 @@
+{
+  "status": "passed",
+  "scope": "IDecoder outputFrameCount with locally owned samplingRate getter only.",
+  "moduleSha256": "ac8fc00cc30e8b3e051cb8fcc037b5df11936eb2c64edca2ddb8444d10b924e3",
+  "rows": [
+    {
+      "rate": 8000,
+      "input": 0,
+      "output": 0
+    },
+    {
+      "rate": 8000,
+      "input": 1,
+      "output": 5
+    },
+    {
+      "rate": 8000,
+      "input": 17,
+      "output": 93
+    },
+    {
+      "rate": 8000,
+      "input": 1000,
+      "output": 5512
+    },
+    {
+      "rate": 8000,
+      "input": 9601,
+      "output": 52925
+    },
+    {
+      "rate": 8000,
+      "input": 29488,
+      "output": 162552
+    },
+    {
+      "rate": 8000,
+      "input": 29550,
+      "output": 162894
+    },
+    {
+      "rate": 8000,
+      "input": 48001,
+      "output": 264605
+    },
+    {
+      "rate": 8000,
+      "input": 65535,
+      "output": 361261
+    },
+    {
+      "rate": 8000,
+      "input": 1234567,
+      "output": 6805550
+    },
+    {
+      "rate": 8000,
+      "input": 16777215,
+      "output": 92484392
+    },
+    {
+      "rate": 8000,
+      "input": 16777216,
+      "output": 92484400
+    },
+    {
+      "rate": 8000,
+      "input": 16777217,
+      "output": 92484400
+    },
+    {
+      "rate": 8000,
+      "input": 4294967295,
+      "output": 23676006400
+    },
+    {
+      "rate": 22050,
+      "input": 0,
+      "output": 0
+    },
+    {
+      "rate": 22050,
+      "input": 1,
+      "output": 2
+    },
+    {
+      "rate": 22050,
+      "input": 17,
+      "output": 34
+    },
+    {
+      "rate": 22050,
+      "input": 1000,
+      "output": 2000
+    },
+    {
+      "rate": 22050,
+      "input": 9601,
+      "output": 19202
+    },
+    {
+      "rate": 22050,
+      "input": 29488,
+      "output": 58976
+    },
+    {
+      "rate": 22050,
+      "input": 29550,
+      "output": 59099
+    },
+    {
+      "rate": 22050,
+      "input": 48001,
+      "output": 96002
+    },
+    {
+      "rate": 22050,
+      "input": 65535,
+      "output": 131070
+    },
+    {
+      "rate": 22050,
+      "input": 1234567,
+      "output": 2469134
+    },
+    {
+      "rate": 22050,
+      "input": 16777215,
+      "output": 33554430
+    },
+    {
+      "rate": 22050,
+      "input": 16777216,
+      "output": 33554432
+    },
+    {
+      "rate": 22050,
+      "input": 16777217,
+      "output": 33554432
+    },
+    {
+      "rate": 22050,
+      "input": 4294967295,
+      "output": 8589934592
+    },
+    {
+      "rate": 32000,
+      "input": 0,
+      "output": 0
+    },
+    {
+      "rate": 32000,
+      "input": 1,
+      "output": 1
+    },
+    {
+      "rate": 32000,
+      "input": 17,
+      "output": 23
+    },
+    {
+      "rate": 32000,
+      "input": 1000,
+      "output": 1378
+    },
+    {
+      "rate": 32000,
+      "input": 9601,
+      "output": 13231
+    },
+    {
+      "rate": 32000,
+      "input": 29488,
+      "output": 40638
+    },
+    {
+      "rate": 32000,
+      "input": 29550,
+      "output": 40723
+    },
+    {
+      "rate": 32000,
+      "input": 48001,
+      "output": 66151
+    },
+    {
+      "rate": 32000,
+      "input": 65535,
+      "output": 90315
+    },
+    {
+      "rate": 32000,
+      "input": 1234567,
+      "output": 1701387
+    },
+    {
+      "rate": 32000,
+      "input": 16777215,
+      "output": 23121098
+    },
+    {
+      "rate": 32000,
+      "input": 16777216,
+      "output": 23121100
+    },
+    {
+      "rate": 32000,
+      "input": 16777217,
+      "output": 23121100
+    },
+    {
+      "rate": 32000,
+      "input": 4294967295,
+      "output": 5919001600
+    },
+    {
+      "rate": 44100,
+      "input": 0,
+      "output": 0
+    },
+    {
+      "rate": 44100,
+      "input": 1,
+      "output": 1
+    },
+    {
+      "rate": 44100,
+      "input": 17,
+      "output": 17
+    },
+    {
+      "rate": 44100,
+      "input": 1000,
+      "output": 1000
+    },
+    {
+      "rate": 44100,
+      "input": 9601,
+      "output": 9601
+    },
+    {
+      "rate": 44100,
+      "input": 29488,
+      "output": 29488
+    },
+    {
+      "rate": 44100,
+      "input": 29550,
+      "output": 29549
+    },
+    {
+      "rate": 44100,
+      "input": 48001,
+      "output": 48001
+    },
+    {
+      "rate": 44100,
+      "input": 65535,
+      "output": 65535
+    },
+    {
+      "rate": 44100,
+      "input": 1234567,
+      "output": 1234567
+    },
+    {
+      "rate": 44100,
+      "input": 16777215,
+      "output": 16777215
+    },
+    {
+      "rate": 44100,
+      "input": 16777216,
+      "output": 16777216
+    },
+    {
+      "rate": 44100,
+      "input": 16777217,
+      "output": 16777216
+    },
+    {
+      "rate": 44100,
+      "input": 4294967295,
+      "output": 4294967296
+    },
+    {
+      "rate": 48000,
+      "input": 0,
+      "output": 0
+    },
+    {
+      "rate": 48000,
+      "input": 1,
+      "output": 0
+    },
+    {
+      "rate": 48000,
+      "input": 17,
+      "output": 15
+    },
+    {
+      "rate": 48000,
+      "input": 1000,
+      "output": 918
+    },
+    {
+      "rate": 48000,
+      "input": 9601,
+      "output": 8820
+    },
+    {
+      "rate": 48000,
+      "input": 29488,
+      "output": 27092
+    },
+    {
+      "rate": 48000,
+      "input": 29550,
+      "output": 27149
+    },
+    {
+      "rate": 48000,
+      "input": 48001,
+      "output": 44100
+    },
+    {
+      "rate": 48000,
+      "input": 65535,
+      "output": 60210
+    },
+    {
+      "rate": 48000,
+      "input": 1234567,
+      "output": 1134258
+    },
+    {
+      "rate": 48000,
+      "input": 16777215,
+      "output": 15414066
+    },
+    {
+      "rate": 48000,
+      "input": 16777216,
+      "output": 15414067
+    },
+    {
+      "rate": 48000,
+      "input": 16777217,
+      "output": 15414067
+    },
+    {
+      "rate": 48000,
+      "input": 4294967295,
+      "output": 3946001152
+    },
+    {
+      "rate": 88200,
+      "input": 0,
+      "output": 0
+    },
+    {
+      "rate": 88200,
+      "input": 1,
+      "output": 0
+    },
+    {
+      "rate": 88200,
+      "input": 17,
+      "output": 8
+    },
+    {
+      "rate": 88200,
+      "input": 1000,
+      "output": 500
+    },
+    {
+      "rate": 88200,
+      "input": 9601,
+      "output": 4800
+    },
+    {
+      "rate": 88200,
+      "input": 29488,
+      "output": 14744
+    },
+    {
+      "rate": 88200,
+      "input": 29550,
+      "output": 14774
+    },
+    {
+      "rate": 88200,
+      "input": 48001,
+      "output": 24000
+    },
+    {
+      "rate": 88200,
+      "input": 65535,
+      "output": 32767
+    },
+    {
+      "rate": 88200,
+      "input": 1234567,
+      "output": 617283
+    },
+    {
+      "rate": 88200,
+      "input": 16777215,
+      "output": 8388607
+    },
+    {
+      "rate": 88200,
+      "input": 16777216,
+      "output": 8388608
+    },
+    {
+      "rate": 88200,
+      "input": 16777217,
+      "output": 8388608
+    },
+    {
+      "rate": 88200,
+      "input": 4294967295,
+      "output": 2147483648
+    },
+    {
+      "rate": 96000,
+      "input": 0,
+      "output": 0
+    },
+    {
+      "rate": 96000,
+      "input": 1,
+      "output": 0
+    },
+    {
+      "rate": 96000,
+      "input": 17,
+      "output": 7
+    },
+    {
+      "rate": 96000,
+      "input": 1000,
+      "output": 459
+    },
+    {
+      "rate": 96000,
+      "input": 9601,
+      "output": 4410
+    },
+    {
+      "rate": 96000,
+      "input": 29488,
+      "output": 13546
+    },
+    {
+      "rate": 96000,
+      "input": 29550,
+      "output": 13574
+    },
+    {
+      "rate": 96000,
+      "input": 48001,
+      "output": 22050
+    },
+    {
+      "rate": 96000,
+      "input": 65535,
+      "output": 30105
+    },
+    {
+      "rate": 96000,
+      "input": 1234567,
+      "output": 567129
+    },
+    {
+      "rate": 96000,
+      "input": 16777215,
+      "output": 7707033
+    },
+    {
+      "rate": 96000,
+      "input": 16777216,
+      "output": 7707033
+    },
+    {
+      "rate": 96000,
+      "input": 16777217,
+      "output": 7707033
+    },
+    {
+      "rate": 96000,
+      "input": 4294967295,
+      "output": 1973000576
+    },
+    {
+      "rate": 192000,
+      "input": 0,
+      "output": 0
+    },
+    {
+      "rate": 192000,
+      "input": 1,
+      "output": 0
+    },
+    {
+      "rate": 192000,
+      "input": 17,
+      "output": 3
+    },
+    {
+      "rate": 192000,
+      "input": 1000,
+      "output": 229
+    },
+    {
+      "rate": 192000,
+      "input": 9601,
+      "output": 2205
+    },
+    {
+      "rate": 192000,
+      "input": 29488,
+      "output": 6773
+    },
+    {
+      "rate": 192000,
+      "input": 29550,
+      "output": 6787
+    },
+    {
+      "rate": 192000,
+      "input": 48001,
+      "output": 11025
+    },
+    {
+      "rate": 192000,
+      "input": 65535,
+      "output": 15052
+    },
+    {
+      "rate": 192000,
+      "input": 1234567,
+      "output": 283564
+    },
+    {
+      "rate": 192000,
+      "input": 16777215,
+      "output": 3853516
+    },
+    {
+      "rate": 192000,
+      "input": 16777216,
+      "output": 3853516
+    },
+    {
+      "rate": 192000,
+      "input": 16777217,
+      "output": 3853516
+    },
+    {
+      "rate": 192000,
+      "input": 4294967295,
+      "output": 986500288
+    }
+  ],
+  "guardsIntact": true
+}

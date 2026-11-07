@@ -1,0 +1,10 @@
+FFT code used by r8brain-free-src 1.6
+
+Functions from the FFT package by: Copyright(C) 1996-2001 Takuya OOURA
+http://www.kurims.kyoto-u.ac.jp/~ooura/fft.html
+
+The upstream fft4g.h states: "Modified and used with permission granted by the license."
+In r8brain, the original fft4g.c is wrapped into the ooura_fft class.
+The complete upstream header, including its original attribution, is retained
+in app/src/main/cpp/r8brain/fft4g.h. The enclosing r8brain MIT license is included
+separately in r8brain-MIT.txt.

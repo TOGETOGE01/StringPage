@@ -1,0 +1,1302 @@
+{
+  "status": "passed",
+  "scope": "Actual GPIO GPIFReader::readProperties on native constructed Note objects.\nXML and wrapper buffers are locally owned. Each native owner is destructed;\nno original application process, code bytes or source files are modified.\n",
+  "rows": [
+    {
+      "property": "Tapped",
+      "initial": false,
+      "kind": "absent",
+      "content": null,
+      "result": false
+    },
+    {
+      "property": "Tapped",
+      "initial": false,
+      "kind": "empty",
+      "content": "",
+      "result": false
+    },
+    {
+      "property": "Tapped",
+      "initial": false,
+      "kind": "enable",
+      "content": "<Enable/>",
+      "result": true
+    },
+    {
+      "property": "Tapped",
+      "initial": false,
+      "kind": "disable",
+      "content": "<Disable/>",
+      "result": true
+    },
+    {
+      "property": "Tapped",
+      "initial": false,
+      "kind": "bool-true",
+      "content": "<Bool>true</Bool>",
+      "result": true
+    },
+    {
+      "property": "Tapped",
+      "initial": false,
+      "kind": "bool-false",
+      "content": "<Bool>false</Bool>",
+      "result": false
+    },
+    {
+      "property": "Tapped",
+      "initial": false,
+      "kind": "bool-upper-false",
+      "content": "<Bool>FALSE</Bool>",
+      "result": true
+    },
+    {
+      "property": "Tapped",
+      "initial": false,
+      "kind": "bool-space-false",
+      "content": "<Bool> false </Bool>",
+      "result": true
+    },
+    {
+      "property": "Tapped",
+      "initial": false,
+      "kind": "enable-false",
+      "content": "<Enable>false</Enable>",
+      "result": false
+    },
+    {
+      "property": "Tapped",
+      "initial": false,
+      "kind": "unknown",
+      "content": "<Unknown/>",
+      "result": true
+    },
+    {
+      "property": "Tapped",
+      "initial": false,
+      "kind": "text-only",
+      "content": "false",
+      "result": false
+    },
+    {
+      "property": "Tapped",
+      "initial": false,
+      "kind": "false-first",
+      "content": "<Bool>false</Bool><Enable/>",
+      "result": false
+    },
+    {
+      "property": "Tapped",
+      "initial": false,
+      "kind": "true-first",
+      "content": "<Enable/><Bool>false</Bool>",
+      "result": true
+    },
+    {
+      "property": "Tapped",
+      "initial": false,
+      "kind": "cdata-false",
+      "content": "<Bool><![CDATA[false]]></Bool>",
+      "result": true
+    },
+    {
+      "property": "Tapped",
+      "initial": false,
+      "kind": "nested-false",
+      "content": "<Bool><Nested>false</Nested></Bool>",
+      "result": true
+    },
+    {
+      "property": "Tapped",
+      "initial": false,
+      "kind": "mixed-first-false",
+      "content": "<Bool>false<Nested/>true</Bool>",
+      "result": false
+    },
+    {
+      "property": "Tapped",
+      "initial": false,
+      "kind": "comment-in-false",
+      "content": "<Bool>fa<!--split-->lse</Bool>",
+      "result": true
+    },
+    {
+      "property": "Tapped",
+      "initial": false,
+      "kind": "cdata-in-false",
+      "content": "<Bool>fa<![CDATA[l]]>se</Bool>",
+      "result": true
+    },
+    {
+      "property": "Tapped",
+      "initial": false,
+      "kind": "cdata-then-false",
+      "content": "<Bool><![CDATA[true]]>false</Bool>",
+      "result": false
+    },
+    {
+      "property": "Tapped",
+      "initial": false,
+      "kind": "comment-then-false",
+      "content": "<Bool><!--split-->false</Bool>",
+      "result": false
+    },
+    {
+      "property": "Tapped",
+      "initial": false,
+      "kind": "entity-false",
+      "content": "<Bool>f&#97;lse</Bool>",
+      "result": false
+    },
+    {
+      "property": "Tapped",
+      "initial": false,
+      "kind": "pi-in-false",
+      "content": "<Bool>fa<?split x?>lse</Bool>",
+      "result": true
+    },
+    {
+      "property": "Tapped",
+      "initial": false,
+      "kind": "pi-then-false",
+      "content": "<Bool><?split x?>false</Bool>",
+      "result": false
+    },
+    {
+      "property": "Tapped",
+      "initial": true,
+      "kind": "absent",
+      "content": null,
+      "result": true
+    },
+    {
+      "property": "Tapped",
+      "initial": true,
+      "kind": "empty",
+      "content": "",
+      "result": true
+    },
+    {
+      "property": "Tapped",
+      "initial": true,
+      "kind": "enable",
+      "content": "<Enable/>",
+      "result": true
+    },
+    {
+      "property": "Tapped",
+      "initial": true,
+      "kind": "disable",
+      "content": "<Disable/>",
+      "result": true
+    },
+    {
+      "property": "Tapped",
+      "initial": true,
+      "kind": "bool-true",
+      "content": "<Bool>true</Bool>",
+      "result": true
+    },
+    {
+      "property": "Tapped",
+      "initial": true,
+      "kind": "bool-false",
+      "content": "<Bool>false</Bool>",
+      "result": false
+    },
+    {
+      "property": "Tapped",
+      "initial": true,
+      "kind": "bool-upper-false",
+      "content": "<Bool>FALSE</Bool>",
+      "result": true
+    },
+    {
+      "property": "Tapped",
+      "initial": true,
+      "kind": "bool-space-false",
+      "content": "<Bool> false </Bool>",
+      "result": true
+    },
+    {
+      "property": "Tapped",
+      "initial": true,
+      "kind": "enable-false",
+      "content": "<Enable>false</Enable>",
+      "result": false
+    },
+    {
+      "property": "Tapped",
+      "initial": true,
+      "kind": "unknown",
+      "content": "<Unknown/>",
+      "result": true
+    },
+    {
+      "property": "Tapped",
+      "initial": true,
+      "kind": "text-only",
+      "content": "false",
+      "result": true
+    },
+    {
+      "property": "Tapped",
+      "initial": true,
+      "kind": "false-first",
+      "content": "<Bool>false</Bool><Enable/>",
+      "result": false
+    },
+    {
+      "property": "Tapped",
+      "initial": true,
+      "kind": "true-first",
+      "content": "<Enable/><Bool>false</Bool>",
+      "result": true
+    },
+    {
+      "property": "Tapped",
+      "initial": true,
+      "kind": "cdata-false",
+      "content": "<Bool><![CDATA[false]]></Bool>",
+      "result": true
+    },
+    {
+      "property": "Tapped",
+      "initial": true,
+      "kind": "nested-false",
+      "content": "<Bool><Nested>false</Nested></Bool>",
+      "result": true
+    },
+    {
+      "property": "Tapped",
+      "initial": true,
+      "kind": "mixed-first-false",
+      "content": "<Bool>false<Nested/>true</Bool>",
+      "result": false
+    },
+    {
+      "property": "Tapped",
+      "initial": true,
+      "kind": "comment-in-false",
+      "content": "<Bool>fa<!--split-->lse</Bool>",
+      "result": true
+    },
+    {
+      "property": "Tapped",
+      "initial": true,
+      "kind": "cdata-in-false",
+      "content": "<Bool>fa<![CDATA[l]]>se</Bool>",
+      "result": true
+    },
+    {
+      "property": "Tapped",
+      "initial": true,
+      "kind": "cdata-then-false",
+      "content": "<Bool><![CDATA[true]]>false</Bool>",
+      "result": false
+    },
+    {
+      "property": "Tapped",
+      "initial": true,
+      "kind": "comment-then-false",
+      "content": "<Bool><!--split-->false</Bool>",
+      "result": false
+    },
+    {
+      "property": "Tapped",
+      "initial": true,
+      "kind": "entity-false",
+      "content": "<Bool>f&#97;lse</Bool>",
+      "result": false
+    },
+    {
+      "property": "Tapped",
+      "initial": true,
+      "kind": "pi-in-false",
+      "content": "<Bool>fa<?split x?>lse</Bool>",
+      "result": true
+    },
+    {
+      "property": "Tapped",
+      "initial": true,
+      "kind": "pi-then-false",
+      "content": "<Bool><?split x?>false</Bool>",
+      "result": false
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": false,
+      "kind": "absent",
+      "content": null,
+      "result": false
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": false,
+      "kind": "empty",
+      "content": "",
+      "result": false
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": false,
+      "kind": "enable",
+      "content": "<Enable/>",
+      "result": true
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": false,
+      "kind": "disable",
+      "content": "<Disable/>",
+      "result": true
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": false,
+      "kind": "bool-true",
+      "content": "<Bool>true</Bool>",
+      "result": true
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": false,
+      "kind": "bool-false",
+      "content": "<Bool>false</Bool>",
+      "result": false
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": false,
+      "kind": "bool-upper-false",
+      "content": "<Bool>FALSE</Bool>",
+      "result": true
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": false,
+      "kind": "bool-space-false",
+      "content": "<Bool> false </Bool>",
+      "result": true
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": false,
+      "kind": "enable-false",
+      "content": "<Enable>false</Enable>",
+      "result": false
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": false,
+      "kind": "unknown",
+      "content": "<Unknown/>",
+      "result": true
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": false,
+      "kind": "text-only",
+      "content": "false",
+      "result": false
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": false,
+      "kind": "false-first",
+      "content": "<Bool>false</Bool><Enable/>",
+      "result": false
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": false,
+      "kind": "true-first",
+      "content": "<Enable/><Bool>false</Bool>",
+      "result": true
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": false,
+      "kind": "cdata-false",
+      "content": "<Bool><![CDATA[false]]></Bool>",
+      "result": true
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": false,
+      "kind": "nested-false",
+      "content": "<Bool><Nested>false</Nested></Bool>",
+      "result": true
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": false,
+      "kind": "mixed-first-false",
+      "content": "<Bool>false<Nested/>true</Bool>",
+      "result": false
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": false,
+      "kind": "comment-in-false",
+      "content": "<Bool>fa<!--split-->lse</Bool>",
+      "result": true
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": false,
+      "kind": "cdata-in-false",
+      "content": "<Bool>fa<![CDATA[l]]>se</Bool>",
+      "result": true
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": false,
+      "kind": "cdata-then-false",
+      "content": "<Bool><![CDATA[true]]>false</Bool>",
+      "result": false
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": false,
+      "kind": "comment-then-false",
+      "content": "<Bool><!--split-->false</Bool>",
+      "result": false
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": false,
+      "kind": "entity-false",
+      "content": "<Bool>f&#97;lse</Bool>",
+      "result": false
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": false,
+      "kind": "pi-in-false",
+      "content": "<Bool>fa<?split x?>lse</Bool>",
+      "result": true
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": false,
+      "kind": "pi-then-false",
+      "content": "<Bool><?split x?>false</Bool>",
+      "result": false
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": true,
+      "kind": "absent",
+      "content": null,
+      "result": true
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": true,
+      "kind": "empty",
+      "content": "",
+      "result": true
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": true,
+      "kind": "enable",
+      "content": "<Enable/>",
+      "result": true
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": true,
+      "kind": "disable",
+      "content": "<Disable/>",
+      "result": true
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": true,
+      "kind": "bool-true",
+      "content": "<Bool>true</Bool>",
+      "result": true
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": true,
+      "kind": "bool-false",
+      "content": "<Bool>false</Bool>",
+      "result": false
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": true,
+      "kind": "bool-upper-false",
+      "content": "<Bool>FALSE</Bool>",
+      "result": true
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": true,
+      "kind": "bool-space-false",
+      "content": "<Bool> false </Bool>",
+      "result": true
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": true,
+      "kind": "enable-false",
+      "content": "<Enable>false</Enable>",
+      "result": false
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": true,
+      "kind": "unknown",
+      "content": "<Unknown/>",
+      "result": true
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": true,
+      "kind": "text-only",
+      "content": "false",
+      "result": true
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": true,
+      "kind": "false-first",
+      "content": "<Bool>false</Bool><Enable/>",
+      "result": false
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": true,
+      "kind": "true-first",
+      "content": "<Enable/><Bool>false</Bool>",
+      "result": true
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": true,
+      "kind": "cdata-false",
+      "content": "<Bool><![CDATA[false]]></Bool>",
+      "result": true
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": true,
+      "kind": "nested-false",
+      "content": "<Bool><Nested>false</Nested></Bool>",
+      "result": true
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": true,
+      "kind": "mixed-first-false",
+      "content": "<Bool>false<Nested/>true</Bool>",
+      "result": false
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": true,
+      "kind": "comment-in-false",
+      "content": "<Bool>fa<!--split-->lse</Bool>",
+      "result": true
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": true,
+      "kind": "cdata-in-false",
+      "content": "<Bool>fa<![CDATA[l]]>se</Bool>",
+      "result": true
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": true,
+      "kind": "cdata-then-false",
+      "content": "<Bool><![CDATA[true]]>false</Bool>",
+      "result": false
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": true,
+      "kind": "comment-then-false",
+      "content": "<Bool><!--split-->false</Bool>",
+      "result": false
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": true,
+      "kind": "entity-false",
+      "content": "<Bool>f&#97;lse</Bool>",
+      "result": false
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": true,
+      "kind": "pi-in-false",
+      "content": "<Bool>fa<?split x?>lse</Bool>",
+      "result": true
+    },
+    {
+      "property": "LeftHandTapped",
+      "initial": true,
+      "kind": "pi-then-false",
+      "content": "<Bool><?split x?>false</Bool>",
+      "result": false
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": false,
+      "kind": "absent",
+      "content": null,
+      "result": false
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": false,
+      "kind": "empty",
+      "content": "",
+      "result": false
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": false,
+      "kind": "enable",
+      "content": "<Enable/>",
+      "result": true
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": false,
+      "kind": "disable",
+      "content": "<Disable/>",
+      "result": true
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": false,
+      "kind": "bool-true",
+      "content": "<Bool>true</Bool>",
+      "result": true
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": false,
+      "kind": "bool-false",
+      "content": "<Bool>false</Bool>",
+      "result": false
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": false,
+      "kind": "bool-upper-false",
+      "content": "<Bool>FALSE</Bool>",
+      "result": true
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": false,
+      "kind": "bool-space-false",
+      "content": "<Bool> false </Bool>",
+      "result": true
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": false,
+      "kind": "enable-false",
+      "content": "<Enable>false</Enable>",
+      "result": false
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": false,
+      "kind": "unknown",
+      "content": "<Unknown/>",
+      "result": true
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": false,
+      "kind": "text-only",
+      "content": "false",
+      "result": false
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": false,
+      "kind": "false-first",
+      "content": "<Bool>false</Bool><Enable/>",
+      "result": false
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": false,
+      "kind": "true-first",
+      "content": "<Enable/><Bool>false</Bool>",
+      "result": true
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": false,
+      "kind": "cdata-false",
+      "content": "<Bool><![CDATA[false]]></Bool>",
+      "result": true
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": false,
+      "kind": "nested-false",
+      "content": "<Bool><Nested>false</Nested></Bool>",
+      "result": true
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": false,
+      "kind": "mixed-first-false",
+      "content": "<Bool>false<Nested/>true</Bool>",
+      "result": false
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": false,
+      "kind": "comment-in-false",
+      "content": "<Bool>fa<!--split-->lse</Bool>",
+      "result": true
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": false,
+      "kind": "cdata-in-false",
+      "content": "<Bool>fa<![CDATA[l]]>se</Bool>",
+      "result": true
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": false,
+      "kind": "cdata-then-false",
+      "content": "<Bool><![CDATA[true]]>false</Bool>",
+      "result": false
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": false,
+      "kind": "comment-then-false",
+      "content": "<Bool><!--split-->false</Bool>",
+      "result": false
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": false,
+      "kind": "entity-false",
+      "content": "<Bool>f&#97;lse</Bool>",
+      "result": false
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": false,
+      "kind": "pi-in-false",
+      "content": "<Bool>fa<?split x?>lse</Bool>",
+      "result": true
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": false,
+      "kind": "pi-then-false",
+      "content": "<Bool><?split x?>false</Bool>",
+      "result": false
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": true,
+      "kind": "absent",
+      "content": null,
+      "result": true
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": true,
+      "kind": "empty",
+      "content": "",
+      "result": true
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": true,
+      "kind": "enable",
+      "content": "<Enable/>",
+      "result": true
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": true,
+      "kind": "disable",
+      "content": "<Disable/>",
+      "result": true
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": true,
+      "kind": "bool-true",
+      "content": "<Bool>true</Bool>",
+      "result": true
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": true,
+      "kind": "bool-false",
+      "content": "<Bool>false</Bool>",
+      "result": false
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": true,
+      "kind": "bool-upper-false",
+      "content": "<Bool>FALSE</Bool>",
+      "result": true
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": true,
+      "kind": "bool-space-false",
+      "content": "<Bool> false </Bool>",
+      "result": true
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": true,
+      "kind": "enable-false",
+      "content": "<Enable>false</Enable>",
+      "result": false
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": true,
+      "kind": "unknown",
+      "content": "<Unknown/>",
+      "result": true
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": true,
+      "kind": "text-only",
+      "content": "false",
+      "result": true
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": true,
+      "kind": "false-first",
+      "content": "<Bool>false</Bool><Enable/>",
+      "result": false
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": true,
+      "kind": "true-first",
+      "content": "<Enable/><Bool>false</Bool>",
+      "result": true
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": true,
+      "kind": "cdata-false",
+      "content": "<Bool><![CDATA[false]]></Bool>",
+      "result": true
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": true,
+      "kind": "nested-false",
+      "content": "<Bool><Nested>false</Nested></Bool>",
+      "result": true
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": true,
+      "kind": "mixed-first-false",
+      "content": "<Bool>false<Nested/>true</Bool>",
+      "result": false
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": true,
+      "kind": "comment-in-false",
+      "content": "<Bool>fa<!--split-->lse</Bool>",
+      "result": true
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": true,
+      "kind": "cdata-in-false",
+      "content": "<Bool>fa<![CDATA[l]]>se</Bool>",
+      "result": true
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": true,
+      "kind": "cdata-then-false",
+      "content": "<Bool><![CDATA[true]]>false</Bool>",
+      "result": false
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": true,
+      "kind": "comment-then-false",
+      "content": "<Bool><!--split-->false</Bool>",
+      "result": false
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": true,
+      "kind": "entity-false",
+      "content": "<Bool>f&#97;lse</Bool>",
+      "result": false
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": true,
+      "kind": "pi-in-false",
+      "content": "<Bool>fa<?split x?>lse</Bool>",
+      "result": true
+    },
+    {
+      "property": "HopoOrigin",
+      "initial": true,
+      "kind": "pi-then-false",
+      "content": "<Bool><?split x?>false</Bool>",
+      "result": false
+    },
+    {
+      "property": "HopoDestination",
+      "initial": false,
+      "kind": "absent",
+      "content": null,
+      "result": false
+    },
+    {
+      "property": "HopoDestination",
+      "initial": false,
+      "kind": "empty",
+      "content": "",
+      "result": false
+    },
+    {
+      "property": "HopoDestination",
+      "initial": false,
+      "kind": "enable",
+      "content": "<Enable/>",
+      "result": true
+    },
+    {
+      "property": "HopoDestination",
+      "initial": false,
+      "kind": "disable",
+      "content": "<Disable/>",
+      "result": true
+    },
+    {
+      "property": "HopoDestination",
+      "initial": false,
+      "kind": "bool-true",
+      "content": "<Bool>true</Bool>",
+      "result": true
+    },
+    {
+      "property": "HopoDestination",
+      "initial": false,
+      "kind": "bool-false",
+      "content": "<Bool>false</Bool>",
+      "result": false
+    },
+    {
+      "property": "HopoDestination",
+      "initial": false,
+      "kind": "bool-upper-false",
+      "content": "<Bool>FALSE</Bool>",
+      "result": true
+    },
+    {
+      "property": "HopoDestination",
+      "initial": false,
+      "kind": "bool-space-false",
+      "content": "<Bool> false </Bool>",
+      "result": true
+    },
+    {
+      "property": "HopoDestination",
+      "initial": false,
+      "kind": "enable-false",
+      "content": "<Enable>false</Enable>",
+      "result": false
+    },
+    {
+      "property": "HopoDestination",
+      "initial": false,
+      "kind": "unknown",
+      "content": "<Unknown/>",
+      "result": true
+    },
+    {
+      "property": "HopoDestination",
+      "initial": false,
+      "kind": "text-only",
+      "content": "false",
+      "result": false
+    },
+    {
+      "property": "HopoDestination",
+      "initial": false,
+      "kind": "false-first",
+      "content": "<Bool>false</Bool><Enable/>",
+      "result": false
+    },
+    {
+      "property": "HopoDestination",
+      "initial": false,
+      "kind": "true-first",
+      "content": "<Enable/><Bool>false</Bool>",
+      "result": true
+    },
+    {
+      "property": "HopoDestination",
+      "initial": false,
+      "kind": "cdata-false",
+      "content": "<Bool><![CDATA[false]]></Bool>",
+      "result": true
+    },
+    {
+      "property": "HopoDestination",
+      "initial": false,
+      "kind": "nested-false",
+      "content": "<Bool><Nested>false</Nested></Bool>",
+      "result": true
+    },
+    {
+      "property": "HopoDestination",
+      "initial": false,
+      "kind": "mixed-first-false",
+      "content": "<Bool>false<Nested/>true</Bool>",
+      "result": false
+    },
+    {
+      "property": "HopoDestination",
+      "initial": false,
+      "kind": "comment-in-false",
+      "content": "<Bool>fa<!--split-->lse</Bool>",
+      "result": true
+    },
+    {
+      "property": "HopoDestination",
+      "initial": false,
+      "kind": "cdata-in-false",
+      "content": "<Bool>fa<![CDATA[l]]>se</Bool>",
+      "result": true
+    },
+    {
+      "property": "HopoDestination",
+      "initial": false,
+      "kind": "cdata-then-false",
+      "content": "<Bool><![CDATA[true]]>false</Bool>",
+      "result": false
+    },
+    {
+      "property": "HopoDestination",
+      "initial": false,
+      "kind": "comment-then-false",
+      "content": "<Bool><!--split-->false</Bool>",
+      "result": false
+    },
+    {
+      "property": "HopoDestination",
+      "initial": false,
+      "kind": "entity-false",
+      "content": "<Bool>f&#97;lse</Bool>",
+      "result": false
+    },
+    {
+      "property": "HopoDestination",
+      "initial": false,
+      "kind": "pi-in-false",
+      "content": "<Bool>fa<?split x?>lse</Bool>",
+      "result": true
+    },
+    {
+      "property": "HopoDestination",
+      "initial": false,
+      "kind": "pi-then-false",
+      "content": "<Bool><?split x?>false</Bool>",
+      "result": false
+    },
+    {
+      "property": "HopoDestination",
+      "initial": true,
+      "kind": "absent",
+      "content": null,
+      "result": true
+    },
+    {
+      "property": "HopoDestination",
+      "initial": true,
+      "kind": "empty",
+      "content": "",
+      "result": true
+    },
+    {
+      "property": "HopoDestination",
+      "initial": true,
+      "kind": "enable",
+      "content": "<Enable/>",
+      "result": true
+    },
+    {
+      "property": "HopoDestination",
+      "initial": true,
+      "kind": "disable",
+      "content": "<Disable/>",
+      "result": true
+    },
+    {
+      "property": "HopoDestination",
+      "initial": true,
+      "kind": "bool-true",
+      "content": "<Bool>true</Bool>",
+      "result": true
+    },
+    {
+      "property": "HopoDestination",
+      "initial": true,
+      "kind": "bool-false",
+      "content": "<Bool>false</Bool>",
+      "result": false
+    },
+    {
+      "property": "HopoDestination",
+      "initial": true,
+      "kind": "bool-upper-false",
+      "content": "<Bool>FALSE</Bool>",
+      "result": true
+    },
+    {
+      "property": "HopoDestination",
+      "initial": true,
+      "kind": "bool-space-false",
+      "content": "<Bool> false </Bool>",
+      "result": true
+    },
+    {
+      "property": "HopoDestination",
+      "initial": true,
+      "kind": "enable-false",
+      "content": "<Enable>false</Enable>",
+      "result": false
+    },
+    {
+      "property": "HopoDestination",
+      "initial": true,
+      "kind": "unknown",
+      "content": "<Unknown/>",
+      "result": true
+    },
+    {
+      "property": "HopoDestination",
+      "initial": true,
+      "kind": "text-only",
+      "content": "false",
+      "result": true
+    },
+    {
+      "property": "HopoDestination",
+      "initial": true,
+      "kind": "false-first",
+      "content": "<Bool>false</Bool><Enable/>",
+      "result": false
+    },
+    {
+      "property": "HopoDestination",
+      "initial": true,
+      "kind": "true-first",
+      "content": "<Enable/><Bool>false</Bool>",
+      "result": true
+    },
+    {
+      "property": "HopoDestination",
+      "initial": true,
+      "kind": "cdata-false",
+      "content": "<Bool><![CDATA[false]]></Bool>",
+      "result": true
+    },
+    {
+      "property": "HopoDestination",
+      "initial": true,
+      "kind": "nested-false",
+      "content": "<Bool><Nested>false</Nested></Bool>",
+      "result": true
+    },
+    {
+      "property": "HopoDestination",
+      "initial": true,
+      "kind": "mixed-first-false",
+      "content": "<Bool>false<Nested/>true</Bool>",
+      "result": false
+    },
+    {
+      "property": "HopoDestination",
+      "initial": true,
+      "kind": "comment-in-false",
+      "content": "<Bool>fa<!--split-->lse</Bool>",
+      "result": true
+    },
+    {
+      "property": "HopoDestination",
+      "initial": true,
+      "kind": "cdata-in-false",
+      "content": "<Bool>fa<![CDATA[l]]>se</Bool>",
+      "result": true
+    },
+    {
+      "property": "HopoDestination",
+      "initial": true,
+      "kind": "cdata-then-false",
+      "content": "<Bool><![CDATA[true]]>false</Bool>",
+      "result": false
+    },
+    {
+      "property": "HopoDestination",
+      "initial": true,
+      "kind": "comment-then-false",
+      "content": "<Bool><!--split-->false</Bool>",
+      "result": false
+    },
+    {
+      "property": "HopoDestination",
+      "initial": true,
+      "kind": "entity-false",
+      "content": "<Bool>f&#97;lse</Bool>",
+      "result": false
+    },
+    {
+      "property": "HopoDestination",
+      "initial": true,
+      "kind": "pi-in-false",
+      "content": "<Bool>fa<?split x?>lse</Bool>",
+      "result": true
+    },
+    {
+      "property": "HopoDestination",
+      "initial": true,
+      "kind": "pi-then-false",
+      "content": "<Bool><?split x?>false</Bool>",
+      "result": false
+    }
+  ],
+  "guardsIntact": true,
+  "pairedDestructors": true,
+  "fastWriteRestored": true,
+  "modules": {
+    "GPCore.dll": "053e31d8c78b052198918cdd16e0af91e2631daa2c08d7b2db2d93d69d040d81",
+    "GPIO.dll": "b7167b8ccd1691f1d10b646229bc431e99ce6829d6802f8c1130f530971aa232",
+    "AMUtils.dll": "ef1f535f07223482dd468301ce519f7e306d99b4be6a63cdb276f62e11dd906d"
+  }
+}

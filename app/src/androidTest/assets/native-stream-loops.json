@@ -1,0 +1,1095 @@
+{
+  "status": "passed",
+  "scope": "Read actual SoundFontV7-created AudioStream loop state for every Eastern\npiano member. Constructors/native Decref/destructors are paired, foreign memory\nreads use VirtualQuery guards, and original files are hash checked unchanged.\nNo decodeBlock/PCM-render API is called and no commercial payload is written.\n",
+  "modules": {
+    "AMSoundFont.dll": "1bfea4c982576cf9e396238bfa9cac1c5cd006c7892a81ce3ffdbef3fd9455f2",
+    "AMAudio.dll": "ac8fc00cc30e8b3e051cb8fcc037b5df11936eb2c64edca2ddb8444d10b924e3"
+  },
+  "bankSha256": "6059e77efdb12560752357c2e5a57b8c21010ec7540883e99ec1917c35013d53",
+  "members": 120,
+  "disabled": 40,
+  "rows": [
+    {
+      "member": "EasternGrandC7-Key-Sus-none-03-none-021-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 137065,
+      "authoredEnd": 220500,
+      "nativeStart": 137065,
+      "nativeEnd": 220500,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-03-none-024-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 121313,
+      "authoredEnd": 205741,
+      "nativeStart": 121313,
+      "nativeEnd": 205741,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-03-none-027-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 125522,
+      "authoredEnd": 198331,
+      "nativeStart": 125522,
+      "nativeEnd": 198331,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-03-none-030-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 133928,
+      "authoredEnd": 212331,
+      "nativeStart": 133928,
+      "nativeEnd": 212331,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-03-none-033-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 144241,
+      "authoredEnd": 220500,
+      "nativeStart": 144241,
+      "nativeEnd": 220500,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-03-none-036-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 140907,
+      "authoredEnd": 220500,
+      "nativeStart": 140907,
+      "nativeEnd": 220500,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-03-none-039-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 141913,
+      "authoredEnd": 220500,
+      "nativeStart": 141913,
+      "nativeEnd": 220500,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-03-none-042-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 145112,
+      "authoredEnd": 220500,
+      "nativeStart": 145112,
+      "nativeEnd": 220500,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-04-none-021-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 119084,
+      "authoredEnd": 183155,
+      "nativeStart": 119084,
+      "nativeEnd": 183155,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-04-none-024-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 103761,
+      "authoredEnd": 186832,
+      "nativeStart": 103761,
+      "nativeEnd": 186832,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-04-none-027-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 110595,
+      "authoredEnd": 193898,
+      "nativeStart": 110595,
+      "nativeEnd": 193898,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-04-none-030-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 140150,
+      "authoredEnd": 220500,
+      "nativeStart": 140150,
+      "nativeEnd": 220500,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-04-none-033-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 115816,
+      "authoredEnd": 195080,
+      "nativeStart": 115816,
+      "nativeEnd": 195080,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-04-none-036-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 139685,
+      "authoredEnd": 219317,
+      "nativeStart": 139685,
+      "nativeEnd": 219317,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-04-none-039-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 126983,
+      "authoredEnd": 220500,
+      "nativeStart": 126983,
+      "nativeEnd": 220500,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-04-none-042-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 136231,
+      "authoredEnd": 210750,
+      "nativeStart": 136231,
+      "nativeEnd": 210750,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-03-none-045-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 145943,
+      "authoredEnd": 220500,
+      "nativeStart": 145943,
+      "nativeEnd": 220500,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-03-none-048-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 135781,
+      "authoredEnd": 214420,
+      "nativeStart": 135781,
+      "nativeEnd": 214420,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-03-none-051-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 141386,
+      "authoredEnd": 215251,
+      "nativeStart": 141386,
+      "nativeEnd": 215251,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-03-none-054-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 136369,
+      "authoredEnd": 216287,
+      "nativeStart": 136369,
+      "nativeEnd": 216287,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-03-none-057-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 118703,
+      "authoredEnd": 209911,
+      "nativeStart": 118703,
+      "nativeEnd": 209911,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-03-none-060-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 151543,
+      "authoredEnd": 220500,
+      "nativeStart": 151543,
+      "nativeEnd": 220500,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-03-none-063-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 141414,
+      "authoredEnd": 206909,
+      "nativeStart": 141414,
+      "nativeEnd": 206909,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-04-none-045-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 121489,
+      "authoredEnd": 206074,
+      "nativeStart": 121489,
+      "nativeEnd": 206074,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-04-none-048-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 134428,
+      "authoredEnd": 198627,
+      "nativeStart": 134428,
+      "nativeEnd": 198627,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-04-none-051-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 106964,
+      "authoredEnd": 180892,
+      "nativeStart": 106964,
+      "nativeEnd": 180892,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-04-none-054-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 138120,
+      "authoredEnd": 205563,
+      "nativeStart": 138120,
+      "nativeEnd": 205563,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-04-none-057-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 130554,
+      "authoredEnd": 210450,
+      "nativeStart": 130554,
+      "nativeEnd": 210450,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-04-none-060-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 143332,
+      "authoredEnd": 220500,
+      "nativeStart": 143332,
+      "nativeEnd": 220500,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-04-none-063-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 132615,
+      "authoredEnd": 208620,
+      "nativeStart": 132615,
+      "nativeEnd": 208620,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-05-none-021-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 131195,
+      "authoredEnd": 220500,
+      "nativeStart": 131195,
+      "nativeEnd": 220500,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-05-none-024-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 146874,
+      "authoredEnd": 220500,
+      "nativeStart": 146874,
+      "nativeEnd": 220500,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-05-none-027-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 130101,
+      "authoredEnd": 208966,
+      "nativeStart": 130101,
+      "nativeEnd": 208966,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-05-none-030-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 156791,
+      "authoredEnd": 220500,
+      "nativeStart": 156791,
+      "nativeEnd": 220500,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-05-none-033-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 155425,
+      "authoredEnd": 215475,
+      "nativeStart": 155425,
+      "nativeEnd": 215475,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-05-none-036-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 160500,
+      "authoredEnd": 220500,
+      "nativeStart": 160500,
+      "nativeEnd": 220500,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-05-none-039-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 141326,
+      "authoredEnd": 208676,
+      "nativeStart": 141326,
+      "nativeEnd": 208676,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-05-none-042-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 140418,
+      "authoredEnd": 210675,
+      "nativeStart": 140418,
+      "nativeEnd": 210675,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-07-none-021-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 139146,
+      "authoredEnd": 220500,
+      "nativeStart": 139146,
+      "nativeEnd": 220500,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-07-none-024-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 135193,
+      "authoredEnd": 215474,
+      "nativeStart": 135193,
+      "nativeEnd": 215474,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-07-none-027-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 133753,
+      "authoredEnd": 220500,
+      "nativeStart": 133753,
+      "nativeEnd": 220500,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-07-none-030-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 133999,
+      "authoredEnd": 219308,
+      "nativeStart": 133999,
+      "nativeEnd": 219308,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-07-none-033-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 119660,
+      "authoredEnd": 195671,
+      "nativeStart": 119660,
+      "nativeEnd": 195671,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-07-none-036-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 123567,
+      "authoredEnd": 220500,
+      "nativeStart": 123567,
+      "nativeEnd": 220500,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-07-none-039-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 144765,
+      "authoredEnd": 220500,
+      "nativeStart": 144765,
+      "nativeEnd": 220500,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-07-none-042-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 131896,
+      "authoredEnd": 216953,
+      "nativeStart": 131896,
+      "nativeEnd": 216953,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-05-none-045-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 140543,
+      "authoredEnd": 220500,
+      "nativeStart": 140543,
+      "nativeEnd": 220500,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-05-none-048-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 135257,
+      "authoredEnd": 214693,
+      "nativeStart": 135257,
+      "nativeEnd": 214693,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-05-none-051-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 126533,
+      "authoredEnd": 198737,
+      "nativeStart": 126533,
+      "nativeEnd": 198737,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-05-none-054-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 143133,
+      "authoredEnd": 217785,
+      "nativeStart": 143133,
+      "nativeEnd": 217785,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-05-none-057-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 125385,
+      "authoredEnd": 209547,
+      "nativeStart": 125385,
+      "nativeEnd": 209547,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-05-none-060-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 117105,
+      "authoredEnd": 204154,
+      "nativeStart": 117105,
+      "nativeEnd": 204154,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-05-none-063-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 146790,
+      "authoredEnd": 214811,
+      "nativeStart": 146790,
+      "nativeEnd": 214811,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-07-none-045-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 143220,
+      "authoredEnd": 220500,
+      "nativeStart": 143220,
+      "nativeEnd": 220500,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-07-none-048-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 152353,
+      "authoredEnd": 220500,
+      "nativeStart": 152353,
+      "nativeEnd": 220500,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-07-none-051-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 134718,
+      "authoredEnd": 204105,
+      "nativeStart": 134718,
+      "nativeEnd": 204105,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-07-none-054-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 142452,
+      "authoredEnd": 220500,
+      "nativeStart": 142452,
+      "nativeEnd": 220500,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-07-none-057-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 145877,
+      "authoredEnd": 220500,
+      "nativeStart": 145877,
+      "nativeEnd": 220500,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-07-none-060-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 146491,
+      "authoredEnd": 220500,
+      "nativeStart": 146491,
+      "nativeEnd": 220500,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-07-none-063-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 121616,
+      "authoredEnd": 205720,
+      "nativeStart": 121616,
+      "nativeEnd": 205720,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-03-none-066-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 131306,
+      "authoredEnd": 198259,
+      "nativeStart": 131306,
+      "nativeEnd": 198259,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-03-none-069-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 124963,
+      "authoredEnd": 218511,
+      "nativeStart": 124963,
+      "nativeEnd": 218511,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-03-none-072-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 144336,
+      "authoredEnd": 216005,
+      "nativeStart": 144336,
+      "nativeEnd": 216005,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-03-none-075-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 122532,
+      "authoredEnd": 201732,
+      "nativeStart": 122532,
+      "nativeEnd": 201732,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-03-none-078-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 149762,
+      "authoredEnd": 220500,
+      "nativeStart": 149762,
+      "nativeEnd": 220500,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-03-none-081-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 218295,
+      "authoredEnd": 220500,
+      "nativeStart": 218295,
+      "nativeEnd": 218295,
+      "disabled": true
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-03-none-084-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 202493,
+      "authoredEnd": 204539,
+      "nativeStart": 202493,
+      "nativeEnd": 202493,
+      "disabled": true
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-03-none-087-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 199859,
+      "authoredEnd": 201878,
+      "nativeStart": 199859,
+      "nativeEnd": 199859,
+      "disabled": true
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-04-none-066-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 134004,
+      "authoredEnd": 208052,
+      "nativeStart": 134004,
+      "nativeEnd": 208052,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-04-none-069-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 130279,
+      "authoredEnd": 203539,
+      "nativeStart": 130279,
+      "nativeEnd": 203539,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-04-none-072-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 148374,
+      "authoredEnd": 209975,
+      "nativeStart": 148374,
+      "nativeEnd": 209975,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-04-none-075-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 134128,
+      "authoredEnd": 210634,
+      "nativeStart": 134128,
+      "nativeEnd": 210634,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-04-none-078-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 114759,
+      "authoredEnd": 172783,
+      "nativeStart": 114759,
+      "nativeEnd": 172783,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-04-none-081-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 218295,
+      "authoredEnd": 220455,
+      "nativeStart": 218295,
+      "nativeEnd": 218295,
+      "disabled": true
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-04-none-084-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 218295,
+      "authoredEnd": 220455,
+      "nativeStart": 218295,
+      "nativeEnd": 218295,
+      "disabled": true
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-04-none-087-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 201322,
+      "authoredEnd": 203322,
+      "nativeStart": 201322,
+      "nativeEnd": 201322,
+      "disabled": true
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-03-none-090-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 178791,
+      "authoredEnd": 180597,
+      "nativeStart": 178791,
+      "nativeEnd": 178791,
+      "disabled": true
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-03-none-093-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 177912,
+      "authoredEnd": 179710,
+      "nativeStart": 177912,
+      "nativeEnd": 177912,
+      "disabled": true
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-03-none-096-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 160648,
+      "authoredEnd": 162268,
+      "nativeStart": 160648,
+      "nativeEnd": 160648,
+      "disabled": true
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-03-none-099-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 151576,
+      "authoredEnd": 153076,
+      "nativeStart": 151576,
+      "nativeEnd": 151576,
+      "disabled": true
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-03-none-102-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 136068,
+      "authoredEnd": 137418,
+      "nativeStart": 136068,
+      "nativeEnd": 136068,
+      "disabled": true
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-03-none-105-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 129337,
+      "authoredEnd": 130633,
+      "nativeStart": 129337,
+      "nativeEnd": 129337,
+      "disabled": true
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-03-none-108-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 113829,
+      "authoredEnd": 114909,
+      "nativeStart": 113829,
+      "nativeEnd": 113829,
+      "disabled": true
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-04-none-090-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 190202,
+      "authoredEnd": 192122,
+      "nativeStart": 190202,
+      "nativeEnd": 190202,
+      "disabled": true
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-04-none-093-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 185813,
+      "authoredEnd": 187613,
+      "nativeStart": 185813,
+      "nativeEnd": 185813,
+      "disabled": true
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-04-none-096-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 177619,
+      "authoredEnd": 179347,
+      "nativeStart": 177619,
+      "nativeEnd": 177619,
+      "disabled": true
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-04-none-099-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 156258,
+      "authoredEnd": 157794,
+      "nativeStart": 156258,
+      "nativeEnd": 156258,
+      "disabled": true
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-04-none-102-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 146603,
+      "authoredEnd": 148061,
+      "nativeStart": 146603,
+      "nativeEnd": 146603,
+      "disabled": true
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-04-none-105-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 154211,
+      "authoredEnd": 155747,
+      "nativeStart": 154211,
+      "nativeEnd": 154211,
+      "disabled": true
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-04-none-108-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 97442,
+      "authoredEnd": 98414,
+      "nativeStart": 97442,
+      "nativeEnd": 97442,
+      "disabled": true
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-05-none-066-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 118101,
+      "authoredEnd": 190073,
+      "nativeStart": 118101,
+      "nativeEnd": 190073,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-05-none-069-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 94920,
+      "authoredEnd": 178823,
+      "nativeStart": 94920,
+      "nativeEnd": 178823,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-05-none-072-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 144894,
+      "authoredEnd": 220500,
+      "nativeStart": 144894,
+      "nativeEnd": 220500,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-05-none-075-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 112966,
+      "authoredEnd": 201408,
+      "nativeStart": 112966,
+      "nativeEnd": 201408,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-05-none-078-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 98069,
+      "authoredEnd": 170252,
+      "nativeStart": 98069,
+      "nativeEnd": 170252,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-05-none-081-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 218295,
+      "authoredEnd": 220455,
+      "nativeStart": 218295,
+      "nativeEnd": 218295,
+      "disabled": true
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-05-none-084-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 218295,
+      "authoredEnd": 220455,
+      "nativeStart": 218295,
+      "nativeEnd": 218295,
+      "disabled": true
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-05-none-087-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 209808,
+      "authoredEnd": 211856,
+      "nativeStart": 209808,
+      "nativeEnd": 209808,
+      "disabled": true
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-07-none-066-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 145820,
+      "authoredEnd": 216657,
+      "nativeStart": 145820,
+      "nativeEnd": 216657,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-07-none-069-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 151748,
+      "authoredEnd": 220500,
+      "nativeStart": 151748,
+      "nativeEnd": 220500,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-07-none-072-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 161573,
+      "authoredEnd": 220500,
+      "nativeStart": 161573,
+      "nativeEnd": 220500,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-07-none-075-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 147291,
+      "authoredEnd": 220500,
+      "nativeStart": 147291,
+      "nativeEnd": 220500,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-07-none-078-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 137370,
+      "authoredEnd": 208085,
+      "nativeStart": 137370,
+      "nativeEnd": 208085,
+      "disabled": false
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-07-none-081-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 218295,
+      "authoredEnd": 220455,
+      "nativeStart": 218295,
+      "nativeEnd": 218295,
+      "disabled": true
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-07-none-084-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 206297,
+      "authoredEnd": 208345,
+      "nativeStart": 206297,
+      "nativeEnd": 206297,
+      "disabled": true
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-07-none-087-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 194884,
+      "authoredEnd": 196828,
+      "nativeStart": 194884,
+      "nativeEnd": 194884,
+      "disabled": true
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-05-none-090-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 196055,
+      "authoredEnd": 197999,
+      "nativeStart": 196055,
+      "nativeEnd": 196055,
+      "disabled": true
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-05-none-093-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 168256,
+      "authoredEnd": 169876,
+      "nativeStart": 168256,
+      "nativeEnd": 168256,
+      "disabled": true
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-05-none-096-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 170011,
+      "authoredEnd": 171631,
+      "nativeStart": 170011,
+      "nativeEnd": 170011,
+      "disabled": true
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-05-none-099-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 144261,
+      "authoredEnd": 145719,
+      "nativeStart": 144261,
+      "nativeEnd": 144261,
+      "disabled": true
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-05-none-102-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 132557,
+      "authoredEnd": 133853,
+      "nativeStart": 132557,
+      "nativeEnd": 132557,
+      "disabled": true
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-05-none-105-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 117632,
+      "authoredEnd": 118784,
+      "nativeStart": 117632,
+      "nativeEnd": 117632,
+      "disabled": true
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-05-none-108-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 110025,
+      "authoredEnd": 111105,
+      "nativeStart": 110025,
+      "nativeEnd": 110025,
+      "disabled": true
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-07-none-090-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 218295,
+      "authoredEnd": 220455,
+      "nativeStart": 218295,
+      "nativeEnd": 218295,
+      "disabled": true
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-07-none-093-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 186399,
+      "authoredEnd": 188199,
+      "nativeStart": 186399,
+      "nativeEnd": 186399,
+      "disabled": true
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-07-none-096-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 183180,
+      "authoredEnd": 184980,
+      "nativeStart": 183180,
+      "nativeEnd": 183180,
+      "disabled": true
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-07-none-099-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 163574,
+      "authoredEnd": 165194,
+      "nativeStart": 163574,
+      "nativeEnd": 163574,
+      "disabled": true
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-07-none-102-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 171767,
+      "authoredEnd": 173495,
+      "nativeStart": 171767,
+      "nativeEnd": 171767,
+      "disabled": true
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-07-none-105-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 161818,
+      "authoredEnd": 163438,
+      "nativeStart": 161818,
+      "nativeEnd": 161818,
+      "disabled": true
+    },
+    {
+      "member": "EasternGrandC7-Key-Sus-none-07-none-108-none.ogg",
+      "hasLoop": true,
+      "authoredStart": 141920,
+      "authoredEnd": 143270,
+      "nativeStart": 141920,
+      "nativeEnd": 141920,
+      "disabled": true
+    }
+  ],
+  "guardsIntact": true,
+  "bankUnchanged": true
+}

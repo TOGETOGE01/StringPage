@@ -1,0 +1,584 @@
+{
+  "scope": "Pure enum conversion getters; no score/decoder/player/activation calls",
+  "moduleSha256": {
+    "GPRSE.dll": "f004d24e65c4ea4ba1d82fcc991417e7abddd7ece402358b92c8f906dab4e4d9",
+    "GPCore.dll": "053e31d8c78b052198918cdd16e0af91e2631daa2c08d7b2db2d93d69d040d81"
+  },
+  "fretEnums": [
+    {
+      "enum": 0,
+      "float": 12.0,
+      "integer": 12,
+      "variation": 8
+    },
+    {
+      "enum": 1,
+      "float": 7.0,
+      "integer": 7,
+      "variation": 6
+    },
+    {
+      "enum": 2,
+      "float": 19.0,
+      "integer": 19,
+      "variation": 6
+    },
+    {
+      "enum": 3,
+      "float": 5.0,
+      "integer": 5,
+      "variation": 5
+    },
+    {
+      "enum": 4,
+      "float": 24.0,
+      "integer": 24,
+      "variation": 5
+    },
+    {
+      "enum": 5,
+      "float": 4.0,
+      "integer": 4,
+      "variation": 7
+    },
+    {
+      "enum": 6,
+      "float": 9.0,
+      "integer": 9,
+      "variation": 7
+    },
+    {
+      "enum": 7,
+      "float": 16.0,
+      "integer": 16,
+      "variation": 7
+    },
+    {
+      "enum": 8,
+      "float": 3.200000047683716,
+      "integer": 3,
+      "variation": 5
+    },
+    {
+      "enum": 9,
+      "float": 2.700000047683716,
+      "integer": 3,
+      "variation": 5
+    },
+    {
+      "enum": 10,
+      "float": 5.800000190734863,
+      "integer": 6,
+      "variation": 5
+    },
+    {
+      "enum": 11,
+      "float": 9.600000381469727,
+      "integer": 10,
+      "variation": 5
+    },
+    {
+      "enum": 12,
+      "float": 14.699999809265137,
+      "integer": 15,
+      "variation": 5
+    },
+    {
+      "enum": 13,
+      "float": 21.700000762939453,
+      "integer": 22,
+      "variation": 5
+    },
+    {
+      "enum": 14,
+      "float": 2.4000000953674316,
+      "integer": 2,
+      "variation": 5
+    },
+    {
+      "enum": 15,
+      "float": 8.199999809265137,
+      "integer": 8,
+      "variation": 5
+    },
+    {
+      "enum": 16,
+      "float": 17.0,
+      "integer": 17,
+      "variation": 5
+    },
+    {
+      "enum": 17,
+      "float": 0.0,
+      "integer": 1075419546,
+      "variation": 5
+    }
+  ],
+  "fretFromFloat": [
+    {
+      "value": 2.4,
+      "enum": 14,
+      "variation": 5
+    },
+    {
+      "value": 2.7,
+      "enum": 9,
+      "variation": 5
+    },
+    {
+      "value": 3.2,
+      "enum": 8,
+      "variation": 5
+    },
+    {
+      "value": 4,
+      "enum": 5,
+      "variation": 7
+    },
+    {
+      "value": 5,
+      "enum": 3,
+      "variation": 5
+    },
+    {
+      "value": 7,
+      "enum": 1,
+      "variation": 6
+    },
+    {
+      "value": 9,
+      "enum": 6,
+      "variation": 7
+    },
+    {
+      "value": 12,
+      "enum": 0,
+      "variation": 8
+    },
+    {
+      "value": 16,
+      "enum": 7,
+      "variation": 7
+    },
+    {
+      "value": 17,
+      "enum": 16,
+      "variation": 5
+    },
+    {
+      "value": 19,
+      "enum": 2,
+      "variation": 6
+    },
+    {
+      "value": 24,
+      "enum": 4,
+      "variation": 5
+    }
+  ],
+  "harmonicTypeTechnique": [
+    {
+      "type": -1,
+      "technique": 0
+    },
+    {
+      "type": 0,
+      "technique": 2
+    },
+    {
+      "type": 1,
+      "technique": 0
+    },
+    {
+      "type": 2,
+      "technique": 0
+    },
+    {
+      "type": 3,
+      "technique": 0
+    },
+    {
+      "type": 4,
+      "technique": 0
+    },
+    {
+      "type": 5,
+      "technique": 0
+    },
+    {
+      "type": 6,
+      "technique": 0
+    }
+  ],
+  "dynamics": [
+    {
+      "text": "NONE",
+      "value": 0
+    },
+    {
+      "text": "PPPPPPP",
+      "value": 1
+    },
+    {
+      "text": "PPPPPP",
+      "value": 2
+    },
+    {
+      "text": "PPPPP",
+      "value": 3
+    },
+    {
+      "text": "PPPP",
+      "value": 4
+    },
+    {
+      "text": "PPP",
+      "value": 5
+    },
+    {
+      "text": "PP",
+      "value": 6
+    },
+    {
+      "text": "P",
+      "value": 7
+    },
+    {
+      "text": "MP",
+      "value": 8
+    },
+    {
+      "text": "MF",
+      "value": 9
+    },
+    {
+      "text": "F",
+      "value": 10
+    },
+    {
+      "text": "FF",
+      "value": 11
+    },
+    {
+      "text": "FFF",
+      "value": 12
+    },
+    {
+      "text": "FFFF",
+      "value": 13
+    },
+    {
+      "text": "FFFFF",
+      "value": 14
+    },
+    {
+      "text": "FFFFFF",
+      "value": 15
+    },
+    {
+      "text": "FFFFFFF",
+      "value": 16
+    },
+    {
+      "text": "p",
+      "value": 0
+    },
+    {
+      "text": "mf",
+      "value": 0
+    },
+    {
+      "text": "f",
+      "value": 0
+    }
+  ],
+  "playingStyles": [
+    {
+      "text": "Default",
+      "value": 0
+    },
+    {
+      "text": "StringedPick",
+      "value": 1
+    },
+    {
+      "text": "StringedFinger",
+      "value": 2
+    },
+    {
+      "text": "StringedFingerPicking",
+      "value": 3
+    },
+    {
+      "text": "BassSlap",
+      "value": 4
+    },
+    {
+      "text": "DrumkitBrush",
+      "value": 5
+    },
+    {
+      "text": "DrumkitHotrod",
+      "value": 6
+    },
+    {
+      "text": "DrumkitStick",
+      "value": 6
+    }
+  ],
+  "fingerings": [
+    {
+      "text": "None",
+      "value": 0
+    },
+    {
+      "text": "Unknown",
+      "value": 0
+    },
+    {
+      "text": "P",
+      "value": 1
+    },
+    {
+      "text": "I",
+      "value": 2
+    },
+    {
+      "text": "M",
+      "value": 3
+    },
+    {
+      "text": "A",
+      "value": 4
+    },
+    {
+      "text": "C",
+      "value": 5
+    },
+    {
+      "text": "Thumb",
+      "value": 0
+    },
+    {
+      "text": "Index",
+      "value": 0
+    },
+    {
+      "text": "Middle",
+      "value": 0
+    },
+    {
+      "text": "Ring",
+      "value": 0
+    },
+    {
+      "text": "Little",
+      "value": 0
+    },
+    {
+      "text": "NoOrDead",
+      "value": 0
+    },
+    {
+      "text": "X",
+      "value": 0
+    }
+  ],
+  "unpitched": [
+    {
+      "axis": 0,
+      "text": "stick",
+      "value": 0
+    },
+    {
+      "axis": 0,
+      "text": "brush",
+      "value": 1
+    },
+    {
+      "axis": 0,
+      "text": "rod",
+      "value": 2
+    },
+    {
+      "axis": 0,
+      "text": "pedal",
+      "value": 3
+    },
+    {
+      "axis": 0,
+      "text": "mallet",
+      "value": 4
+    },
+    {
+      "axis": 0,
+      "text": "hand",
+      "value": 5
+    },
+    {
+      "axis": 0,
+      "text": "thumb",
+      "value": 6
+    },
+    {
+      "axis": 0,
+      "text": "finger4",
+      "value": 7
+    },
+    {
+      "axis": 0,
+      "text": "blow",
+      "value": 8
+    },
+    {
+      "axis": 0,
+      "text": "STICK",
+      "value": -1
+    },
+    {
+      "axis": 0,
+      "text": "unknown",
+      "value": -1
+    },
+    {
+      "axis": 0,
+      "text": "",
+      "value": -1
+    },
+    {
+      "axis": 1,
+      "text": "hit",
+      "value": 0
+    },
+    {
+      "axis": 1,
+      "text": "scrape",
+      "value": 1
+    },
+    {
+      "axis": 1,
+      "text": "HIT",
+      "value": -1
+    },
+    {
+      "axis": 1,
+      "text": "unknown",
+      "value": -1
+    },
+    {
+      "axis": 1,
+      "text": "",
+      "value": -1
+    },
+    {
+      "axis": 2,
+      "text": "hit",
+      "value": 0
+    },
+    {
+      "axis": 2,
+      "text": "pedal",
+      "value": 1
+    },
+    {
+      "axis": 2,
+      "text": "return",
+      "value": 2
+    },
+    {
+      "axis": 2,
+      "text": "handhit",
+      "value": 3
+    },
+    {
+      "axis": 2,
+      "text": "roll",
+      "value": 4
+    },
+    {
+      "axis": 2,
+      "text": "choke",
+      "value": 5
+    },
+    {
+      "axis": 2,
+      "text": "edge",
+      "value": 6
+    },
+    {
+      "axis": 2,
+      "text": "mid",
+      "value": 7
+    },
+    {
+      "axis": 2,
+      "text": "bell",
+      "value": 8
+    },
+    {
+      "axis": 2,
+      "text": "open",
+      "value": 9
+    },
+    {
+      "axis": 2,
+      "text": "half",
+      "value": 10
+    },
+    {
+      "axis": 2,
+      "text": "closed",
+      "value": 11
+    },
+    {
+      "axis": 2,
+      "text": "slap",
+      "value": 12
+    },
+    {
+      "axis": 2,
+      "text": "mute",
+      "value": 13
+    },
+    {
+      "axis": 2,
+      "text": "tip",
+      "value": 14
+    },
+    {
+      "axis": 2,
+      "text": "rimshot",
+      "value": 15
+    },
+    {
+      "axis": 2,
+      "text": "sidestick",
+      "value": 16
+    },
+    {
+      "axis": 2,
+      "text": "body",
+      "value": 17
+    },
+    {
+      "axis": 2,
+      "text": "none",
+      "value": 18
+    },
+    {
+      "axis": 2,
+      "text": "HIT",
+      "value": -1
+    },
+    {
+      "axis": 2,
+      "text": "unknown",
+      "value": -1
+    },
+    {
+      "axis": 2,
+      "text": "",
+      "value": -1
+    }
+  ]
+}
