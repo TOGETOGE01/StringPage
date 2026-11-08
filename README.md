@@ -4,15 +4,17 @@
 
 An Android Guitar Pro score reader and practice player, with embedded audio playback and adaptive phone/tablet layouts.
 
-当前源码版本：**1.14.0** · 最低系统：**Android 8.0 / API 26** · 项目代码：[MIT](LICENSE)
+当前源码版本：**1.14.1** · 最低系统：**Android 8.0 / API 26** · 项目代码：[MIT](LICENSE)
+
+1.14.1 修复部分原生 GP 文件的 ZIP 长度描述顺序兼容问题，可直接读取原文件的 RSE 设置，无需手动重新封装。读取时仍校验内容 CRC、实际大小和资源上限，不改写原文件。
 
 ## 下载与安装
 
-**[直接下载 StringPage 1.14.0 APK](https://github.com/TOGETOGE01/StringPage/releases/download/v1.14.0/StringPage-1.14.0.apk)** · [版本说明与附件](https://github.com/TOGETOGE01/StringPage/releases/tag/v1.14.0) · [所有版本](https://github.com/TOGETOGE01/StringPage/releases)
+**[直接下载 StringPage 1.14.1 APK](https://github.com/TOGETOGE01/StringPage/releases/download/v1.14.1/StringPage-1.14.1.apk)** · [版本说明与附件](https://github.com/TOGETOGE01/StringPage/releases/tag/v1.14.1) · [所有版本](https://github.com/TOGETOGE01/StringPage/releases)
 
 下载 `.apk` 文件到安卓设备安装，最低 Android 8.0。该安装包包含 ARM64、ARMv7、x86 和 x86_64，沿用项目发布签名。Release 页面中的 `Source code` 是源码压缩包，直接安装请选 APK 附件。
 
-SHA-256：`97e1aa86d274af66878d3d082f520db9a3c365bb7141ae21f61d4e3febc81bee`。也可下载[校验文件](https://github.com/TOGETOGE01/StringPage/releases/download/v1.14.0/SHA256-1.14.0-apk.txt)。
+SHA-256：`f299658bdc0439248943d6920233637261ad446615bc1897c6f8e110a9c26c2e`。也可下载[校验文件](https://github.com/TOGETOGE01/StringPage/releases/download/v1.14.1/SHA256-1.14.1-apk.txt)。
 
 ## 功能
 

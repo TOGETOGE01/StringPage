@@ -83,6 +83,43 @@ class GpRsePropertiesTest {
     }
 
     private fun writeInt(data:ByteArray,at:Int,value:Int) { repeat(4) { data[at+it]=(value ushr (it*8)).toByte() } }
+    private fun readInt(data:ByteArray,at:Int):Int = (0 until 4).fold(0) { value,index ->
+        value or ((data[at+index].toInt() and 255) shl (index*8))
+    }
+    private fun reversedDescriptors(bytes:ByteArray):ByteArray = bytes.copyOf().also { result ->
+        var at=0
+        while(at<=result.size-46) {
+            if(readInt(result,at)!=0x02014b50) { at++;continue }
+            val local=readInt(result,at+42)
+            val name=(result[local+26].toInt() and 255) or ((result[local+27].toInt() and 255) shl 8)
+            val extra=(result[local+28].toInt() and 255) or ((result[local+29].toInt() and 255) shl 8)
+            var descriptor=local+30+name+extra+readInt(result,at+20)
+            if(readInt(result,descriptor)==0x08074b50)descriptor+=4
+            val compressed=readInt(result,descriptor+4);val expanded=readInt(result,descriptor+8)
+            writeInt(result,descriptor+4,expanded);writeInt(result,descriptor+8,compressed)
+            at+=46
+        }
+    }
+
+    @Test fun nativeGpReversedSizeDescriptorsAreCompatibleWithoutChangingSourceBytes() {
+        val text=xml(track("0","StringedPick"),"0")
+        val media=ByteArray(32768) { (it%7).toByte() }
+        for(entries in listOf(arrayOf("Content/Assets/audio.mp3" to media,"Content/score.gpif" to text),
+            arrayOf("Content/score.gpif" to text,"Content/Assets/audio.mp3" to media))) {
+            val standard=zip(*entries);val reversed=reversedDescriptors(standard);val original=reversed.copyOf()
+            assertEquals(GpRseProperties.read(standard).tracks,GpRseProperties.read(reversed).tracks)
+            assertArrayEquals(original,reversed)
+        }
+    }
+
+    @Test fun reversedSizeCompatibilityStillRejectsCorruptPayloadsAndOtherSizeErrors() {
+        val standard=packed(xml(track("0","StringedPick")))
+        val descriptor=(0..standard.size-16).first { readInt(standard,it)==0x08074b50 }
+        expectFailure(standard.copyOf().also { writeInt(it,descriptor+12,readInt(it,descriptor+12)+1) })
+        val reversed=reversedDescriptors(standard)
+        expectFailure(reversed.copyOf().also { it[descriptor+4]=(it[descriptor+4].toInt() xor 1).toByte() })
+        expectFailure(reversed.copyOf().also { it[50]=(it[50].toInt() xor 0x40).toByte() })
+    }
     private fun bcfs(xml:ByteArray,name:String="score.gpif"):ByteArray {
         val sectors=(xml.size+4095)/4096
         val data=ByteArray(4+(2+sectors)*4096);"BCFS".toByteArray().copyInto(data)

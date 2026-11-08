@@ -159,7 +159,7 @@ object GpRseProperties {
     private fun fromZip(bytes: ByteArray): ByteArray {
         var xml: ByteArray? = null; var count = 0; var total = 0L
         val names = HashSet<String>(); val buffer = ByteArray(8192)
-        ZipInputStream(ByteArrayInputStream(bytes)).use { input ->
+        ZipInputStream(ByteArrayInputStream(compatibleZipDescriptors(bytes))).use { input ->
             while (true) {
                 val entry = input.nextEntry ?: break
                 check(++count <= MAX_ENTRIES, "Too many ZIP members")
@@ -183,6 +183,62 @@ object GpRseProperties {
             }
         }
         return xml ?: throw GpRsePropertiesException("No score.gpif in GP container")
+    }
+
+    /** Some native GP archives write expanded/compressed sizes in reverse order
+     * in their streaming descriptors, while their central directory is correct.
+     * Correct only that exact, identifiable layout in a private memory copy.
+     * ZipInputStream still verifies actual sizes and CRCs for every member;
+     * source files, CRC fields and arbitrary inconsistent sizes are not changed.
+     */
+    private fun compatibleZipDescriptors(bytes: ByteArray): ByteArray {
+        fun short(at: Int) = (bytes[at].toInt() and 255) or ((bytes[at+1].toInt() and 255) shl 8)
+        var end = bytes.size - 22
+        val minimum = maxOf(0, bytes.size - 22 - 65535)
+        while (end >= minimum) {
+            if (little(bytes,end) == 0x06054b50 && end + 22 + short(end+20) == bytes.size) break
+            end--
+        }
+        if (end < minimum) return bytes
+        val count = short(end+10)
+        // Leave unsupported/multipart/ZIP64 layouts to the original ZIP reader.
+        if (short(end+4) != 0 || short(end+6) != 0 || short(end+8) != count || count == 65535) return bytes
+        val start = little(bytes,end+16); val size = little(bytes,end+12)
+        if (start < 0 || size < 0 || start.toLong()+size > end) return bytes
+        val limit = start+size
+        var at = start
+        val swaps = ArrayList<Int>()
+        repeat(count) {
+            if (at > limit-46 || little(bytes,at) != 0x02014b50) return bytes
+            val flags=short(at+8); val method=short(at+10); val crc=little(bytes,at+16)
+            val compressed=little(bytes,at+20); val expanded=little(bytes,at+24)
+            val next=at.toLong()+46+short(at+28)+short(at+30)+short(at+32)
+            val local=little(bytes,at+42)
+            if (next > limit || compressed < 0 || expanded < 0 || local < 0 || local > start-30) return bytes
+            if (little(bytes,local) != 0x04034b50) return bytes
+            val data=local.toLong()+30+short(local+26)+short(local+28)
+            val after=data+compressed
+            if (after > start || after < data) return bytes
+            if (flags and 8 != 0 && flags and 1 == 0 && method == 8 && compressed != expanded) {
+                var descriptor=after.toInt()
+                if (descriptor > start-12) return bytes
+                // Support both unsigned descriptors and descriptors with the
+                // optional signature. CRC equality disambiguates the two.
+                if (little(bytes,descriptor) != crc && little(bytes,descriptor) == 0x08074b50) descriptor+=4
+                if (descriptor <= start-12 && little(bytes,descriptor) == crc &&
+                    little(bytes,descriptor+4) == expanded && little(bytes,descriptor+8) == compressed) {
+                    swaps.add(descriptor+4)
+                }
+            }
+            at=next.toInt()
+        }
+        if (at != limit || swaps.isEmpty()) return bytes
+        return bytes.copyOf().also { result ->
+            for (offset in swaps) repeat(4) { index ->
+                result[offset+index]=bytes[offset+4+index]
+                result[offset+4+index]=bytes[offset+index]
+            }
+        }
     }
 
     private class Bits(private val data: ByteArray, private var position: Int) {
