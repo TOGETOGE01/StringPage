@@ -103,7 +103,8 @@ class NativeSlideScoreGraph(score: Score) {
             else -> RseNoteCoordinate.Kind.Pitched }
         return NativeSlideInterpreter.Note(note.calculateRealValue(false,true).toInt(),note.fret.toInt(),flags(note),kind,
             if(kind == RseNoteCoordinate.Kind.Stringed) Note.getStringTuning(note.beat.voice.bar.staff,note.string).toInt() else null,
-            beatLength.numerator,beatLength.denominator,total.numerator,total.denominator)
+            beatLength.numerator,beatLength.denominator,total.numerator,total.denominator,
+            parameters=GpRseProperties.note(note)?.slideParameters ?: NativeSlideParameters())
     }
     fun get(note: Note): NativeSlideInterpreter.Note? = nodes[GpRseProperties.original(note)]
 }

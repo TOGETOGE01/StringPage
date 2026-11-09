@@ -6,17 +6,23 @@ import alphaTab.model.JsonConverter
 import alphaTab.model.Score
 import alphaTab.model.SlideInType
 import alphaTab.model.SlideOutType
+import alphaTab.model.BendType
 
-/** Compile a private score snapshot without MIDI slide bends, then expand the
- * recovered RSE slide voices. Other MIDI-derived timing/pitch behavior remains
+/** Compile a private score snapshot without replaced MIDI bends, then expand
+ * recovered RSE slide voices and per-note bend functors. Other MIDI-derived timing/pitch behavior remains
  * an adapter; this is not the complete native tick scheduler.
  */
 object RseSlidePlayback {
     fun compile(score: Score,settings: Settings = Settings(),cancelled: () -> Boolean = { false }): ScorePerformance {
         fun checkActive() { check(!cancelled() && !Thread.currentThread().isInterrupted) { "已取消准备。" } }
         checkActive()
-        if (!NativeSlideScoreGraph(score).hasSlides) return ScorePerformance.compile(score,settings,cancelled)
+        val hasBends=NativeBendScoreGraph(score).hasBends
+        if (!NativeSlideScoreGraph(score).hasSlides && !hasBends) return ScorePerformance.compile(score,settings,cancelled)
         val original=ScorePerformance.compile(score,settings,cancelled)
+        // Existing MIDI emission does not identify an authored string for an
+        // ambiguous unison. Keep that track's existing pitch path until the
+        // emission identity is recovered, rather than silently flattening it.
+        val ambiguousTracks=original.notes.filter { it.sourceMatch==ScorePerformance.SourceMatch.Ambiguous }.map { it.track }.toSet()
         checkActive()
         val json=checkNotNull(JsonConverter.scoreToJsObject(score))
         // alphaTab's generated JSON keys are lowercase, including compound names.
@@ -24,9 +30,14 @@ object RseSlidePlayback {
         val snapshot=JsonConverter.jsObjectToScore(json,settings)
         GpRseProperties.transfer(score,snapshot)
         val graph=NativeSlideScoreGraph(snapshot)
-        for(track in snapshot.tracks) for(staff in track.staves) for(bar in staff.bars) for(voice in bar.voices)
+        val bends=NativeBendScoreGraph(snapshot)
+        for((trackIndex,track) in snapshot.tracks.withIndex()) for(staff in track.staves) for(bar in staff.bars) for(voice in bar.voices)
             for(beat in voice.beats) for(note in beat.notes) {
                 checkActive()
+                if(hasBends && trackIndex !in ambiguousTracks && !note.isPercussion && GpRseProperties.note(note)!=null) {
+                    note.bendType=BendType.None;note.bendPoints=null;note.maxBendPoint=null
+                    note.bendOrigin=null;note.isContinuedBend=false
+                }
                 if(graph.get(note)?.let { it.kind != RseNoteCoordinate.Kind.NonPitched && NativeSlideInterpreter.applies(it) } == true) {
                     val flags=NativeSlideScoreGraph.flags(note)
                     if(flags and 15 != 0) note.slideOutType=SlideOutType.None
@@ -37,11 +48,17 @@ object RseSlidePlayback {
         val base=ScorePerformance.compile(snapshot,settings,cancelled)
         val notes=ArrayList<ScorePerformance.NoteEvent>()
         var partial=0
-        for(event in base.notes) {
+        for(rawEvent in base.notes) {
             checkActive()
+            val event=if(hasBends && rawEvent.track !in ambiguousTracks) rawEvent.copy(nativeBend=rawEvent.sourceNote?.let(bends::plan)) else rawEvent
             val source=event.sourceNote;val node=source?.let(graph::get)
+            if(source?.hasBend==true && event.nativeBend==null) partial++
             if(node == null || node.kind == RseNoteCoordinate.Kind.NonPitched || !NativeSlideInterpreter.applies(node)) {
-                notes.add(event);continue
+                val accent=source?.let { GpRseProperties.note(it)?.accentFlags ?: if(it.isStaccato) 1 else 0 } ?: 0
+                val end=if(event.nativeBend!=null && node!=null) NativeStaccato.endTick(accent,
+                    NativeNumericAttribute.truncate(node.soundingNumerator.toFloat()/node.soundingDenominator.toFloat()*480f),
+                    (event.startTick/2.0).toInt()) else null
+                notes.add(if(end==null) event else event.copy(endTick=end*2.0,endMs=base.tickToMs(end*2.0)));continue
             }
             val technique=NativeNoteTechnique.apply(source)
             val initial=NativeFadePolicy.State(startingCuePoint=technique.cuePoint)

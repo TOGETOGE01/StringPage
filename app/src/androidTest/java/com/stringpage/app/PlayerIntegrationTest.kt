@@ -64,10 +64,17 @@ class PlayerIntegrationTest {
         }
         playPause()
         await("recording clock advances") { api.timePosition > 1200 }
-        playPause()
-        val paused = ui { api.timePosition }
+        val paused = ui {
+            val handler=(api.player!!.output as IExternalMediaSynthOutput).handler as EmbeddedAudio
+            val media=EmbeddedAudio::class.java.getDeclaredField("media").apply { isAccessible=true }.get(handler) as android.media.MediaPlayer
+            // The API briefly reports alphaTab's beat-snapped pause while the
+            // native seek settles. The physical recording clock is authoritative.
+            val physical=media.currentPosition
+            activity.findViewById<Button>(R.id.play_pause).performClick()
+            physical.toDouble()
+        }
         SystemClock.sleep(500)
-        ui { assertEquals(paused, api.timePosition, 150.0) }
+        ui { assertEquals(PlayerState.Paused,api.playerState);assertEquals(paused, api.timePosition, 50.0) }
         ui { api.timePosition = 12000.0 }
         await("seek follows recording") { api.timePosition > 11000 }
         ui { assertTrue(api.tickPosition > 15000) }
@@ -92,7 +99,13 @@ class PlayerIntegrationTest {
             if (sawEnd && tick < 5000) wrapped = true
             SystemClock.sleep(60)
         }
-        assertTrue("The recording must loop back to the selected bar; sawEnd=$sawEnd; $observations", wrapped)
+        val transport=ui {
+            val output=api.player?.output as? IExternalMediaSynthOutput
+            val handler=output?.handler as? EmbeddedAudio
+            val media=handler?.let { EmbeddedAudio::class.java.getDeclaredField("media").apply { isAccessible=true }.get(it) as? android.media.MediaPlayer }
+            "physical=${media?.currentPosition}, nativePlaying=${media?.isPlaying}, outputCurrent=${handler?.output===output}"
+        }
+        assertTrue("The recording must loop back to the selected bar; sawEnd=$sawEnd; $observations; $transport", wrapped)
         ui { assertFalse(activity.applyLoopRange(5, 2)) }
     }
 

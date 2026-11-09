@@ -58,6 +58,18 @@ class NativeSlideInterpreterTest {
     @Test fun tiedQuarterEighthDottedTripletAndSeptupletGraphsMatch80NativeEvaluations() {
         verifyGraphs("native-slide-tied.json",40,80)
     }
+    @Test fun customGpifSlideParametersMatch864OriginalAutomationGraphs() {
+        verifyGraphs("native-slide-custom.json",427,864)
+    }
+    @Test fun typedGpifNumericAttributesMatch234ActualNativeConversions() {
+        val rows=fixture("native-slide-parameter-values.json").getJSONArray("rows");assertEquals(234,rows.length())
+        repeat(rows.length()) { at ->
+            val row=rows.getJSONObject(at);val actual=NativeNumericAttribute.read(row.getString("tag"),row.getString("text"))
+            val label=row.getString("tag")+" "+row.getString("text")
+            assertEquals(label,row.getLong("floatBits").toInt(),(actual?.floatValue ?: .321f).toRawBits())
+            assertEquals(label,row.getInt("intValue"),actual?.intValue ?: -98765)
+        }
+    }
     private fun verifyGraphs(asset: String,scoreCount: Int,evaluations: Int) {
         val cases=fixture(asset).getJSONArray("cases");assertEquals(scoreCount,cases.length())
         var evaluated=0

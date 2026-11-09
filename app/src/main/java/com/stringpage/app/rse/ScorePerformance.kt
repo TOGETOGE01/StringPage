@@ -25,7 +25,7 @@ class ScorePerformance internal constructor(
     data class NoteEvent(val id: Int, val track: Int, val channel: Int, val midi: Int, val velocity: Int,
         val startTick: Double, val endTick: Double, val startMs: Double, val endMs: Double,
         val sourceNote: Note?, val sourceMatch: SourceMatch, val channelTransposition: Int = 0,
-        val slideVoice: SlideVoice? = null)
+        val slideVoice: SlideVoice? = null,val nativeBend: NativeBendInterpreter.Plan? = null)
     data class SlideVoice(val state: NativeFadePolicy.State, val sourceMidi: Int, val generated: Boolean)
     data class PitchEvent(val track: Int, val channel: Int, val midi: Int?, val value: Double, val tick: Double, val timeMs: Double)
     data class ControlEvent(val track: Int, val channel: Int, val controller: Int, val value: Int, val tick: Double, val timeMs: Double)

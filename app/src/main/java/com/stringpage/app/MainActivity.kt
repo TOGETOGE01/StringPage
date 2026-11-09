@@ -42,6 +42,7 @@ import java.util.concurrent.Executors
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.math.roundToInt
 
 /** Offline GP reader. Embedded audio and the GP8 sync map stay inside alphaTab's data model. */
 class MainActivity : AppCompatActivity() {
@@ -68,7 +69,7 @@ class MainActivity : AppCompatActivity() {
     private var embeddedReady = false
     private var midiReady = false
     private val embedded by lazy { EmbeddedAudio { error ->
-        sheet.api.pause(); embeddedReady = false; setControlsReady(false)
+        pausePlayback(); embeddedReady = false; setControlsReady(false)
         showError("内嵌音频播放失败", error)
     } }
     private lateinit var sheet: AlphaTabView
@@ -93,6 +94,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var scoreHost: FrameLayout
     private lateinit var scoreFrame: FrameLayout
     private lateinit var headerToolbar: LinearLayout
+    private lateinit var brand: TextView
     private lateinit var transport: LinearLayout
     private lateinit var speedReadout: TextView
     private lateinit var bottomContent: LinearLayout
@@ -102,6 +104,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var audioDetails: TextView
     private lateinit var sourceNotice: TextView
     private lateinit var barCounter: TextView
+    private lateinit var masterVolume: SeekBar
     private lateinit var fullScreen: Button
     private lateinit var notation: Button
     private lateinit var inlineFrom: EditText
@@ -111,8 +114,14 @@ class MainActivity : AppCompatActivity() {
     private val speedPresets = mutableListOf<Button>()
     private var fullSheet = false
     private var currentWidth = 0
+    private var currentHeight = 0
     private var modified = false
     private var restoreTick: Double? = null
+    private var documentKey: String? = null
+    private var pendingReaderSession: ReaderSession? = null
+    private var restoreRequestedTick: Double? = null
+    private var loopFromBar: Int? = null
+    private var loopToBar: Int? = null
     private var exportFile: File? = null
     private var exportFormat: ScoreExport.Format? = null
     private var exportScore: Score? = null
@@ -139,18 +148,20 @@ class MainActivity : AppCompatActivity() {
         AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
             .setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA)
                 .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build())
-            .setOnAudioFocusChangeListener { if (it < 0) runOnUiThread { sheet.api.pause() } }
+            .setOnAudioFocusChangeListener { if (it < 0) runOnUiThread { pausePlayback() } }
             .build()
     }
     private val unplugged = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (bankLibraryDelegate.isInitialized()) bankLibrary.stop()
-            sheet.api.pause()
+            pausePlayback()
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        pendingReaderSession=ReaderSession.fromBundle(savedInstanceState?.getBundle("readerSession"))
+        fullSheet=pendingReaderSession?.fullScreen ?: false
         if (!factoryCacheSwept) {
             factoryCacheSwept = true
             cacheDir.listFiles()?.filter { it.isFile && it.name.startsWith("factory-score-") && it.extension == "wav" }
@@ -171,7 +182,12 @@ class MainActivity : AppCompatActivity() {
             override fun handleOnBackPressed() { guardDocumentChange { finish() } }
         })
         val initial = {
-            if (intent.action == Intent.ACTION_VIEW && intent.data != null) openUri(intent.data!!)
+            if (intent.action == Intent.ACTION_VIEW && intent.data != null) {
+                if(pendingReaderSession?.document!=intent.data.toString()) pendingReaderSession=null
+                openUri(intent.data!!)
+            }
+            else if(pendingReaderSession?.document==ReaderSession.DEMO) openDemo()
+            else if(pendingReaderSession!=null) openUri(Uri.parse(pendingReaderSession!!.document))
             else if (savedInstanceState?.getString("uri") != null) openUri(Uri.parse(savedInstanceState.getString("uri")))
         }
         if (drafts.exists()) AlertDialog.Builder(this).setTitle("恢复未导出的修改")
@@ -221,7 +237,10 @@ class MainActivity : AppCompatActivity() {
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         }
         headerToolbar.addView(logo, LinearLayout.LayoutParams(dp(36), dp(36)).apply { marginEnd = dp(10) })
-        val brand = text("弦页", 20f).apply { setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL)); setOnClickListener { showAbout() } }
+        brand = text("弦页", 20f).apply {
+            id=R.id.app_brand;maxLines=1;ellipsize=TextUtils.TruncateAt.END
+            setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL)); setOnClickListener { showAbout() }
+        }
         headerToolbar.addWeighted(brand, 1f, 48)
         fun headerAction(label: String, icon: String, action: () -> Unit) = button(label, action = action).apply {
             background = AppUi.ripple(this@MainActivity, Color.TRANSPARENT, 10)
@@ -295,6 +314,7 @@ class MainActivity : AppCompatActivity() {
             beatCursorFillColor = Color.argb(185, 8, 120, 103)
             selectionFillColor = Color.argb(45, 8, 120, 103)
             settings.display.scale = 0.85
+            settings.display.barsPerRow = -1.0
             settings.display.padding = alphaTab.collections.DoubleList().apply { push(20.0); push(24.0); push(20.0); push(24.0) }
             settings.player.playerMode = PlayerMode.EnabledSynthesizer
             settings.player.enableUserInteraction = true
@@ -378,7 +398,8 @@ class MainActivity : AppCompatActivity() {
             AppUi.iconButton(this, "mix", teal)
         }, LinearLayout.LayoutParams(-1, dp(48)))
         practice.addView(sectionLabel("主音量"))
-        val volume = SeekBar(this).apply {
+        masterVolume = SeekBar(this).apply {
+            id=R.id.master_volume
             max = 100; progress = 100; contentDescription = "播放音量"
             setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(view: SeekBar?, value: Int, user: Boolean) { if (user) sheet.api.masterVolume = value / 100.0 }
@@ -386,7 +407,7 @@ class MainActivity : AppCompatActivity() {
                 override fun onStopTrackingTouch(view: SeekBar?) {}
             })
         }
-        practice.addView(volume, LinearLayout.LayoutParams(-1, dp(32)))
+        practice.addView(masterVolume, LinearLayout.LayoutParams(-1, dp(32)))
         practice.addView(sectionLabel("音频信息"))
         audioDetails = text("未打开乐谱", 11f, muted).apply { setLineSpacing(dp(3).toFloat(), 1f) }
         practice.addView(audioDetails)
@@ -437,11 +458,16 @@ class MainActivity : AppCompatActivity() {
         bottomContent.addView(controls); transport.addView(bottomContent)
         root.addView(transport)
         setContentView(root)
-        root.addOnLayoutChangeListener { _, left, _, right, _, _, _, _, _ ->
-            val width = ((right - left) / resources.displayMetrics.density).toInt()
-            if (width != currentWidth) { currentWidth = width; applyAdaptiveLayout(width) }
+        root.addOnLayoutChangeListener { view, left, top, right, bottom, _, _, _, _ ->
+            val density=resources.displayMetrics.density
+            val width=((right-left-view.paddingLeft-view.paddingRight)/density).toInt()
+            val height=((bottom-top-view.paddingTop-view.paddingBottom)/density).toInt()
+            if(width!=currentWidth || height!=currentHeight) {
+                currentWidth=width;currentHeight=height;applyAdaptiveLayout(width)
+            }
         }
         currentWidth = resources.configuration.screenWidthDp
+        currentHeight = resources.configuration.screenHeightDp
         applyAdaptiveLayout(currentWidth); refreshPanels(); setControlsReady(false)
     }
 
@@ -455,9 +481,12 @@ class MainActivity : AppCompatActivity() {
     }
     private fun applyAdaptiveLayout(width: Int) {
         if (!::sidebar.isInitialized) return
+        val compact=currentHeight in 1..420
+        val oneLineInfo=width>=840 || (compact && width>=600)
+        val oneLineTransport=width>=840 || (compact && width>=480)
         sidebar.visibility = if (width >= 840 && !fullSheet) View.VISIBLE else View.GONE
         inspector.visibility = if (width >= 1200 && !fullSheet) View.VISIBLE else View.GONE
-        infoPanel.visibility = if (fullSheet) View.GONE else View.VISIBLE
+        infoPanel.visibility = if (fullSheet || (compact && (width<600 || currentHeight<300))) View.GONE else View.VISIBLE
         fullScreen.text = if (fullSheet) "退出全屏" else "全屏看谱"
         fullScreen.visibility = if (width < 600) View.GONE else View.VISIBLE
         if (width < 600) {
@@ -467,32 +496,53 @@ class MainActivity : AppCompatActivity() {
             AppUi.iconButton(recentHeader, "clock", muted); AppUi.iconButton(moreButton, "more", muted)
         }
         val wide = width >= 840
+        headerToolbar.layoutParams.height=dp(if(compact) 52 else 60)
+        headerToolbar.requestLayout()
+        val showBrand=width>=360 && (width>=380 || resources.configuration.fontScale<=1.1f)
+        brand.text=if(showBrand) "弦页" else ""
+        brand.isClickable=showBrand
+        brand.importantForAccessibility=if(showBrand) View.IMPORTANT_FOR_ACCESSIBILITY_AUTO else View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        brand.layoutParams.height=dp(if(compact) 44 else 48);brand.requestLayout()
         headerToolbar.setPadding(dp(if (wide) 24 else 16), dp(4), dp(if (wide) 20 else 8), dp(4))
         // One header row on tablets; stack the same controls on phones without detaching the score view.
-        infoPanel.orientation = if (wide) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
-        infoPanel.setPadding(dp(if (wide) 24 else 16), dp(if (wide) 16 else 14), dp(if (wide) 18 else 10), dp(12))
-        documentHeading.layoutParams = if (wide) LinearLayout.LayoutParams(0, -2, 1f) else LinearLayout.LayoutParams(-1, -2)
-        scoreTools.layoutParams = LinearLayout.LayoutParams(if (wide) dp(384) else -1, dp(44)).apply {
-            if (wide) marginStart = dp(20) else topMargin = dp(12)
+        infoPanel.orientation = if (oneLineInfo) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
+        infoPanel.setPadding(dp(if (wide) 24 else 16), dp(if(compact) 4 else if (wide) 16 else 14), dp(if (wide) 18 else 10), dp(if(compact) 4 else 12))
+        documentHeading.layoutParams = if (oneLineInfo) LinearLayout.LayoutParams(0, -2, 1f) else LinearLayout.LayoutParams(-1, -2)
+        scoreTools.layoutParams = LinearLayout.LayoutParams(if(oneLineInfo) dp(if(compact && !wide) 320 else 384) else -1, dp(44)).apply {
+            if(oneLineInfo) marginStart=dp(if(compact) 12 else 20) else topMargin=dp(12)
         }
-        title.textSize = if (wide) 22f else 21f
+        title.textSize = if(compact) 17f else if (wide) 22f else 21f
+        title.maxLines=1;title.ellipsize=TextUtils.TruncateAt.END
+        subtitle.maxLines=1;subtitle.ellipsize=TextUtils.TruncateAt.END
+        subtitle.visibility=if(compact) View.GONE else View.VISIBLE
         if (wide) {
             AppUi.iconButton(source, "audio", teal); AppUi.iconButton(track, "track", muted); AppUi.iconButton(zoom, "zoom", muted)
         } else {
             listOf(source, track, zoom).forEach { it.setCompoundDrawables(null, null, null, null) }
         }
+        listOf(source,track,zoom).forEach { it.setPadding(dp(if(width<380) 8 else 12),0,dp(if(width<380) 8 else 12),0) }
         scoreHost.setPadding(dp(if (wide) 20 else 0), dp(2), dp(if (wide) 16 else 0), dp(if (wide) 16 else 0))
         scoreFrame.background = shape(Color.WHITE, if (wide) 12 else 0)
         scoreFrame.elevation = if (wide) dp(1).toFloat() else 0f
-        transport.setPadding(dp(if (wide) 20 else 12), dp(4), dp(if (wide) 20 else 12), dp(10))
-        bottomContent.orientation = if (wide) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
-        timeline.layoutParams = if (wide) LinearLayout.LayoutParams(0, dp(48), 1f) else LinearLayout.LayoutParams(-1, dp(38))
-        controls.layoutParams = LinearLayout.LayoutParams(if (wide) dp(360) else -1, dp(48)).apply { if (wide) marginStart = dp(16) else topMargin = dp(4) }
-        if (width < 380) loop.setCompoundDrawables(null, null, null, null)
+        transport.setPadding(dp(if (wide) 20 else 12), dp(if(compact) 2 else 4), dp(if (wide) 20 else 12), dp(if(compact) 6 else 10))
+        status.layoutParams.height=dp(if(compact) 20 else 28);status.requestLayout()
+        bottomContent.orientation = if (oneLineTransport) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
+        timeline.layoutParams = if (oneLineTransport) LinearLayout.LayoutParams(0, dp(48), 1f) else LinearLayout.LayoutParams(-1, dp(if(compact) 28 else 38))
+        position.visibility=if(compact && width<600) View.GONE else View.VISIBLE
+        controls.layoutParams = LinearLayout.LayoutParams(if(oneLineTransport) dp(if(wide) 360 else if(width>=600) 300 else 284) else -1, dp(48)).apply {
+            if(oneLineTransport) marginStart=dp(if(compact) 8 else 16) else topMargin=dp(4)
+        }
+        for(control in listOf(play,speed,loop)) control.setPadding(dp(if(width<380 || compact) 8 else 12),0,dp(if(width<380 || compact) 8 else 12),0)
+        updatePlayIcon()
+        if (width < 380 || (compact && !wide)) loop.setCompoundDrawables(null, null, null, null)
         else AppUi.iconButton(loop, "loop", Color.WHITE)
-        sheet.settings.display.barsPerRow = -1.0
-        sheet.api.updateSettings()
-        if (score != null) sheet.api.render()
+        // AlphaTab observes its viewport size and reflows itself. Keep the
+        // player intact while the window or keyboard changes its dimensions.
+    }
+
+    private fun updatePlayIcon() {
+        if(currentWidth<380 || (currentHeight in 1..420 && currentWidth<840)) play.setCompoundDrawables(null,null,null,null)
+        else AppUi.iconButton(play,if(playing) "pause" else "play",ink)
     }
 
     private fun refreshPanels() {
@@ -517,7 +567,7 @@ class MainActivity : AppCompatActivity() {
             else -> "未打开乐谱"
         }
         sourceNotice.text = when {
-            factoryMode -> "按分配的音色库播放；完整连奏、拾音器及效果链仍在还原。"
+            factoryMode -> "按分配的音色库播放；部分复杂技法和音色效果尚未支持。"
             hasAudio && audioMode -> "切换声部只改变谱面显示，内嵌录音保持完整。"
             else -> ""
         }
@@ -543,7 +593,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun showAbout() {
         AlertDialog.Builder(this).setTitle("弦页 ${packageManager.getPackageInfo(packageName, 0).versionName}")
-            .setMessage("本地 GP 乐谱阅读与内嵌音频播放。\n\n乐谱引擎：alphaTab 1.8.4（MPL-2.0）\nhttps://alphatab.net\n\n字体：Bravura（SIL OFL）\n默认合成音色：GeneralUser GS SoftSynth 1.44\n作者：S. Christian Collins\n\n原厂采样按谱播放已接入；完整技法、拾音器与效果链正在还原。\n\n键盘：空格播放 / 暂停，Home 回到开头。")
+            .setMessage("本地 GP 乐谱阅读与内嵌音频播放。\n\n乐谱引擎：alphaTab 1.8.4（MPL-2.0）\nhttps://alphatab.net\n\n字体：Bravura（SIL OFL）\n默认合成音色：GeneralUser GS SoftSynth 1.44\n作者：S. Christian Collins\n\n已支持采样按谱播放；部分复杂技法和音色效果尚未支持。\n\n键盘：空格播放 / 暂停，Home 回到开头。")
             .setNeutralButton("开源许可") { _, _ -> showLicenses() }
             .setPositiveButton("关闭", null).show()
     }
@@ -575,19 +625,19 @@ class MainActivity : AppCompatActivity() {
             }
         } }
         sheet.api.playerReady.on { runOnUiThread {
-            if (!loading && score != null) {
+            if (!loading && score != null && sheet.api.score===score) {
                 midiReady = true
                 bindEmbeddedOutput()
                 sheet.api.playbackSpeed = currentSpeed
                 practice.reapply()
                 restorePlaybackPosition()
-                setControlsReady(!audioMode || embeddedReady)
+                setControlsReady((!audioMode || embeddedReady) && pendingReaderSession==null && restoreTick==null)
             }
         } }
         sheet.api.playerStateChanged.on { e -> runOnUiThread {
             playing = e.state == PlayerState.Playing
             play.text = if (playing) "暂停" else "播放"
-            AppUi.iconButton(play, if (playing) "pause" else "play", ink)
+            updatePlayIcon()
             if (playing) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             else { window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON); audioManager.abandonAudioFocusRequest(focus) }
         } }
@@ -595,9 +645,22 @@ class MainActivity : AppCompatActivity() {
             duration = e.endTime; currentTick = e.currentTick
             if (!progress.isPressed) progress.progress = if (duration > 0) (e.currentTime / duration * 10000).toInt() else 0
             position.text = "${formatTime(e.currentTime)} / ${formatTime(duration)}"
+            val requested=restoreRequestedTick
+            if(requested!=null && kotlin.math.abs(e.currentTick-requested)<=20.0 &&
+                (if(audioMode) !e.isSeek else e.isSeek)) {
+                // Worker commands and native recording seeks finish after the
+                // ready event. A cached setter value is not a seek completion.
+                restoreRequestedTick=null;pendingReaderSession=null;restoreTick=null
+                setControlsReady(!loading && midiReady && sheet.api.isReadyForPlayback && (!audioMode || embeddedReady))
+            }
+            if((pendingReaderSession!=null || restoreTick!=null) && !loading && e.endTick>0) {
+                restorePlaybackPosition()
+                if(pendingReaderSession==null && restoreTick==null)
+                    setControlsReady(midiReady && sheet.api.isReadyForPlayback && (!audioMode || embeddedReady))
+            }
         } }
         sheet.api.playbackRangeChanged.on { runOnUiThread {
-            if (sheet.api.playbackRange == null && sheet.api.isLooping) sheet.api.isLooping = false
+            if (pendingReaderSession==null && restoreTick==null && sheet.api.playbackRange == null && sheet.api.isLooping) sheet.api.isLooping = false
             loop.text = if (sheet.api.playbackRange != null && sheet.api.isLooping) "循环中" else "循环"
         } }
         sheet.api.playedBeatChanged.on { beat -> runOnUiThread {
@@ -697,7 +760,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun beginBatchImport(uris: List<Uri>, persistGrants: Boolean) {
         if (loading || importing) { Toast.makeText(this, "正在处理乐谱，请稍候。", Toast.LENGTH_SHORT).show(); return }
-        sheet.api.pause()
+        pausePlayback()
         importing = true; loading = true
         val token = ++generation
         val cancelled = AtomicBoolean(false); batchCancellation = cancelled
@@ -773,7 +836,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun loadFile(read: () -> Pair<String, ByteArray>, uri: Uri?, recovered: Boolean = false) {
         if (factorySetupDelegate.isInitialized()) factorySetup.cancel()
-        sheet.api.pause()
+        pausePlayback()
         val token = ++generation
         loading = true; setControlsReady(false)
         status.text = "正在读取谱面、内嵌音频和同步点…"
@@ -798,40 +861,58 @@ class MainActivity : AppCompatActivity() {
                 runOnUiThread {
                     if (token != generation || isDestroyed) return@runOnUiThread
                     loading = false; loadingIndicator.visibility = View.GONE
-                    score = parsed; fileLabel = label; activeTrack = 0
+                    val key=uri?.toString() ?: if(!recovered) ReaderSession.DEMO else null
+                    val resume=pendingReaderSession?.takeIf { it.document==key }
+                    if(resume==null) pendingReaderSession=null
+                    restoreRequestedTick=null
+                    score = parsed; fileLabel = label; documentKey=key
+                    activeTrack=(resume?.track ?: 0).coerceIn(0,parsed.tracks.length.toInt()-1)
                     modified = recovered; restoreTick = null; trainer.stop()
                     editor.reset(parsed); practice.reset(parsed)
                     if (!recovered) io.execute { drafts.delete() }
                     hasAudio = (parsed.backingTrack?.rawAudioFile?.length ?: 0.0) > 0.0
-                    audioMode = hasAudio; factoryMode = false
+                    audioMode = hasAudio && (resume==null || resume.source=="embedded"); factoryMode = false
                     embedded.release(); embeddedReady = false; midiReady = false
                     factoryResult?.file?.delete(); factoryResult = null
                     embeddedFile?.delete(); embeddedFile = audioFile
-                    currentSpeed = 1.0; speed.text = "1.0×"
+                    currentSpeed = resume?.speed ?: 1.0; speed.text = "${currentSpeed}×"
+                    resume?.let {
+                        sheet.settings.display.scale=it.scale
+                        sheet.settings.display.staveProfile=runCatching { alphaTab.StaveProfile.valueOf(it.notation) }.getOrDefault(alphaTab.StaveProfile.ScoreTab)
+                    }
+                    zoom.text="${(sheet.settings.display.scale*100).roundToInt()}%"
+                    notation.text=when(sheet.settings.display.staveProfile) {
+                        alphaTab.StaveProfile.Tab -> "六线谱"
+                        alphaTab.StaveProfile.Score -> "五线谱"
+                        else -> "五线谱 + 六线谱"
+                    }
+                    loopFromBar=null;loopToBar=null
                     sheet.api.isLooping = false; sheet.api.playbackRange = null; loop.text = "循环"
                     duration = 0.0; progress.progress = 0; position.text = "00:00 / 00:00"
                     title.text = parsed.title.ifBlank { label.substringBeforeLast('.') }
                     subtitle.text = listOf(parsed.artist, "${parsed.masterBars.length.toInt()} 小节", "${parsed.tracks.length.toInt()} 个声部")
                         .filter { it.isNotBlank() }.joinToString(" · ")
                     updateDocumentSubtitle()
-                    source.text = if (hasAudio) "内嵌原曲" else "合成音源"
-                    track.text = parsed.tracks[0].name.ifBlank { "声部 1" }
+                    source.text = if (audioMode) "内嵌原曲" else "合成音源"
+                    track.text = parsed.tracks[activeTrack].name.ifBlank { "声部 ${activeTrack+1}" }
                     val syncCount = parsed.masterBars.sumOf { it.syncPoints?.length?.toInt() ?: 0 }
                     status.text = when {
-                        hasAudio && syncCount > 0 -> "已读取内嵌音频及 $syncCount 个同步点 · 点击谱面可跳转"
-                        hasAudio -> "已读取内嵌音频；缺少同步点，跟谱位置可能有偏差。"
+                        resume?.source=="prepared" -> "已恢复练习设置；采样音频需重新准备。"
+                        audioMode && syncCount > 0 -> "已读取内嵌音频及 $syncCount 个同步点 · 点击谱面可跳转"
+                        audioMode -> "已读取内嵌音频；缺少同步点，跟谱位置可能有偏差。"
+                        hasAudio -> "按谱合成演奏 · 可切换到内嵌录音"
                         else -> "这份谱子没有可读取的内嵌音频，当前按谱合成播放。"
                     }
-                    sheet.settings.player.playerMode = if (hasAudio) PlayerMode.EnabledExternalMedia else PlayerMode.EnabledSynthesizer
+                    sheet.settings.player.playerMode = if (audioMode) PlayerMode.EnabledExternalMedia else PlayerMode.EnabledSynthesizer
                     sheet.api.updateSettings()
                     bindEmbeddedOutput()
-                    if (audioFile != null) prepareEmbedded(audioFile)
+                    if (audioMode && audioFile != null) prepareEmbedded(audioFile)
                     empty.visibility = View.GONE
-                    sheet.tracks = listOf(parsed.tracks[0])
-                    if (uri != null) { saveRecent(uri, title.text.toString()); prefs.edit().putString("lastUri", uri.toString()).apply() }
-                    else prefs.edit().remove("lastUri").apply()
                     inlineFrom.setText("1"); inlineTo.setText(parsed.masterBars.length.toInt().toString())
                     barCounter.text = "小节 1 / ${parsed.masterBars.length.toInt()}"
+                    sheet.tracks = listOf(parsed.tracks[activeTrack])
+                    if (uri != null) { saveRecent(uri, title.text.toString()); prefs.edit().putString("lastUri", uri.toString()).apply() }
+                    else prefs.edit().remove("lastUri").apply()
                     refreshPanels()
                 }
             } catch (e: Throwable) {
@@ -863,8 +944,41 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun restorePlaybackPosition() {
-        if (!midiReady || (audioMode && !embeddedReady)) return
-        restoreTick?.let { tick -> restoreTick = null; sheet.api.tickPosition = tick.coerceAtMost(sheet.api.endTick) }
+        if (!midiReady || !sheet.api.isReadyForPlayback || sheet.api.endTick<=0 || sheet.api.score!==score || (audioMode && !embeddedReady)) return
+        if(restoreRequestedTick!=null) return
+        pendingReaderSession?.takeIf { it.document==documentKey }?.let { session ->
+            restoreTick=null
+            val target=session.tick.coerceAtMost((sheet.api.endTick-1).coerceAtLeast(0.0))
+            // Setting the range can synchronously report a seek. Mark the
+            // whole operation in flight before any player setter can reenter.
+            restoreRequestedTick=target
+            sheet.api.masterVolume=session.masterVolume
+            masterVolume.progress=(session.masterVolume*100).roundToInt()
+            val range=session.loop?.takeIf { it.start<sheet.api.endTick && it.end<=sheet.api.endTick }
+            sheet.api.playbackRange=range?.let { saved -> PlaybackRange().apply { startTick=saved.start;endTick=saved.end } }
+            sheet.api.isLooping=range?.enabled ?: false
+            loopFromBar=range?.fromBar;loopToBar=range?.toBar
+            loopFromBar?.let { inlineFrom.setText(it.toString()) };loopToBar?.let { inlineTo.setText(it.toString()) }
+            loop.text=if(sheet.api.isLooping) "循环中" else "循环"
+            sheet.api.tickPosition=target
+        }
+        if(restoreRequestedTick==null) restoreTick?.let { tick ->
+            restoreRequestedTick=tick.coerceAtMost((sheet.api.endTick-1).coerceAtLeast(0.0))
+            sheet.api.tickPosition=restoreRequestedTick!!
+        }
+    }
+
+    private fun captureReaderSession(): ReaderSession? {
+        val document=documentKey ?: return null
+        if(score==null) return null
+        val waiting=pendingReaderSession?.takeIf { it.document==document }
+        val current=sheet.api.score===score
+        val range=if(waiting!=null) waiting.loop else if(current) sheet.api.playbackRange?.let {
+            ReaderSession.Loop(it.startTick,it.endTick,sheet.api.isLooping,loopFromBar,loopToBar)
+        } else null
+        return ReaderSession(document,activeTrack,if(factoryMode) "prepared" else if(audioMode) "embedded" else "synth",
+            waiting?.tick ?: if(current) sheet.api.tickPosition else 0.0,currentSpeed,sheet.settings.display.scale,
+            sheet.settings.display.staveProfile.name,fullSheet,waiting?.masterVolume ?: if(current) sheet.api.masterVolume else 1.0,range)
     }
 
     private val factorySetupDelegate = lazy { com.stringpage.app.rse.FactoryPlaybackSetup(this,
@@ -877,14 +991,14 @@ class MainActivity : AppCompatActivity() {
 
     private fun chooseFactorySource() {
         val loaded = score ?: return
-        sheet.api.pause(); embedded.pause()
+        pausePlayback(); embedded.pause()
         factorySetup.show(loaded, sheet.settings, practice.snapshot().transposition)
     }
 
     internal fun acceptFactoryAudio(expected: Score, result: com.stringpage.app.rse.FactoryScoreRenderer.Result) {
         if (score !== expected || isDestroyed) { result.file.delete(); return }
         val externalWasReady = sheet.api.player?.output is IExternalMediaSynthOutput && sheet.api.isReadyForPlayback
-        sheet.api.pause(); embedded.release(); embeddedReady = false
+        pausePlayback(); embedded.release(); embeddedReady = false
         factoryResult?.file?.delete(); factoryResult = result
         factoryMode = true; audioMode = true; midiReady = externalWasReady; trainer.stop(); restoreTick = currentTick
         setControlsReady(false)
@@ -897,13 +1011,16 @@ class MainActivity : AppCompatActivity() {
         refreshPanels()
     }
 
-    private val bankLibraryDelegate = lazy { com.stringpage.app.rse.BankLibraryUi(this) { sheet.api.pause(); embedded.pause() } }
+    private val bankLibraryDelegate = lazy { com.stringpage.app.rse.BankLibraryUi(this) { pausePlayback(); embedded.pause() } }
     private val bankLibrary by bankLibraryDelegate
 
     private fun showMore() {
         val menu = PopupMenu(this, moreButton)
         val available = score != null && !loading
-        fun item(id: Int, label: String, enabled: Boolean = available) { menu.menu.add(0, id, id, label).isEnabled = enabled }
+        fun item(id: Int, label: String, enabled: Boolean = available) {
+            val order=when(id) { 1 -> 0;11 -> 1;12 -> 2;13 -> 3;8 -> 4;9 -> 5;10 -> 6;else -> id+20 }
+            menu.menu.add(0,id,order,label).isEnabled=enabled
+        }
         item(1, "混音与练习设置")
         item(2, "基础编辑")
         item(3, "撤销", available && editor.canUndo)
@@ -914,18 +1031,24 @@ class MainActivity : AppCompatActivity() {
         item(8, "逐轮加速练习")
         item(9, if (fullSheet) "退出全屏" else "全屏看谱", true)
         item(10, "原厂音色库 · 采样预览", true)
+        item(11, "选择声部")
+        item(12, "播放音源")
+        item(13, "谱面大小")
         menu.setOnMenuItemClickListener {
             when (it.itemId) {
                 1 -> practice.show()
-                2 -> { sheet.api.pause(); editor.show() }
-                3 -> { sheet.api.pause(); editor.undo() }
-                4 -> { sheet.api.pause(); editor.redo() }
+                2 -> { pausePlayback(); editor.show() }
+                3 -> { pausePlayback(); editor.undo() }
+                4 -> { pausePlayback(); editor.redo() }
                 5 -> requestExport(ScoreExport.Format.GUITAR_PRO)
                 6 -> requestExport(ScoreExport.Format.MIDI)
                 7 -> showAbout()
                 8 -> showTrainer()
                 9 -> { fullSheet = !fullSheet; applyAdaptiveLayout(currentWidth) }
                 10 -> bankLibrary.show()
+                11 -> chooseTrack()
+                12 -> chooseSource()
+                13 -> chooseZoom()
             }
             true
         }
@@ -935,7 +1058,7 @@ class MainActivity : AppCompatActivity() {
     private fun applyEditedScore(next: Score, description: String) {
         score?.let { com.stringpage.app.rse.GpRseProperties.transfer(it, next) }
         if (factoryMode) switchSource(false)
-        sheet.api.pause()
+        pausePlayback()
         restoreTick = currentTick
         score = next; modified = true; midiReady = false
         practice.reset(next, true)
@@ -975,7 +1098,7 @@ class MainActivity : AppCompatActivity() {
                 .setNegativeButton("取消", null).show()
             return
         }
-        sheet.api.pause()
+        pausePlayback()
         loading = true; loadingIndicator.visibility = View.VISIBLE; setControlsReady(false)
         status.text = "正在准备导出…"
         io.execute {
@@ -1014,13 +1137,22 @@ class MainActivity : AppCompatActivity() {
             sheet.api.playbackSpeed = currentSpeed
             if (factoryMode) applyFactorySync() else sheet.api.updateSyncPoints()
             restorePlaybackPosition()
-            if (midiReady && !loading) setControlsReady(true)
+            if (midiReady && !loading) setControlsReady(pendingReaderSession==null && restoreTick==null)
         }
     }
 
+    private fun pausePlayback() {
+        val recordingPosition=if(audioMode && sheet.api.playerState==PlayerState.Playing) embedded.currentPositionMs else null
+        sheet.api.pause()
+        // alphaTab pauses at the current beat's start. A recording can be in
+        // the middle of a long rest, so restore its exact physical timestamp.
+        recordingPosition?.let { embedded.restorePausedPosition(it) }
+    }
+
     private fun togglePlayback() {
+        if(pendingReaderSession!=null || restoreTick!=null || restoreRequestedTick!=null) return
         if (!sheet.api.isReadyForPlayback || (audioMode && !embeddedReady)) return
-        if (playing) sheet.api.pause()
+        if (playing) pausePlayback()
         else if (audioManager.requestAudioFocus(focus) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) sheet.api.play()
         else Toast.makeText(this, "当前无法获得音频播放权限，请稍后重试。", Toast.LENGTH_SHORT).show()
     }
@@ -1040,9 +1172,16 @@ class MainActivity : AppCompatActivity() {
     internal fun switchSource(useEmbedded: Boolean) {
         if ((useEmbedded == audioMode && !factoryMode) || score == null) return
         if (factorySetupDelegate.isInitialized()) factorySetup.cancel()
+        val session=captureReaderSession()?.copy(source=if(useEmbedded && hasAudio) "embedded" else "synth")
         val externalWasReady = sheet.api.player?.output is IExternalMediaSynthOutput && sheet.api.isReadyForPlayback
-        sheet.api.pause(); embedded.pause(); audioMode = useEmbedded && hasAudio
+        midiReady=false; pendingReaderSession=null; restoreRequestedTick=null
+        pausePlayback(); embedded.pause()
+        // Pausing synchronously emits old-player seek events. Only expose the
+        // checkpoint afterwards, so they cannot consume the new restoration.
+        pendingReaderSession=session
+        audioMode = useEmbedded && hasAudio
         factoryMode = false
+        embeddedReady=false
         trainer.stop()
         setControlsReady(false); midiReady = audioMode && externalWasReady
         sheet.settings.player.playerMode = if (audioMode) PlayerMode.EnabledExternalMedia else PlayerMode.EnabledSynthesizer
@@ -1078,7 +1217,7 @@ class MainActivity : AppCompatActivity() {
         if (stopTrainer) trainer.stop()
         val wasPlaying = playing
         currentSpeed = value; sheet.api.playbackSpeed = value
-        if (!wasPlaying) { sheet.api.pause(); embedded.pause() }
+        if (!wasPlaying) { pausePlayback(); embedded.pause() }
         speed.text = "${currentSpeed}×"
         refreshPanels()
     }
@@ -1131,7 +1270,7 @@ class MainActivity : AppCompatActivity() {
     internal fun startTrainer(settings: ProgressivePractice.Configuration): Boolean {
         if (audioMode || !sheet.api.isReadyForPlayback || !sheet.api.isLooping) return false
         val range = sheet.api.playbackRange ?: return false
-        sheet.api.pause()
+        pausePlayback()
         changeSpeed(trainer.start(settings), false)
         sheet.api.tickPosition = range.startTick
         return true
@@ -1176,6 +1315,7 @@ class MainActivity : AppCompatActivity() {
         val start = cache.getMasterBarStart(first)
         val end = cache.getMasterBarStart(last) + last.calculateDuration()
         if (end <= start) return false
+        loopFromBar=from;loopToBar=to
         sheet.api.playbackRange = PlaybackRange().apply { startTick = start; endTick = end }
         sheet.api.isLooping = true; sheet.api.tickPosition = start
         inlineFrom.setText(from.toString()); inlineTo.setText(to.toString())
@@ -1185,6 +1325,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun clearLoopRange() {
         trainer.stop()
+        loopFromBar=null;loopToBar=null
         sheet.api.isLooping = false; sheet.api.playbackRange = null; loop.text = "循环"
         status.text = "循环已关闭"
     }
@@ -1205,15 +1346,17 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
+        captureReaderSession()?.let { outState.putBundle("readerSession",it.toBundle()) }
         exportFile?.let { outState.putString("exportPath", it.absolutePath) }
         exportFormat?.let { outState.putString("exportFormat", it.name) }
-        prefs.getString("lastUri", null)?.let { outState.putString("uri", it) }
+        documentKey?.takeIf { it!=ReaderSession.DEMO }?.let { outState.putString("uri", it) }
         super.onSaveInstanceState(outState)
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         currentWidth = newConfig.screenWidthDp
+        currentHeight = newConfig.screenHeightDp
         applyAdaptiveLayout(currentWidth)
     }
 
@@ -1229,7 +1372,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onPause() {
         if (bankLibraryDelegate.isInitialized()) bankLibrary.stop()
-        sheet.api.pause(); embedded.pause(); practice.close(); audioManager.abandonAudioFocusRequest(focus); super.onPause()
+        pausePlayback(); embedded.pause(); practice.close(); audioManager.abandonAudioFocusRequest(focus); super.onPause()
     }
     override fun onDestroy() {
         if (factorySetupDelegate.isInitialized()) factorySetup.close()

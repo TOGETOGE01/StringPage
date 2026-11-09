@@ -23,7 +23,7 @@ object NativeSlideTiming {
         val count = count(first,last)
         val step = (end-start-brush).toFloat()/count.toFloat()
         return IntArray(count+1) { at ->
-            if (at == count) end+offset else (at.toFloat()*step).toInt()+start+offset
+            if (at == count) end+offset else NativeNumericAttribute.truncate(at.toFloat()*step)+start+offset
         }
     }
 

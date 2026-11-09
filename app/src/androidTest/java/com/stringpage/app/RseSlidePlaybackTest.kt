@@ -47,7 +47,7 @@ class RseSlidePlaybackTest {
         while(SystemClock.uptimeMillis() < until) { if(ui(check)) return;SystemClock.sleep(40) }
         fail(description)
     }
-    private fun source(name: String,accent: Int? = null): Score {
+    private fun source(name: String,accent: Int? = null,attributes: Map<Int,Pair<String,String>> = emptyMap()): Score {
         val cases=InstrumentationRegistry.getInstrumentation().context.assets.open("native-slide-graphs.json")
             .bufferedReader().use { JSONObject(it.readText()) }.getJSONArray("cases")
         val case=(0 until cases.length()).map { cases.getJSONObject(it) }.single { it.getString("name") == name }
@@ -57,6 +57,11 @@ class RseSlidePlaybackTest {
         val masterBars=doc.getElementsByTagName("MasterBars").item(0)
         while(masterBars.childNodes.length > 1) masterBars.removeChild(masterBars.lastChild)
         if(accent != null) doc.getElementsByTagName("Note").item(0).appendChild(doc.createElement("Accent").apply { textContent=accent.toString() })
+        if(attributes.isNotEmpty()) doc.getElementsByTagName("Note").item(0).appendChild(doc.createElement("XProperties").apply {
+            attributes.forEach { (id,value) -> appendChild(doc.createElement("XProperty").apply {
+                setAttribute("id",id.toString());appendChild(doc.createElement(value.first).apply { textContent=value.second })
+            }) }
+        })
         val content=ByteArrayOutputStream();TransformerFactory.newInstance().newTransformer().transform(DOMSource(doc),StreamResult(content))
         val packed=ByteArrayOutputStream().also { buffer ->ZipOutputStream(buffer).use { out ->
             out.putNextEntry(ZipEntry("Content/score.gpif"));out.write(content.toByteArray());out.closeEntry() } }.toByteArray()
@@ -108,6 +113,19 @@ class RseSlidePlaybackTest {
         for(tick in listOf(0.0,32.0,96.0,960.0,3500.0)) assertEquals(tick,performance.msToTick(performance.tickToMs(tick)),.0001)
     }
 
+    @Test fun customSlideTimingReachesActualPerformanceAndSurvivesThePrivateSnapshot() {
+        val score=source("pull-16",attributes=mapOf(0x29031009 to ("Float" to "0.25"),0x2903100c to ("Int" to "360")))
+        val first=notes(score)[0];val properties=GpRseProperties.note(first)!!.slideParameters
+        val performance=RseSlidePlayback.compile(score)
+        val voices=performance.notes.filter { it.slideVoice != null }.take(4)
+        assertEquals(listOf(42,43,44,45),voices.map { it.midi })
+        assertEquals(listOf(0.0,180.0,360.0,540.0),voices.map { it.startTick })
+        assertEquals(540.0,performance.tickShift,0.0)
+        assertEquals(properties,GpRseProperties.note(voices.last().sourceNote!!)!!.slideParameters)
+        assertEquals(properties,GpRseProperties.note(first)!!.slideParameters)
+        assertEquals(performance.tickToMs(540.0),performance.rseFirstCueMs,.0001)
+    }
+
     @Test fun actualSlidePerformanceAppliesStaccatissimoAfterGeneratingTheTransition() {
         val performance=RseSlidePlayback.compile(source("pull-8",2))
         val voices=performance.notes.filter { it.slideVoice != null }
@@ -137,6 +155,25 @@ class RseSlidePlaybackTest {
             val introFrames=kotlin.math.floor(result.firstCueMs*44.1).toInt();assertTrue(introFrames>128)
             val pcm=ByteBuffer.wrap(file.readBytes(),44,introFrames*4).order(ByteOrder.LITTLE_ENDIAN)
             assertTrue("Native anticipatory voices must be audible before the first written note",(0 until introFrames*2).count { pcm.short != 0.toShort() } > 100)
+        } finally { file.delete() }
+    }
+
+    @Test fun customLeadInIsAudibleInTheActualPreparedWav() {
+        val bankFile=File(context.filesDir,"rse-reference.gp7bank")
+        assumeTrue("Optional original bank is provisioned outside both APKs",bankFile.isFile)
+        val score=source("pull-16",attributes=mapOf(0x29031009 to ("Float" to "0.25"),0x2903100c to ("Int" to "360")))
+        val performance=RseSlidePlayback.compile(score)
+        val bank=BankLibrary.Item(bankFile,Gp7Bank.open(bankFile).readMetadata())
+        val file=File.createTempFile("custom-slide-render-",".wav",context.cacheDir)
+        try {
+            val result=FactoryScoreRenderer.render(performance,mapOf(FactoryScoreRenderer.Route(0) to bank),file)
+            assertTrue(result.firstCueMs>300);assertTrue(result.peak>.001f)
+            assertEquals(performance.rseFirstCueMs,result.firstCueMs,0.0)
+            assertEquals(performance.rseSyncOffsetMs,result.syncOffsetMs,0.0)
+            val frames=kotlin.math.floor(result.firstCueMs*44.1).toInt()
+            val pcm=ByteBuffer.wrap(file.readBytes(),44,frames*4).order(ByteOrder.LITTLE_ENDIAN)
+            assertTrue("The custom lead-in must produce actual samples before the written cue",
+                (0 until frames*2).count { pcm.short != 0.toShort() }>100)
         } finally { file.delete() }
     }
 

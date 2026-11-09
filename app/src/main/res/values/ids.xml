@@ -20,4 +20,6 @@
     <item name="library_panel" type="id" />
     <item name="practice_panel" type="id" />
     <item name="notation_select" type="id" />
+    <item name="master_volume" type="id" />
+    <item name="app_brand" type="id" />
 </resources>

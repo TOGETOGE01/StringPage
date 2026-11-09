@@ -16,8 +16,16 @@ class EmbeddedAudio(private val failed: (Throwable) -> Unit) : IExternalMediaHan
     private val main = Handler(Looper.getMainLooper())
     private var media: MediaPlayer? = null
     private var ready = false
+    private var playRequested = false
     private var rate = 1.0
     private var volume = 1.0
+    private var pendingSeek: Long? = null
+    private var queuedSeek: Long? = null
+    internal val currentPositionMs: Double?
+        get() = if (ready) (queuedSeek ?: pendingSeek ?: media!!.currentPosition.toLong()).toDouble() else null
+
+    /** Preserve the recording clock when the notation engine snaps a pause to a beat. */
+    internal fun restorePausedPosition(time: Double) = requestSeek(time)
     /** The prepared RSE file may contain an anticipatory slide before the first
      * written beat. Seeking that first cue rewinds through its introduction. */
     var firstCueMs = 0.0
@@ -26,11 +34,17 @@ class EmbeddedAudio(private val failed: (Throwable) -> Unit) : IExternalMediaHan
         set(value) { field?.handler = null; field = value; value?.handler = this }
     private val poll = object : Runnable {
         override fun run() {
-            val current = media ?: return
-            if (!ready) return
-            output?.updatePosition(current.currentPosition.toDouble())
             main.removeCallbacks(this)
-            if (current.isPlaying) main.postDelayed(this, 40)
+            val current = media ?: return
+            if (!ready || !playRequested) return
+            if (pendingSeek == null) output?.updatePosition(current.currentPosition.toDouble())
+            // Native start/seek/buffering can temporarily report not playing.
+            // Keep the clock alive until the controller pauses or completes.
+            // Position notification can synchronously release or replace us.
+            if (media === current && ready && playRequested) {
+                main.removeCallbacks(this)
+                main.postDelayed(this, 40)
+            }
         }
     }
 
@@ -46,15 +60,28 @@ class EmbeddedAudio(private val failed: (Throwable) -> Unit) : IExternalMediaHan
             ready = true
             onReady()
         }
-        next.setOnSeekCompleteListener { if (ready) output?.updatePosition(it.currentPosition.toDouble()) }
+        next.setOnSeekCompleteListener {
+            if (media !== next || !ready) return@setOnSeekCompleteListener
+            val queued = queuedSeek
+            pendingSeek = null; queuedSeek = null
+            if (queued != null) {
+                requestSeek(queued.toDouble())
+                return@setOnSeekCompleteListener
+            }
+            output?.updatePosition(next.currentPosition.toDouble())
+            // The controller loops by seeking, without sending another play
+            // command. A completed native player needs an explicit restart.
+            if (media === next && ready && playRequested) startPlayback(next)
+        }
         next.setOnCompletionListener {
-            if (ready) {
+            if (media === next && ready && pendingSeek == null) {
                 main.removeCallbacks(poll)
                 output?.updatePosition(it.duration.toDouble())
             }
         }
         next.setOnErrorListener { _, what, extra ->
-            ready = false; main.removeCallbacks(poll)
+            if (media !== next) return@setOnErrorListener true
+            ready = false; playRequested = false; main.removeCallbacks(poll)
             failed(IllegalArgumentException("内嵌音频无法解码（$what/$extra），可切换到合成音源。")); true
         }
         next.setDataSource(file.absolutePath)
@@ -68,10 +95,10 @@ class EmbeddedAudio(private val failed: (Throwable) -> Unit) : IExternalMediaHan
             rate = value
             val current = media ?: return
             if (!ready) return
-            val running = current.isPlaying
-            current.playbackParams = PlaybackParams().setSpeed(value.toFloat()).setPitch(1f)
-            // setPlaybackParams starts a prepared/paused MediaPlayer on Android.
-            if (!running) current.pause()
+            // setPlaybackParams starts a prepared/paused MediaPlayer. Pausing
+            // immediately afterwards still advances its physical clock, so
+            // defer paused changes until the user actually starts playback.
+            if (current.isPlaying) applyRate(current)
         }
     override var masterVolume: Double
         get() = volume
@@ -79,18 +106,39 @@ class EmbeddedAudio(private val failed: (Throwable) -> Unit) : IExternalMediaHan
 
     override fun seekTo(time: Double) {
         val target=if(firstCueMs > 0.0 && kotlin.math.abs(time-firstCueMs) < 1.0) 0.0 else time
-        if (ready) media?.seekTo(target.coerceIn(0.0, backingTrackDuration).toLong(), MediaPlayer.SEEK_CLOSEST)
+        requestSeek(target)
+    }
+    private fun requestSeek(time: Double) {
+        if (!ready) return
+        val current = media ?: return
+        val target = time.coerceIn(0.0, backingTrackDuration).toLong()
+        // MediaPlayer may complete an older seek after a newer request. Keep
+        // only the latest destination and never publish the intermediate clock.
+        if (pendingSeek != null) { queuedSeek = target; return }
+        pendingSeek = target
+        current.seekTo(target, MediaPlayer.SEEK_CLOSEST)
     }
     override fun play() {
         if (!ready) return
-        media?.start(); main.removeCallbacks(poll); main.post(poll)
+        val current=media ?: return
+        playRequested = true
+        startPlayback(current)
+    }
+    private fun startPlayback(current: MediaPlayer) {
+        if (pendingSeek != null) return
+        applyRate(current);current.start(); main.removeCallbacks(poll); main.post(poll)
+    }
+    private fun applyRate(current: MediaPlayer) {
+        current.playbackParams=PlaybackParams().setSpeed(rate.toFloat()).setPitch(1f)
     }
     override fun pause() {
+        playRequested = false
         if (ready && media?.isPlaying == true) media?.pause()
         main.removeCallbacks(poll)
     }
     fun release() {
-        main.removeCallbacks(poll); ready = false
+        main.removeCallbacks(poll); ready = false; playRequested = false
+        pendingSeek = null; queuedSeek = null
         firstCueMs = 0.0
         output = null
         media?.release(); media = null

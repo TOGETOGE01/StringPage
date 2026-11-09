@@ -15,13 +15,15 @@ class NativeSampleVoice(
     loopEndExclusive: Int? = null,
     private val decoderGain: Float = 1f,
     private val sampleGain: Float = 1f,
-    startingFrame: Int = 0
+    startingFrame: Int = 0,
+    private val pitchModulation: ((Long) -> Float)? = null
 ) {
     private val resamplers = List(audio.channels) { NativeResampler() }
     private val input = List(audio.channels) { FloatArray(1024) }
     private val output = List(audio.channels) { FloatArray(32) }
     private var cachePosition = 32
     private var position = startingFrame
+    private var renderedFrames = 0L
     private val loop: IntRange?
     var pitchSemitones = semitones
         set(value) { require(value.isFinite()); field = value }
@@ -43,7 +45,9 @@ class NativeSampleVoice(
     private fun refill() {
         // readTick clamps the requested pitch before subtracting the sample's
         // stored correction, rather than adding correction into that clamp.
-        val effective = pitchSemitones.toFloat().coerceIn(-36f,36f) - pitchCorrection
+        val requested=pitchSemitones.toFloat()+(pitchModulation?.invoke(renderedFrames) ?: 0f)
+        val clamped=if(requested>= -36f) { if(requested<=36f) requested else 36f } else -36f
+        val effective = clamped - pitchCorrection
         for (state in resamplers) state.setPitchSemitones(effective)
         val needed = resamplers.first().requiredInputFrames()
         require(resamplers.all { it.requiredInputFrames() == needed })
@@ -70,6 +74,7 @@ class NativeSampleVoice(
             if (cachePosition == 32) refill()
             for (channel in 0..1) target[frame*2+channel] = output[if(audio.channels == 1)0 else channel][cachePosition]*gain
             cachePosition++
+            renderedFrames++
         }
     }
 }

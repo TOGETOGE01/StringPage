@@ -15,7 +15,8 @@ object NativeSlideInterpreter {
         val openMidi: Int? = null,
         val beatNumerator: Int = 1, val beatDenominator: Int = 1,
         val soundingNumerator: Int = 1, val soundingDenominator: Int = 1,
-        val relativeDuration: Float = 1f, val relativeOffset: Int = 0
+        val relativeDuration: Float = 1f, val relativeOffset: Int = 0,
+        val parameters: NativeSlideParameters = NativeSlideParameters()
     ) {
         var previous: Note? = null; var next: Note? = null; var tieDestination: Note? = null
         fun has(flag: Int) = flags and flag != 0
@@ -71,10 +72,11 @@ object NativeSlideInterpreter {
             else if (previous.has(SHIFT)) root = root.copy(state=NativeFadePolicy.shift(root.state,true,false)!!,engine=2)
         }
         if (note.has(IN_BELOW or IN_ABOVE)) {
-            val distance = permittedOffset(note,if (note.has(IN_BELOW)) -3 else 3)
-            val firstTick = (240f*.8f).toInt()
-            if (firstTick != 240) {
-                val times = NativeSlideTiming.ticks(distance,0,firstTick,240,start-240,0)
+            val distance = permittedOffset(note,if (note.has(IN_BELOW)) -note.parameters.inRange else note.parameters.inRange)
+            val duration=note.parameters.inTicks
+            val firstTick = NativeNumericAttribute.truncate(duration.toFloat()*note.parameters.inStart)
+            if (firstTick != duration) {
+                val times = NativeSlideTiming.ticks(distance,0,firstTick,duration,start-duration,0)
                 val midis = NativeSlideTiming.midis(distance,0,note.midi)
                 val group = midis.mapIndexed { at,midi -> Segment(midi,times[at],times[at+1],root.state) }.toMutableList()
                 group.add(root)
@@ -98,8 +100,8 @@ object NativeSlideInterpreter {
         if (last.has(OUT_DOWN or OUT_UP or LEGATO or SHIFT) && errors(last) and 11 == 0) {
             val first: Int; val requested: Int
             when {
-                last.has(OUT_DOWN) -> { first = -1; requested = -4 }
-                last.has(OUT_UP) -> { first = 1; requested = 4 }
+                last.has(OUT_DOWN) -> { first = -1; requested = -1-note.parameters.outRange }
+                last.has(OUT_UP) -> { first = 1; requested = 1+note.parameters.outRange }
                 else -> { requested = last.next?.let { it.midi-last.midi } ?: 0; first = if (requested > 0) 1 else -1 }
             }
             val distance = permittedOffset(last,requested)
@@ -107,7 +109,7 @@ object NativeSlideInterpreter {
             if (direction != 0) {
                 val ratio = last.beatNumerator.toFloat()/last.beatDenominator.toFloat()
                 val beatFrames = last.relativeDuration*NativeSlideTiming.QUARTER_TICKS.toFloat()*ratio
-                val from = (.8f*beatFrames).toInt()+last.relativeOffset
+                val from = NativeNumericAttribute.truncate(note.parameters.outStart*beatFrames)+last.relativeOffset
                 val to = beatFrames.toInt()+last.relativeOffset
                 val sounding = (note.soundingNumerator.toFloat()/note.soundingDenominator.toFloat()*NativeSlideTiming.QUARTER_TICKS.toFloat()).toInt()
                 val beat = (ratio*NativeSlideTiming.QUARTER_TICKS.toFloat()).toInt()

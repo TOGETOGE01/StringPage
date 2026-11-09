@@ -1,0 +1,1416 @@
+{
+  "status": "passed",
+  "scope": "Actual native GPIF XProperty decoding and RSE typed lookup on owned notes.",
+  "rows": [
+    {
+      "tag": "Int",
+      "text": "0",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "Int",
+      "text": "1",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Int",
+      "text": "3.75",
+      "floatBits": 1077936128,
+      "intValue": 3
+    },
+    {
+      "tag": "Int",
+      "text": "-2.75",
+      "floatBits": 3221225472,
+      "intValue": -2
+    },
+    {
+      "tag": "Int",
+      "text": " 2.5 ",
+      "floatBits": 1073741824,
+      "intValue": 2
+    },
+    {
+      "tag": "Int",
+      "text": "3.75tail",
+      "floatBits": 1077936128,
+      "intValue": 3
+    },
+    {
+      "tag": "Int",
+      "text": "bad",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "Int",
+      "text": "",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Int",
+      "text": "true",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "Int",
+      "text": "false",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "Int",
+      "text": "2147483648",
+      "floatBits": 1325400064,
+      "intValue": 2147483647
+    },
+    {
+      "tag": "Int",
+      "text": "-2147483649",
+      "floatBits": 3472883712,
+      "intValue": -2147483648
+    },
+    {
+      "tag": "Int",
+      "text": "1e2",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Int",
+      "text": "nan",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "Int",
+      "text": "Infinity",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "Int",
+      "text": "+2.5",
+      "floatBits": 1073741824,
+      "intValue": 2
+    },
+    {
+      "tag": "Int",
+      "text": "+3",
+      "floatBits": 1077936128,
+      "intValue": 3
+    },
+    {
+      "tag": "Int",
+      "text": "-0",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "Int",
+      "text": "03",
+      "floatBits": 1077936128,
+      "intValue": 3
+    },
+    {
+      "tag": "Int",
+      "text": "2.",
+      "floatBits": 1073741824,
+      "intValue": 2
+    },
+    {
+      "tag": "Int",
+      "text": ".5",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "Int",
+      "text": " .5",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "Int",
+      "text": "0x1.8p1",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "Int",
+      "text": "0x10",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "Int",
+      "text": "-0x1p2",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "Int",
+      "text": "1e",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Int",
+      "text": "1e+",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Int",
+      "text": "1e-2",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Int",
+      "text": "3f",
+      "floatBits": 1077936128,
+      "intValue": 3
+    },
+    {
+      "tag": "Int",
+      "text": "  ",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Int",
+      "text": "NaN",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "Int",
+      "text": "NAN",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "Int",
+      "text": "Inf",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "Int",
+      "text": "+Infinity",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "Int",
+      "text": "-Infinity",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "Int",
+      "text": "1,5",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Int",
+      "text": "\u00a02.5",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "Int",
+      "text": "\u22122.5",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "Int",
+      "text": "False",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "Float",
+      "text": "0",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "Float",
+      "text": "1",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Float",
+      "text": "3.75",
+      "floatBits": 1081081856,
+      "intValue": 3
+    },
+    {
+      "tag": "Float",
+      "text": "-2.75",
+      "floatBits": 3224371200,
+      "intValue": -2
+    },
+    {
+      "tag": "Float",
+      "text": " 2.5 ",
+      "floatBits": 1075838976,
+      "intValue": 2
+    },
+    {
+      "tag": "Float",
+      "text": "3.75tail",
+      "floatBits": 1081081856,
+      "intValue": 3
+    },
+    {
+      "tag": "Float",
+      "text": "bad",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "Float",
+      "text": "",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Float",
+      "text": "true",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "Float",
+      "text": "false",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "Float",
+      "text": "2147483648",
+      "floatBits": 1325400064,
+      "intValue": -2147483648
+    },
+    {
+      "tag": "Float",
+      "text": "-2147483649",
+      "floatBits": 3472883712,
+      "intValue": -2147483648
+    },
+    {
+      "tag": "Float",
+      "text": "1e2",
+      "floatBits": 1120403456,
+      "intValue": 100
+    },
+    {
+      "tag": "Float",
+      "text": "nan",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Float",
+      "text": "Infinity",
+      "floatBits": 2139095040,
+      "intValue": -2147483648
+    },
+    {
+      "tag": "Float",
+      "text": "+2.5",
+      "floatBits": 1075838976,
+      "intValue": 2
+    },
+    {
+      "tag": "Float",
+      "text": "+3",
+      "floatBits": 1077936128,
+      "intValue": 3
+    },
+    {
+      "tag": "Float",
+      "text": "-0",
+      "floatBits": 2147483648,
+      "intValue": 0
+    },
+    {
+      "tag": "Float",
+      "text": "03",
+      "floatBits": 1077936128,
+      "intValue": 3
+    },
+    {
+      "tag": "Float",
+      "text": "2.",
+      "floatBits": 1073741824,
+      "intValue": 2
+    },
+    {
+      "tag": "Float",
+      "text": ".5",
+      "floatBits": 1056964608,
+      "intValue": 0
+    },
+    {
+      "tag": "Float",
+      "text": " .5",
+      "floatBits": 1056964608,
+      "intValue": 0
+    },
+    {
+      "tag": "Float",
+      "text": "0x1.8p1",
+      "floatBits": 1077936128,
+      "intValue": 3
+    },
+    {
+      "tag": "Float",
+      "text": "0x10",
+      "floatBits": 1098907648,
+      "intValue": 16
+    },
+    {
+      "tag": "Float",
+      "text": "-0x1p2",
+      "floatBits": 3229614080,
+      "intValue": -4
+    },
+    {
+      "tag": "Float",
+      "text": "1e",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Float",
+      "text": "1e+",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Float",
+      "text": "1e-2",
+      "floatBits": 1008981770,
+      "intValue": 0
+    },
+    {
+      "tag": "Float",
+      "text": "3f",
+      "floatBits": 1077936128,
+      "intValue": 3
+    },
+    {
+      "tag": "Float",
+      "text": "  ",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Float",
+      "text": "NaN",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Float",
+      "text": "NAN",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Float",
+      "text": "Inf",
+      "floatBits": 2139095040,
+      "intValue": -2147483648
+    },
+    {
+      "tag": "Float",
+      "text": "+Infinity",
+      "floatBits": 2139095040,
+      "intValue": -2147483648
+    },
+    {
+      "tag": "Float",
+      "text": "-Infinity",
+      "floatBits": 4286578688,
+      "intValue": -2147483648
+    },
+    {
+      "tag": "Float",
+      "text": "1,5",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Float",
+      "text": "\u00a02.5",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "Float",
+      "text": "\u22122.5",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "Float",
+      "text": "False",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "Double",
+      "text": "0",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "Double",
+      "text": "1",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Double",
+      "text": "3.75",
+      "floatBits": 1081081856,
+      "intValue": 3
+    },
+    {
+      "tag": "Double",
+      "text": "-2.75",
+      "floatBits": 3224371200,
+      "intValue": -2
+    },
+    {
+      "tag": "Double",
+      "text": " 2.5 ",
+      "floatBits": 1075838976,
+      "intValue": 2
+    },
+    {
+      "tag": "Double",
+      "text": "3.75tail",
+      "floatBits": 1081081856,
+      "intValue": 3
+    },
+    {
+      "tag": "Double",
+      "text": "bad",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "Double",
+      "text": "",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Double",
+      "text": "true",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "Double",
+      "text": "false",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "Double",
+      "text": "2147483648",
+      "floatBits": 1325400064,
+      "intValue": -2147483648
+    },
+    {
+      "tag": "Double",
+      "text": "-2147483649",
+      "floatBits": 3472883712,
+      "intValue": -2147483648
+    },
+    {
+      "tag": "Double",
+      "text": "1e2",
+      "floatBits": 1120403456,
+      "intValue": 100
+    },
+    {
+      "tag": "Double",
+      "text": "nan",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Double",
+      "text": "Infinity",
+      "floatBits": 2139095040,
+      "intValue": -2147483648
+    },
+    {
+      "tag": "Double",
+      "text": "+2.5",
+      "floatBits": 1075838976,
+      "intValue": 2
+    },
+    {
+      "tag": "Double",
+      "text": "+3",
+      "floatBits": 1077936128,
+      "intValue": 3
+    },
+    {
+      "tag": "Double",
+      "text": "-0",
+      "floatBits": 2147483648,
+      "intValue": 0
+    },
+    {
+      "tag": "Double",
+      "text": "03",
+      "floatBits": 1077936128,
+      "intValue": 3
+    },
+    {
+      "tag": "Double",
+      "text": "2.",
+      "floatBits": 1073741824,
+      "intValue": 2
+    },
+    {
+      "tag": "Double",
+      "text": ".5",
+      "floatBits": 1056964608,
+      "intValue": 0
+    },
+    {
+      "tag": "Double",
+      "text": " .5",
+      "floatBits": 1056964608,
+      "intValue": 0
+    },
+    {
+      "tag": "Double",
+      "text": "0x1.8p1",
+      "floatBits": 1077936128,
+      "intValue": 3
+    },
+    {
+      "tag": "Double",
+      "text": "0x10",
+      "floatBits": 1098907648,
+      "intValue": 16
+    },
+    {
+      "tag": "Double",
+      "text": "-0x1p2",
+      "floatBits": 3229614080,
+      "intValue": -4
+    },
+    {
+      "tag": "Double",
+      "text": "1e",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Double",
+      "text": "1e+",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Double",
+      "text": "1e-2",
+      "floatBits": 1008981770,
+      "intValue": 0
+    },
+    {
+      "tag": "Double",
+      "text": "3f",
+      "floatBits": 1077936128,
+      "intValue": 3
+    },
+    {
+      "tag": "Double",
+      "text": "  ",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Double",
+      "text": "NaN",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Double",
+      "text": "NAN",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Double",
+      "text": "Inf",
+      "floatBits": 2139095040,
+      "intValue": -2147483648
+    },
+    {
+      "tag": "Double",
+      "text": "+Infinity",
+      "floatBits": 2139095040,
+      "intValue": -2147483648
+    },
+    {
+      "tag": "Double",
+      "text": "-Infinity",
+      "floatBits": 4286578688,
+      "intValue": -2147483648
+    },
+    {
+      "tag": "Double",
+      "text": "1,5",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Double",
+      "text": "\u00a02.5",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "Double",
+      "text": "\u22122.5",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "Double",
+      "text": "False",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "String",
+      "text": "0",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "String",
+      "text": "1",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "String",
+      "text": "3.75",
+      "floatBits": 1081081856,
+      "intValue": 0
+    },
+    {
+      "tag": "String",
+      "text": "-2.75",
+      "floatBits": 3224371200,
+      "intValue": 0
+    },
+    {
+      "tag": "String",
+      "text": " 2.5 ",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "String",
+      "text": "3.75tail",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "String",
+      "text": "bad",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "String",
+      "text": "",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "String",
+      "text": "true",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "String",
+      "text": "false",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "String",
+      "text": "2147483648",
+      "floatBits": 1325400064,
+      "intValue": 0
+    },
+    {
+      "tag": "String",
+      "text": "-2147483649",
+      "floatBits": 3472883712,
+      "intValue": 0
+    },
+    {
+      "tag": "String",
+      "text": "1e2",
+      "floatBits": 1120403456,
+      "intValue": 0
+    },
+    {
+      "tag": "String",
+      "text": "nan",
+      "floatBits": 2143289344,
+      "intValue": 0
+    },
+    {
+      "tag": "String",
+      "text": "Infinity",
+      "floatBits": 2139095040,
+      "intValue": 0
+    },
+    {
+      "tag": "String",
+      "text": "+2.5",
+      "floatBits": 1075838976,
+      "intValue": 0
+    },
+    {
+      "tag": "String",
+      "text": "+3",
+      "floatBits": 1077936128,
+      "intValue": 3
+    },
+    {
+      "tag": "String",
+      "text": "-0",
+      "floatBits": 2147483648,
+      "intValue": 0
+    },
+    {
+      "tag": "String",
+      "text": "03",
+      "floatBits": 1077936128,
+      "intValue": 3
+    },
+    {
+      "tag": "String",
+      "text": "2.",
+      "floatBits": 1073741824,
+      "intValue": 0
+    },
+    {
+      "tag": "String",
+      "text": ".5",
+      "floatBits": 1056964608,
+      "intValue": 0
+    },
+    {
+      "tag": "String",
+      "text": " .5",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "String",
+      "text": "0x1.8p1",
+      "floatBits": 1077936128,
+      "intValue": 0
+    },
+    {
+      "tag": "String",
+      "text": "0x10",
+      "floatBits": 1098907648,
+      "intValue": 0
+    },
+    {
+      "tag": "String",
+      "text": "-0x1p2",
+      "floatBits": 3229614080,
+      "intValue": 0
+    },
+    {
+      "tag": "String",
+      "text": "1e",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "String",
+      "text": "1e+",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "String",
+      "text": "1e-2",
+      "floatBits": 1008981770,
+      "intValue": 0
+    },
+    {
+      "tag": "String",
+      "text": "3f",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "String",
+      "text": "  ",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "String",
+      "text": "NaN",
+      "floatBits": 2143289344,
+      "intValue": 0
+    },
+    {
+      "tag": "String",
+      "text": "NAN",
+      "floatBits": 2143289344,
+      "intValue": 0
+    },
+    {
+      "tag": "String",
+      "text": "Inf",
+      "floatBits": 2139095040,
+      "intValue": 0
+    },
+    {
+      "tag": "String",
+      "text": "+Infinity",
+      "floatBits": 2139095040,
+      "intValue": 0
+    },
+    {
+      "tag": "String",
+      "text": "-Infinity",
+      "floatBits": 4286578688,
+      "intValue": 0
+    },
+    {
+      "tag": "String",
+      "text": "1,5",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "String",
+      "text": "\u00a02.5",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "String",
+      "text": "\u22122.5",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "String",
+      "text": "False",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "Bool",
+      "text": "0",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Bool",
+      "text": "1",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Bool",
+      "text": "3.75",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Bool",
+      "text": "-2.75",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Bool",
+      "text": " 2.5 ",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Bool",
+      "text": "3.75tail",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Bool",
+      "text": "bad",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Bool",
+      "text": "",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Bool",
+      "text": "true",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Bool",
+      "text": "false",
+      "floatBits": 0,
+      "intValue": 0
+    },
+    {
+      "tag": "Bool",
+      "text": "2147483648",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Bool",
+      "text": "-2147483649",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Bool",
+      "text": "1e2",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Bool",
+      "text": "nan",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Bool",
+      "text": "Infinity",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Bool",
+      "text": "+2.5",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Bool",
+      "text": "+3",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Bool",
+      "text": "-0",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Bool",
+      "text": "03",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Bool",
+      "text": "2.",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Bool",
+      "text": ".5",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Bool",
+      "text": " .5",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Bool",
+      "text": "0x1.8p1",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Bool",
+      "text": "0x10",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Bool",
+      "text": "-0x1p2",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Bool",
+      "text": "1e",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Bool",
+      "text": "1e+",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Bool",
+      "text": "1e-2",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Bool",
+      "text": "3f",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Bool",
+      "text": "  ",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Bool",
+      "text": "NaN",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Bool",
+      "text": "NAN",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Bool",
+      "text": "Inf",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Bool",
+      "text": "+Infinity",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Bool",
+      "text": "-Infinity",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Bool",
+      "text": "1,5",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Bool",
+      "text": "\u00a02.5",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Bool",
+      "text": "\u22122.5",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Bool",
+      "text": "False",
+      "floatBits": 1065353216,
+      "intValue": 1
+    },
+    {
+      "tag": "Unknown",
+      "text": "0",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Unknown",
+      "text": "1",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Unknown",
+      "text": "3.75",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Unknown",
+      "text": "-2.75",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Unknown",
+      "text": " 2.5 ",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Unknown",
+      "text": "3.75tail",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Unknown",
+      "text": "bad",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Unknown",
+      "text": "",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Unknown",
+      "text": "true",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Unknown",
+      "text": "false",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Unknown",
+      "text": "2147483648",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Unknown",
+      "text": "-2147483649",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Unknown",
+      "text": "1e2",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Unknown",
+      "text": "nan",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Unknown",
+      "text": "Infinity",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Unknown",
+      "text": "+2.5",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Unknown",
+      "text": "+3",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Unknown",
+      "text": "-0",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Unknown",
+      "text": "03",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Unknown",
+      "text": "2.",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Unknown",
+      "text": ".5",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Unknown",
+      "text": " .5",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Unknown",
+      "text": "0x1.8p1",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Unknown",
+      "text": "0x10",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Unknown",
+      "text": "-0x1p2",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Unknown",
+      "text": "1e",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Unknown",
+      "text": "1e+",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Unknown",
+      "text": "1e-2",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Unknown",
+      "text": "3f",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Unknown",
+      "text": "  ",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Unknown",
+      "text": "NaN",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Unknown",
+      "text": "NAN",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Unknown",
+      "text": "Inf",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Unknown",
+      "text": "+Infinity",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Unknown",
+      "text": "-Infinity",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Unknown",
+      "text": "1,5",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Unknown",
+      "text": "\u00a02.5",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Unknown",
+      "text": "\u22122.5",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    },
+    {
+      "tag": "Unknown",
+      "text": "False",
+      "floatBits": 1050958365,
+      "intValue": -98765
+    }
+  ],
+  "modules": {
+    "GPCore.dll": "053e31d8c78b052198918cdd16e0af91e2631daa2c08d7b2db2d93d69d040d81",
+    "GPRSE.dll": "f004d24e65c4ea4ba1d82fcc991417e7abddd7ece402358b92c8f906dab4e4d9",
+    "GPIO.dll": "b7167b8ccd1691f1d10b646229bc431e99ce6829d6802f8c1130f530971aa232",
+    "AMUtils.dll": "ef1f535f07223482dd468301ce519f7e306d99b4be6a63cdb276f62e11dd906d"
+  }
+}

@@ -23,7 +23,9 @@ class GpNoteSourceGraph internal constructor(
         val tapped: Boolean, val leftHandTapped: Boolean,
         val hopoOrigin: Boolean, val hopoDestination: Boolean,
         val sourceString: Int?, val sourceFret: Int?, val tieDestination: Boolean,
-        val slideFlags: Int = 0
+        val slideFlags: Int = 0,
+        val slideParameters: NativeSlideParameters = NativeSlideParameters(),
+        val bend: GpBendData = GpBendData()
     ) {
         val antiAccent: Int get() = antiAccentFromString(rawAntiAccent)
     }
@@ -146,10 +148,13 @@ class GpNoteSourceGraph internal constructor(
     internal class Builder {
         private data class Frame(val tag: String, val name: String?, val text: StringBuilder?,
             val booleanFlag: String? = null, val slideFlag: Boolean = false, var firstChildSeen: Boolean = false,
-            var hasData: Boolean = false, var dataFinished: Boolean = false)
+            var hasData: Boolean = false, var dataFinished: Boolean = false,
+            val attributeId: Int? = null,val numericType: String? = null,val bendProperty: String? = null)
         private data class Draft(val id: String, var accent: Int? = null, var anti: String? = null,
             val flags: MutableSet<String> = HashSet(), var string: Int? = null, var fret: Int? = null,
-            var tied: Boolean = false, var slideFlags: Int = 0)
+            var tied: Boolean = false, var slideFlags: Int = 0,
+            val attributes: MutableMap<Int,NativeNumericAttribute> = HashMap(),var bended: Boolean = false,
+            val bendFields: MutableMap<String,Float> = HashMap())
         private val stack = ArrayList<Frame>()
         private val masters = ArrayList<List<String>>()
         private val bars = LinkedHashMap<String, List<String>>()
@@ -177,13 +182,28 @@ class GpNoteSourceGraph internal constructor(
             val full = if (stack.isEmpty()) tag else path() + "/" + tag
             var booleanFlag: String? = null
             var slideFlag = false
+            var attributeId: Int? = null
+            var numericType: String? = null
+            var bendProperty: String? = null
             val parent = stack.lastOrNull()
+            if(path() == "GPIF/Notes/Note/Properties/Property" && parent != null) {
+                if(parent.name=="Bended" && tag=="Enable") draft?.bended=true
+                if(parent.name in GpBendData.FIELDS && tag=="Float" && !parent.firstChildSeen) {
+                    parent.firstChildSeen=true;bendProperty=parent.name
+                }
+            }
             if (path() == "GPIF/Notes/Note/Properties/Property" && parent != null && !parent.firstChildSeen) {
                 if (parent.name in booleanFlags) { parent.firstChildSeen = true; booleanFlag = parent.name }
                 else if (parent.name == "Slide") { parent.firstChildSeen = true; slideFlag = true }
             }
+            if(full == "GPIF/Notes/Note/XProperties/XProperty") {
+                attributeId=attrs.getValue("id")?.let(NativeNumericAttribute::decimalPrefix)?.takeIf { it in NativeSlideParameters.IDS }
+            } else if(path() == "GPIF/Notes/Note/XProperties/XProperty" && parent?.attributeId != null && !parent.firstChildSeen) {
+                parent.firstChildSeen=true;attributeId=parent.attributeId;numericType=tag
+            }
             boundary()
-            stack.add(Frame(tag, attrs.getValue("name"), if (full in leaves || booleanFlag != null || slideFlag) StringBuilder() else null,booleanFlag,slideFlag))
+            stack.add(Frame(tag, attrs.getValue("name"), if (full in leaves || booleanFlag != null || slideFlag || numericType != null || bendProperty != null) StringBuilder() else null,
+                booleanFlag,slideFlag,attributeId=attributeId,numericType=numericType,bendProperty=bendProperty))
             when (full) {
                 "GPIF/MasterBars/MasterBar" -> { requireSource(masters.size < 65536, "Too many GPIF master bars"); masterRefs = null }
                 "GPIF/Bars/Bar" -> { barId = id(attrs,bars); barRefs = null }
@@ -220,6 +240,10 @@ class GpNoteSourceGraph internal constructor(
                 if (text == "false") draft?.flags?.remove(name) else draft?.flags?.add(name)
             }
             if (stack.last().slideFlag) draft?.slideFlags = slideFlagsFromString(text)
+            stack.last().bendProperty?.let { name -> draft?.bendFields?.set(name,NativeNumericAttribute.read("Float",text)?.floatValue ?: 0f) }
+            stack.last().let { frame -> if(frame.numericType != null && frame.attributeId != null) {
+                NativeNumericAttribute.read(frame.numericType,text)?.let { draft?.attributes?.set(frame.attributeId,it) }
+            } }
             when (full) {
                 "GPIF/MasterBars/MasterBar/Bars" -> { requireSource(masterRefs == null, "Duplicate master bar refs"); masterRefs = refs(text) }
                 "GPIF/MasterBars/MasterBar" -> masters.add(masterRefs ?: emptyList())
@@ -238,7 +262,8 @@ class GpNoteSourceGraph internal constructor(
                 "GPIF/Notes/Note/Properties/Property/Fret" -> if (stack[stack.lastIndex-1].name == "Fret") draft?.fret = text.trim().toIntOrNull()
                 "GPIF/Notes/Note" -> draft?.let {
                     notes[it.id] = NoteInfo(it.id,it.accent,it.anti,"Tapped" in it.flags,"LeftHandTapped" in it.flags,
-                        "HopoOrigin" in it.flags,"HopoDestination" in it.flags,it.string,it.fret,it.tied,it.slideFlags)
+                        "HopoOrigin" in it.flags,"HopoDestination" in it.flags,it.string,it.fret,it.tied,it.slideFlags,NativeSlideParameters.from(it.attributes),
+                        GpBendData.from(it.bended,it.bendFields))
                     draft = null
                 }
             }

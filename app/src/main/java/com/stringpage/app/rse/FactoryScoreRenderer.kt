@@ -131,8 +131,12 @@ object FactoryScoreRenderer {
                                     NativeSampleStart.decoderStreamCuePoints(audio.metadata.nativeCues.map { it.sampleOffset.toInt().toLong() }),loopStart,envelope.userDefinedFrame)
                                 require(start <= audio.decoded.frames) { "采样起点超出可播放音频。" }
                                 val decoderGain = NativeSampleGain.DEFAULT_DECODER_GAIN * RseBankMetadata.waveGain(source.wave)
+                                val voiceStart=position
                                 val voice = NativeSampleVoice(audio.decoded, SAMPLE_RATE, basePitch, gain, source.pitchCorrection,
-                                    loop?.start?.toInt(), loop?.end?.toInt(), decoderGain, source.amplitudeCorrection,start.toInt())
+                                    loop?.start?.toInt(), loop?.end?.toInt(), decoderGain, source.amplitudeCorrection,start.toInt(),
+                                    pitchModulation=event.nativeBend?.let { plan -> { elapsed ->
+                                        plan.rawValue(RseBendClock.tick(performance,event.startTick,voiceStart,elapsed,SAMPLE_RATE))
+                                    } })
                                 voices.add(Active(event, voice, basePitch, audio,releaseFrames=envelope.fadeOutFrames,
                                     attack=NativeAttackEnvelope(envelope.fadeInFrames)))
                             }
