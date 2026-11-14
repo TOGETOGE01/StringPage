@@ -80,7 +80,7 @@ class ReadingSessionIntegrationTest {
     }
     @Test fun switchingAudioSourcesPreservesTheSelectedPassPositionAndLoop() {
         ui {
-            activity.changeSpeed(.75);api.masterVolume=.35;selectSecondTrack()
+            activity.changeSpeed(.73);api.masterVolume=.35;selectSecondTrack()
             assertTrue(activity.applyLoopRange(4,6));api.tickPosition=12800.0
         }
         await("initial seek") { kotlin.math.abs(api.tickPosition-12800.0)<20 }
@@ -89,7 +89,7 @@ class ReadingSessionIntegrationTest {
         ui {
             assertFalse(api.player!!.output is IExternalMediaSynthOutput)
             assertEquals("Switching to synthesized playback lost the practice position",12800.0,api.tickPosition,20.0)
-            assertEquals(.75,api.playbackSpeed,0.0);assertEquals(.35,api.masterVolume,0.0001)
+            assertEquals(.73,api.playbackSpeed,0.0);assertEquals(.35,api.masterVolume,0.0001)
             assertEquals(1,api.tracks[0].index.toInt())
             assertTrue("Switching sources must preserve looping",api.isLooping)
             assertEquals(range.first,api.playbackRange!!.startTick,0.0)
@@ -98,7 +98,11 @@ class ReadingSessionIntegrationTest {
             activity.switchSource(true)
         }
         ready();await("recording returns to the same score position") { kotlin.math.abs(api.tickPosition-12800.0)<20 }
-        ui { assertTrue(api.isLooping);assertEquals(PlayerState.Paused,api.playerState) }
+        ui {
+            assertTrue(api.isLooping)
+            assertEquals(.73, api.playbackSpeed, 0.0)
+            assertEquals(PlayerState.Paused, api.playerState)
+        }
     }
     @Test fun recreatingTheScreenRestoresTheReadingAndPracticeContextWithoutAutoplay() {
         ui { activity.switchSource(false) };ready()
@@ -124,7 +128,7 @@ class ReadingSessionIntegrationTest {
         }
     }
     @Test fun recreatingEmbeddedAudioRestoresTheActualRecordingPositionAfterPreparation() {
-        ui { activity.changeSpeed(.75);api.masterVolume=.4;selectSecondTrack();api.tickPosition=12800.0 }
+        ui { activity.changeSpeed(.73);api.masterVolume=.4;selectSecondTrack();api.tickPosition=12800.0 }
         var previous=-1;var stable=0
         await("initial physical recording seek settles") {
             val position=nativePosition()
@@ -136,7 +140,7 @@ class ReadingSessionIntegrationTest {
         await("physical recording position restored") { kotlin.math.abs(nativePosition()-position)<30 && kotlin.math.abs(api.tickPosition-12800.0)<20 }
         ui {
             assertTrue(api.player!!.output is IExternalMediaSynthOutput)
-            assertEquals(.75,api.playbackSpeed,0.0);assertEquals(.4,api.masterVolume,0.0001)
+            assertEquals(.73,api.playbackSpeed,0.0);assertEquals(.4,api.masterVolume,0.0001)
             assertEquals(1,api.tracks[0].index.toInt());assertEquals(PlayerState.Paused,api.playerState)
         }
         val held=ui { nativePosition() };SystemClock.sleep(200)

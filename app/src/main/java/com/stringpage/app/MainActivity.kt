@@ -30,6 +30,7 @@ import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
 import android.view.KeyEvent
+import android.view.inputmethod.EditorInfo
 import android.text.TextUtils
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
@@ -96,7 +97,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var headerToolbar: LinearLayout
     private lateinit var brand: TextView
     private lateinit var transport: LinearLayout
-    private lateinit var speedReadout: TextView
+    private lateinit var speedReadout: Button
     private lateinit var bottomContent: LinearLayout
     private lateinit var timeline: LinearLayout
     private lateinit var controls: LinearLayout
@@ -360,8 +361,12 @@ class MainActivity : AppCompatActivity() {
         val tempoCard = card()
         val tempoHeading = row()
         tempoHeading.addWeighted(text("播放速度", 12f, muted), 1f, 32)
-        speedReadout = text("100%", 23f, teal).apply { setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL)) }
-        tempoHeading.addView(speedReadout); tempoCard.addView(tempoHeading)
+        speedReadout = button("100%") { chooseSpeed() }.apply {
+            textSize = 18f
+            setTextColor(teal)
+        }
+        tempoHeading.addView(speedReadout, LinearLayout.LayoutParams(-2, dp(44)))
+        tempoCard.addView(tempoHeading)
         for (values in listOf(listOf(0.5, 0.75), listOf(1.0, 1.25))) {
             val presets = row()
             for (value in values) {
@@ -574,7 +579,9 @@ class MainActivity : AppCompatActivity() {
         sourceNotice.visibility = if (sourceNotice.text.isEmpty()) View.GONE else View.VISIBLE
         source.setTextColor(if (audioMode) teal else ink)
         source.background = AppUi.ripple(this, if (audioMode && loaded != null) AppUi.selected else Color.WHITE, 10, if (audioMode && loaded != null) null else AppUi.line)
-        speedReadout.text = "${(currentSpeed * 100).toInt()}%"
+        val percentage = (currentSpeed * 100).roundToInt()
+        speedReadout.text = "$percentage%"
+        speedReadout.contentDescription = "播放速度 $percentage%，点击调整"
         speedPresets.forEach {
             it.isSelected = it.tag == currentSpeed
             it.setTextColor(if (it.isSelected) teal else ink)
@@ -609,7 +616,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setControlsReady(ready: Boolean) {
-        (listOf(play, speed, loop, progress, applyLoop, clearLoop) + speedPresets).forEach {
+        (listOf(play, speed, speedReadout, loop, progress, applyLoop, clearLoop) + speedPresets).forEach {
             it.isEnabled = ready; it.alpha = if (ready) 1f else 0.4f
         }
         listOf(source, track, zoom, notation).forEach { it.isEnabled = score != null && !loading }
@@ -1227,7 +1234,50 @@ class MainActivity : AppCompatActivity() {
         AlertDialog.Builder(this).setTitle("练习速度 · 保持音高")
             .setSingleChoiceItems(values.map { "${(it * 100).toInt()}%" }.toTypedArray(), values.indexOfFirst { it == currentSpeed }) { dialog, index ->
                 changeSpeed(values[index]); dialog.dismiss()
-            }.setNegativeButton("取消", null).show()
+            }.setNeutralButton("自定义") { _, _ -> showCustomSpeed() }
+            .setNegativeButton("取消", null).show()
+    }
+
+    private fun showCustomSpeed() {
+        val allowed = 50..200
+        val input = numberField("自定义播放速度，百分比").apply {
+            setText((currentSpeed * 100).roundToInt().coerceIn(allowed).toString())
+            setSelectAllOnFocus(true)
+            imeOptions = EditorInfo.IME_ACTION_DONE
+        }
+        val content = FrameLayout(this).apply {
+            setPadding(dp(24), dp(8), dp(24), 0)
+            addView(input, FrameLayout.LayoutParams(-1, dp(48)))
+        }
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("自定义播放速度")
+            .setMessage("输入 ${allowed.first}% 至 ${allowed.last}%，100% 为原速。")
+            .setView(content)
+            .setPositiveButton("应用", null)
+            .setNegativeButton("取消", null)
+            .create()
+        fun applySpeed() {
+            val percentage = input.text.toString().toIntOrNull()
+            if (percentage == null || percentage !in allowed) {
+                input.error = "请输入 ${allowed.first} 到 ${allowed.last} 之间的整数"
+                return
+            }
+            if (!speed.isEnabled) {
+                input.error = "请等待播放器准备完成"
+                return
+            }
+            changeSpeed(percentage / 100.0)
+            dialog.dismiss()
+        }
+        input.requestFocus()
+        dialog.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE)
+        dialog.show()
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener { applySpeed() }
+        input.setOnEditorActionListener { _, action, _ ->
+            if (action != EditorInfo.IME_ACTION_DONE) return@setOnEditorActionListener false
+            applySpeed()
+            true
+        }
     }
 
     private fun showTrainer() {
