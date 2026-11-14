@@ -24,7 +24,7 @@ This is the independent source-rate conversion stage. It does not provide the re
 - Corresponding source archive: https://repo.maven.apache.org/maven2/net/alphatab/alphaTab/1.8.4/alphaTab-1.8.4-sources.jar
 - License text: https://www.mozilla.org/en-US/MPL/2.0/
 
-The alphaTab attribution in rendered music is retained. No alphaTab library source files were modified in this project.
+The alphaTab attribution in rendered music is retained. The build applies one local change to the upstream `SynthConstants` class, lowering `MinPlaybackSpeed` from `0.125` to `0.1` for synthesis and recording sync. The source of that change is `AlphaTabPlaybackSpeedVisitor` in [app/build.gradle.kts](app/build.gradle.kts). The original source archive above contains the upstream Kotlin file.
 
 ## Bravura music font
 

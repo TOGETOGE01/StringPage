@@ -4,7 +4,7 @@
 
 An Android Guitar Pro score reader and practice player, with embedded audio playback and adaptive phone/tablet layouts.
 
-当前源码版本：**1.18.0** · 最低系统：**Android 8.0 / API 26** · 项目代码：[MIT](LICENSE)
+当前源码版本：**1.18.1** · 最低系统：**Android 8.0 / API 26** · 项目代码：[MIT](LICENSE)
 
 当前优先改进读谱、声音与谱面同步、手机和平板体验。1.17.0 修复原曲暂停回退、音源切换和界面重建后练习位置丢失，以及手机横屏谱面被挤没的问题；详细范围见 [1.17.0 说明](docs/PRACTICE_1.17.0.md)。
 
@@ -12,11 +12,11 @@ An Android Guitar Pro score reader and practice player, with embedded audio play
 
 ## 下载与安装
 
-**[直接下载 StringPage 1.18.0 APK](https://github.com/TOGETOGE01/StringPage/releases/download/v1.18.0/StringPage-1.18.0.apk)** · [版本说明与附件](https://github.com/TOGETOGE01/StringPage/releases/tag/v1.18.0) · [所有版本](https://github.com/TOGETOGE01/StringPage/releases)
+**[直接下载 StringPage 1.18.1 APK](https://github.com/TOGETOGE01/StringPage/releases/download/v1.18.1/StringPage-1.18.1.apk)** · [版本说明与附件](https://github.com/TOGETOGE01/StringPage/releases/tag/v1.18.1) · [所有版本](https://github.com/TOGETOGE01/StringPage/releases)
 
 下载 `.apk` 文件到安卓设备安装，最低 Android 8.0。该安装包包含 ARM64、ARMv7、x86 和 x86_64，沿用项目发布签名。Release 页面中的 `Source code` 是源码压缩包，直接安装请选 APK 附件。
 
-SHA-256：`45c3cab11031c6a626200fbbe49b5163ebc79e92367e114db1cb427708f6357b`。也可下载[校验文件](https://github.com/TOGETOGE01/StringPage/releases/download/v1.18.0/SHA256-1.18.0.txt)。
+SHA-256：`d95458f0918e3fef18a805480ca7e7af70c18ada47880c93a7f478b26baa7c50`。也可下载[校验文件](https://github.com/TOGETOGE01/StringPage/releases/download/v1.18.1/SHA256-1.18.1.txt)。
 
 ## 功能
 
@@ -24,7 +24,7 @@ SHA-256：`45c3cab11031c6a626200fbbe49b5163ebc79e92367e114db1cb427708f6357b`。�
 - **曲库管理**：批量导入、损坏文件反馈、最近打开的折叠与搜索、单项及批量移除记录。移除记录不会删除原始谱文件。
 - **内嵌录音**：播放 GP8 文件内已有的 Audio Track，支持暂停、跳转、保持音高的变速、小节循环与同步跟谱。
 - **按谱合成**：内置 GeneralUser GS SoftSynth 1.44 音色；支持声部音量、静音、独奏、节拍器与预备拍。
-- **跟练**：循环区间、50%–200% 自定义播放速度、逐轮加速练习，以及手机、横竖屏和平板分屏布局。
+- **跟练**：循环区间、10%–100% 自定义播放速度、逐轮加速练习，以及手机、横竖屏和平板分屏布局。
 - **阅读状态**：音源切换保留位置、循环、速度和音量；系统重建界面后恢复声部、谱表、缩放及练习位置，保持暂停。已准备的采样音频需重新准备。
 - **采样播放**：导入用户自行提供的 `.gp7bank`，为乐器声部或鼓组击打音分配采样库，准备离线演奏音频后使用现有播放控件。
 

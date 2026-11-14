@@ -54,6 +54,37 @@ class PlayerIntegrationTest {
     }
     @After fun close() { ui { activity.finish() }; instrument.waitForIdleSync() }
 
+    @Test fun tenPercentSlowsBothTheRecordingAndTheSynthesizer() {
+        demo()
+        val durationAtNormalSpeed = ui { api.endTime }
+        assertTrue(durationAtNormalSpeed > 0.0)
+        ui { activity.changeSpeed(0.1) }
+        await("recording timeline is stretched to ten times its duration") {
+            kotlin.math.abs(api.endTime - durationAtNormalSpeed * 10) < 50
+        }
+        ui { assertEquals(PlayerState.Paused, api.playerState) }
+        playPause()
+        await("the recording actually advances at ten percent") {
+            val output = api.player!!.output as IExternalMediaSynthOutput
+            val handler = output.handler as EmbeddedAudio
+            val field = EmbeddedAudio::class.java.getDeclaredField("media").apply { isAccessible = true }
+            val player = field.get(handler) as android.media.MediaPlayer
+            player.isPlaying && player.currentPosition > 100 &&
+                kotlin.math.abs(player.playbackParams.speed - 0.1f) < 0.001f
+        }
+        playPause()
+        ui { activity.switchSource(false) }
+        awaitReady()
+        await("synthesizer also uses the ten percent timeline") {
+            api.player!!.output !is IExternalMediaSynthOutput &&
+                kotlin.math.abs(api.endTime - durationAtNormalSpeed * 10) < 50
+        }
+        val startingTick = ui { api.tickPosition }
+        playPause()
+        await("synthesizer progresses at the restored slow speed") { api.tickPosition > startingTick + 120 }
+        playPause()
+    }
+
     @Test fun embeddedRecordingPlaysSeeksAndPauses() {
         demo()
         ui {

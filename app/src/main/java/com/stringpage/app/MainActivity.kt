@@ -367,7 +367,7 @@ class MainActivity : AppCompatActivity() {
         }
         tempoHeading.addView(speedReadout, LinearLayout.LayoutParams(-2, dp(44)))
         tempoCard.addView(tempoHeading)
-        for (values in listOf(listOf(0.5, 0.75), listOf(1.0, 1.25))) {
+        for (values in listOf(listOf(0.25, 0.5), listOf(0.75, 1.0))) {
             val presets = row()
             for (value in values) {
                 val preset = button("${(value * 100).toInt()}%") { changeSpeed(value) }
@@ -1230,7 +1230,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun chooseSpeed() {
-        val values = doubleArrayOf(0.5, 0.6, 0.75, 0.85, 1.0, 1.25, 1.5)
+        val values = doubleArrayOf(0.1, 0.25, 0.5, 0.6, 0.75, 0.85, 1.0)
         AlertDialog.Builder(this).setTitle("练习速度 · 保持音高")
             .setSingleChoiceItems(values.map { "${(it * 100).toInt()}%" }.toTypedArray(), values.indexOfFirst { it == currentSpeed }) { dialog, index ->
                 changeSpeed(values[index]); dialog.dismiss()
@@ -1239,7 +1239,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showCustomSpeed() {
-        val allowed = 50..200
+        val allowed = 10..100
         val input = numberField("自定义播放速度，百分比").apply {
             setText((currentSpeed * 100).roundToInt().coerceIn(allowed).toString())
             setSelectAllOnFocus(true)
