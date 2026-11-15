@@ -1,0 +1,90 @@
+package com.stringpage.app.pdf
+
+import kotlin.math.abs
+import kotlin.math.roundToInt
+
+internal data class RasterTabStaff(val rows: List<Int>, val edges: List<Int>) {
+    val top get() = rows.first()
+    val bottom get() = rows.last()
+    val gap get() = (bottom - top) / (rows.size - 1).toDouble()
+}
+
+internal object PdfRasterLayout {
+    private data class Grid(val rows: List<Int>, val strength: Double)
+
+    fun staves(image: PdfRasterImage): List<RasterTabStaff> {
+        val contrast = DoubleArray(image.height) { y -> (0 until image.width).sumOf { x -> image[x, y] } / 255.0 }
+        val peaks = peaks(contrast, image.width * 0.17, 3)
+        val grids = ArrayList<Grid>()
+        val minGap = (image.width * 0.0055).coerceAtLeast(7.0)
+        val maxGap = (image.width * 0.045).coerceAtMost(110.0)
+        for ((i, top) in peaks.withIndex()) {
+            for (j in i + 1 until peaks.size) {
+                val gap = peaks[j] - top
+                if (gap > maxGap) break
+                if (gap < minGap) continue
+                // Use the first and last row to estimate the spacing at subpixel precision.
+                for (last in peaks.filter { abs(it - top - gap * 5) <= 8 }) {
+                    val step = (last - top) / 5.0
+                    val rows = (0..5).map { row ->
+                        val target = top + step * row
+                        peaks.minBy { abs(it - target) }
+                    }
+                    val errors = rows.mapIndexed { row, y -> abs(y - top - step * row) }
+                    if (rows.distinct().size != 6 || errors.any { it > maxOf(1.75, step * 0.1) }) continue
+                    if (peaks.any { abs(it - (top - step)) < step * 0.13 || abs(it - (last + step)) < step * 0.13 }) continue
+                    val strength = rows.sumOf { contrast[it] / image.width } - errors.sum() * 0.15
+                    grids.add(Grid(rows, strength))
+                }
+            }
+        }
+        val accepted = ArrayList<RasterTabStaff>()
+        for (grid in grids.sortedByDescending { it.strength }) {
+            if (accepted.any { it.top <= grid.rows.last() && grid.rows.first() <= it.bottom }) continue
+            val edges = edges(image, grid.rows) ?: continue
+            accepted.add(RasterTabStaff(grid.rows, edges))
+        }
+        return accepted.sortedBy { it.top }
+    }
+
+    private fun edges(image: PdfRasterImage, grid: List<Int>): List<Int>? {
+        val top = grid.first()
+        val bottom = grid.last()
+        val gap = (bottom - top) / 5.0
+        val offLine = (top + 2 until bottom - 1).filter { y -> grid.none { abs(y - it) <= 1 } }
+        if (offLine.size < 15) return null
+        val thirds = offLine.chunked((offLine.size + 2) / 3)
+        val darkness = DoubleArray(image.width) { x ->
+            if (thirds.any { band -> band.sumOf { image[x, it] } < 255 * band.size * 0.21 }) 0.0
+            else offLine.sumOf { image[x, it] } / (255.0 * offLine.size)
+        }
+        val vertical = peaks(darkness, 0.33, (gap * 0.48).roundToInt().coerceAtLeast(3))
+        val minimum = (gap * 0.9).roundToInt().coerceAtLeast(8)
+        val support = BooleanArray(image.width) { x -> grid.sumOf { y -> maxOf(image[x, y - 1], image[x, y], image[x, y + 1]) } > 250 }
+        val staffStart = (0..image.width - minimum).firstOrNull { x ->
+            (x until x + minimum).count { support[it] } >= minimum * 0.87
+        } ?: return null
+        val staffEnd = (image.width - 1 downTo minimum).firstOrNull { x ->
+            (x - minimum + 1..x).count { support[it] } >= minimum * 0.87
+        } ?: return null
+        val left = vertical.minByOrNull { abs(it - staffStart) }?.takeIf { abs(it - staffStart) < gap } ?: staffStart
+        val right = vertical.minByOrNull { abs(it - staffEnd) }?.takeIf { abs(it - staffEnd) < gap } ?: staffEnd
+        if (right - left < image.width * 0.26) return null
+        return listOf(left) + vertical.filter { it >= left + gap * 3.3 && it < right - gap * 0.55 } + right
+    }
+
+    fun peaks(values: DoubleArray, threshold: Double, separation: Int): List<Int> {
+        val result = ArrayList<Int>()
+        var x = 0
+        while (x < values.size) {
+            if (values[x] < threshold) { x++; continue }
+            var best = x
+            while (++x < values.size && values[x] >= threshold) if (values[x] > values[best]) best = x
+            val last = result.lastOrNull()
+            if (last != null && best - last < separation) {
+                if (values[best] > values[last]) result[result.lastIndex] = best
+            } else result.add(best)
+        }
+        return result
+    }
+}

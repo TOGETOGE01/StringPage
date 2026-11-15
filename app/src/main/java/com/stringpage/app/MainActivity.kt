@@ -46,7 +46,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.roundToInt
 
 /** Offline GP reader. Embedded audio and the GP8 sync map stay inside alphaTab's data model. */
-class MainActivity : AppCompatActivity() {
+open class MainActivity : AppCompatActivity() {
+    private val pdfPreview get() = this is com.stringpage.app.pdf.PdfPreviewActivity
     private val ink = AppUi.ink
     private val mint = AppUi.mint
     private val paper = AppUi.canvas
@@ -182,10 +183,22 @@ class MainActivity : AppCompatActivity() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() { guardDocumentChange { finish() } }
         })
+        if (pdfPreview) {
+            val file = com.stringpage.app.pdf.PdfConvertActivity.privatePreviewFile(cacheDir,
+                intent.getStringExtra(com.stringpage.app.pdf.PdfConvertActivity.PREVIEW_EXTRA))
+            if (file == null) {
+                Toast.makeText(this, "试听文件已失效，请重新生成。", Toast.LENGTH_SHORT).show()
+                finish()
+            } else {
+                sheet.settings.display.staveProfile = alphaTab.StaveProfile.Tab
+                loadFile({ "PDF 转换试听.gp" to file.readBytes() }, null)
+            }
+            return
+        }
         val initial = {
             if (intent.action == Intent.ACTION_VIEW && intent.data != null) {
                 if(pendingReaderSession?.document!=intent.data.toString()) pendingReaderSession=null
-                openUri(intent.data!!)
+                openIncoming(intent)
             }
             else if(pendingReaderSession?.document==ReaderSession.DEMO) openDemo()
             else if(pendingReaderSession!=null) openUri(Uri.parse(pendingReaderSession!!.document))
@@ -748,12 +761,26 @@ class MainActivity : AppCompatActivity() {
         val uri = uris.first()
         try { contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
         catch (_: SecurityException) { /* Some providers only grant access for this session. */ }
-        openUri(uri)
+        if (contentResolver.getType(uri) == "application/pdf") openPdf(uri) else openUri(uri)
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent); setIntent(intent)
-        intent.data?.let { openUri(it) }
+        if (intent.data != null) openIncoming(intent)
+    }
+
+    private fun openIncoming(intent: Intent) {
+        val uri = intent.data ?: return
+        if (intent.type == "application/pdf") openPdf(uri) else openUri(uri)
+    }
+
+    private fun openPdf(uri: Uri? = null) {
+        if (loading || importing) return
+        pausePlayback()
+        startActivity(Intent(this, com.stringpage.app.pdf.PdfConvertActivity::class.java).apply {
+            data = uri
+            if (uri != null) addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        })
     }
 
     internal fun openUri(uri: Uri) {
@@ -868,7 +895,7 @@ class MainActivity : AppCompatActivity() {
                 runOnUiThread {
                     if (token != generation || isDestroyed) return@runOnUiThread
                     loading = false; loadingIndicator.visibility = View.GONE
-                    val key=uri?.toString() ?: if(!recovered) ReaderSession.DEMO else null
+                    val key=uri?.toString() ?: if(!recovered && !pdfPreview) ReaderSession.DEMO else null
                     val resume=pendingReaderSession?.takeIf { it.document==key }
                     if(resume==null) pendingReaderSession=null
                     restoreRequestedTick=null
@@ -876,7 +903,7 @@ class MainActivity : AppCompatActivity() {
                     activeTrack=(resume?.track ?: 0).coerceIn(0,parsed.tracks.length.toInt()-1)
                     modified = recovered; restoreTick = null; trainer.stop()
                     editor.reset(parsed); practice.reset(parsed)
-                    if (!recovered) io.execute { drafts.delete() }
+                    if (!recovered && !pdfPreview) io.execute { drafts.delete() }
                     hasAudio = (parsed.backingTrack?.rawAudioFile?.length ?: 0.0) > 0.0
                     audioMode = hasAudio && (resume==null || resume.source=="embedded"); factoryMode = false
                     embedded.release(); embeddedReady = false; midiReady = false
@@ -919,7 +946,7 @@ class MainActivity : AppCompatActivity() {
                     barCounter.text = "小节 1 / ${parsed.masterBars.length.toInt()}"
                     sheet.tracks = listOf(parsed.tracks[activeTrack])
                     if (uri != null) { saveRecent(uri, title.text.toString()); prefs.edit().putString("lastUri", uri.toString()).apply() }
-                    else prefs.edit().remove("lastUri").apply()
+                    else if (!pdfPreview) prefs.edit().remove("lastUri").apply()
                     refreshPanels()
                 }
             } catch (e: Throwable) {
@@ -1029,9 +1056,9 @@ class MainActivity : AppCompatActivity() {
             menu.menu.add(0,id,order,label).isEnabled=enabled
         }
         item(1, "混音与练习设置")
-        item(2, "基础编辑")
-        item(3, "撤销", available && editor.canUndo)
-        item(4, "重做", available && editor.canRedo)
+        item(2, "基础编辑", available && !pdfPreview)
+        item(3, "撤销", available && !pdfPreview && editor.canUndo)
+        item(4, "重做", available && !pdfPreview && editor.canRedo)
         item(5, "导出 GP 兼容副本")
         item(6, "导出 MIDI")
         item(7, "关于", true)
@@ -1041,6 +1068,7 @@ class MainActivity : AppCompatActivity() {
         item(11, "选择声部")
         item(12, "播放音源")
         item(13, "谱面大小")
+        item(14, "PDF 转 GP", !loading && !importing && !pdfPreview)
         menu.setOnMenuItemClickListener {
             when (it.itemId) {
                 1 -> practice.show()
@@ -1056,6 +1084,7 @@ class MainActivity : AppCompatActivity() {
                 11 -> chooseTrack()
                 12 -> chooseSource()
                 13 -> chooseZoom()
+                14 -> openPdf()
             }
             true
         }
