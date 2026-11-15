@@ -1,10 +1,10 @@
 # 弦页 · StringPage
 
-面向 Android 手机和平板的本地 Guitar Pro 读谱、听谱与跟练应用。使用 Kotlin 原生界面和 alphaTab，支持谱面合成播放及 GP8 内嵌 Audio Track 播放。平板布局优先考虑小米 Pad 7 Ultra。
+面向 Android 手机和平板的本地 Guitar Pro 读谱、听谱与跟练应用。使用 Kotlin 原生界面和 alphaTab，支持谱面合成播放及 GP8 内嵌 Audio Track 播放。支持PDF转GP谱的功能，经测试有非常高的正确率
 
 An Android Guitar Pro score reader and practice player, with embedded audio playback and adaptive phone/tablet layouts.
 
-当前源码版本：**1.18.1** · 最低系统：**Android 8.0 / API 26** · 项目代码：[MIT](LICENSE)
+当前源码版本：**1。23.0** · 最低系统：**Android 8.0 / API 26** · 项目代码：[MIT](LICENSE)
 
 当前优先改进读谱、声音与谱面同步、手机和平板体验。1.17.0 修复原曲暂停回退、音源切换和界面重建后练习位置丢失，以及手机横屏谱面被挤没的问题；详细范围见 [1.17.0 说明](docs/PRACTICE_1.17.0.md)。
 
