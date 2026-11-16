@@ -37,7 +37,9 @@ class PlaybackControls(
     private val onMixSessionEnded: () -> Unit = {},
     private val externalPlaybackDescription: () -> String = { "轨道混音、音色、节拍器、预备拍和播放移调在合成音源模式下使用。" },
     private val documentKey: () -> String? = { null },
-    private val reloadTone: () -> Boolean = { false }
+    private val reloadTone: () -> Boolean = { false },
+    private val liveGuitarTracks: () -> Set<Int> = { emptySet() },
+    private val openAmp: (Int) -> Unit = {}
 ) {
     data class TrackMix(val volume: Double, val muted: Boolean, val solo: Boolean)
     data class Snapshot(
@@ -258,8 +260,13 @@ class PlaybackControls(
             return
         }
         if (!isSynthesizer()) {
-            dialog = AlertDialog.Builder(context).setTitle("练习控制")
-                .setMessage(externalPlaybackDescription())
+            val live = liveGuitarTracks().sorted()
+            val builder = AlertDialog.Builder(context).setTitle("混音与练习设置")
+            if (live.isEmpty()) builder.setMessage(externalPlaybackDescription())
+            else builder.setItems(live.map { index ->
+                loaded.tracks[index].name.ifBlank { "声部 ${index + 1}" } + " · 音箱"
+            }.toTypedArray()) { _, row -> openAmp(live[row]) }
+            dialog = builder
                 .setPositiveButton("切换到合成音源") { _, _ -> openWhenReady = true; switchToSynthesizer() }
                 .setNegativeButton("关闭", null).show()
             return
@@ -336,6 +343,12 @@ class PlaybackControls(
             }
             switches.addView(mute, LinearLayout.LayoutParams(0, dp(48), 1f))
             switches.addView(solo, LinearLayout.LayoutParams(0, dp(48), 1f))
+            if (canChooseTone(index)) switches.addView(Button(context).apply {
+                text = "音箱"
+                contentDescription = "$name 音箱"
+                isAllCaps = false
+                setOnClickListener { dialog?.dismiss(); openAmp(index) }
+            })
             card.addView(switches)
             widgets[index] = TrackWidgets(volumeSlider, volumeLabel, mute, solo, tone)
             content.addView(card, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })

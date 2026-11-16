@@ -14,6 +14,7 @@ import android.widget.SeekBar
 import android.widget.Spinner
 import android.widget.TextView
 import com.stringpage.app.GuitarAmpSettings
+import com.stringpage.app.GuitarTone
 import java.io.File
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
@@ -24,7 +25,7 @@ internal class FactoryPlaybackSetup(
     private val isCurrent: (Score) -> Boolean,
     private val busy: (Boolean) -> Unit,
     private val openLibrary: () -> Unit,
-    private val ready: (Score, FactoryScoreRenderer.Result) -> Unit,
+    private val ready: (Score, FactoryScoreRenderer.StemResult) -> Unit,
     private val ampsFor: (Score) -> Map<Int, GuitarAmpSettings> = { emptyMap() }
 ) {
     private val worker = Executors.newSingleThreadExecutor()
@@ -32,10 +33,9 @@ internal class FactoryPlaybackSetup(
     private var active: AtomicBoolean? = null
     private var dialog: AlertDialog? = null
     private var closed = false
-    @Volatile private var preparingFile: File? = null
     private fun ui(action: () -> Unit) = activity.runOnUiThread { if (!closed && !activity.isFinishing) action() }
     fun cancel() {
-        active?.set(true); active = null; preparingFile?.delete(); preparingFile = null
+        active?.set(true); active = null
         dialog?.dismiss(); if (!closed) busy(false)
     }
     fun close() { cancel(); closed = true; worker.shutdownNow() }
@@ -90,7 +90,7 @@ internal class FactoryPlaybackSetup(
         val form = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL; setPadding(padding, padding/2, padding, padding/2) }
         fun label(text: String) = TextView(activity).apply { this.text = text; textSize = 14f; setPadding(0,16,0,8); form.addView(this) }
         label("为参与播放的声部选择音色库。鼓组按击打音分别分配。完整连奏、拾音器与效果链仍在还原。")
-        if (ampsFor(score).keys.any { it !in muted }) label("准备时会应用已保存的吉他音箱设置。")
+        if (ampsFor(score).keys.any { it !in muted }) label("已保存的吉他音箱设置将在播放时应用。")
         val choices = arrayOf("请选择音色库") + banks.map { "${it.bank.name} · ${it.bank.id}" }
         val widgets = LinkedHashMap<FactoryScoreRenderer.Route, Spinner>()
         fun key(route: FactoryScoreRenderer.Route) = "bank.${score.tracks[route.track].playbackInfo.program.toInt()}.${route.percussionMidi ?: -1}"
@@ -136,21 +136,21 @@ internal class FactoryPlaybackSetup(
         val progress = ProgressBar(activity, null, android.R.attr.progressBarStyleHorizontal).apply { max = 100 }; form.addView(progress)
         dialog = AlertDialog.Builder(activity).setTitle("准备原厂采样播放").setView(form).setCancelable(false)
             .setNegativeButton("取消") { _, _ -> cancel() }.show()
-        val amps = ampsFor(score)
+        val guitars = score.tracks.withIndex().filter { GuitarTone.supports(it.value) }.map { it.index }.toSet()
         worker.execute {
-            val file = File(activity.cacheDir, "factory-score-${System.nanoTime()}.wav")
-            preparingFile = file
             try {
-                val result = FactoryScoreRenderer.renderWithAmps(performance, bindings, file, mutedTracks, transposition, amps,
+                val result = FactoryScoreRenderer.prepareStems(performance, bindings, activity.cacheDir, mutedTracks, transposition, guitars,
                     { flag.get() }) { percentage -> ui { if (active === flag && !flag.get()) {
                         caption.text = "正在准备 $percentage%"; progress.progress = percentage
                     } } }
-                if (flag.get()) { file.delete(); return@execute }
-                ui {
-                    if (flag.get() || active !== flag || !isCurrent(score)) { file.delete(); return@ui }
-                    preparingFile = null; active = null; dialog?.dismiss(); busy(false); ready(score, result)
+                activity.runOnUiThread {
+                    if (closed || activity.isFinishing || flag.get() || active !== flag || !isCurrent(score)) {
+                        result.stems.close()
+                    } else {
+                        active = null; dialog?.dismiss(); busy(false); ready(score, result)
+                    }
                 }
-            } catch (error: Exception) { file.delete(); failed(flag, error) }
+            } catch (error: Exception) { failed(flag, error) }
         }
     }
 }

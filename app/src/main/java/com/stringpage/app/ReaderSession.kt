@@ -40,7 +40,7 @@ internal data class ReaderSession(
                 Loop(start,end,bundle.getBoolean("loopEnabled"),
                     bundle.getInt("fromBar").takeIf { it>0 },bundle.getInt("toBar").takeIf { it>0 }) else null
             return ReaderSession(document,bundle.getInt("track").coerceAtLeast(0),
-                bundle.getString("source")?.takeIf { it in setOf("embedded","synth","prepared") } ?: "synth",
+                bundle.getString("source")?.takeIf { it in setOf("embedded","synth","prepared","amp") } ?: "synth",
                 number("tick",0.0,0.0,Double.MAX_VALUE),number("speed",1.0,.1,4.0),
                 number("scale",.85,.25,4.0),bundle.getString("notation") ?: "ScoreTab",
                 bundle.getBoolean("fullScreen"),number("masterVolume",1.0,0.0,1.0),loop)

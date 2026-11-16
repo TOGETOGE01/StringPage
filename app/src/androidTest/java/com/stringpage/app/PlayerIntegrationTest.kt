@@ -69,13 +69,11 @@ class PlayerIntegrationTest {
         ui { api.tickPosition = target }
         await("paused inside the original loop") { kotlin.math.abs(api.tickPosition - target) < 20 }
         val context = instrument.targetContext
-        val file = File.createTempFile("tone-transport-", ".wav", context.cacheDir)
+        val preset = mapOf(0 to GuitarAmpSettings(AmpPreset.Modern))
+        val result = SynthAmpMix(context.cacheDir) { context.assets.open("sonivox.sf2").use { it.readBytes() } }
+            .prepare(score, api.settings, listOf(GuitarTone.Original), 0, { false }, {})
         try {
-            val result = SynthAmpMix(context.cacheDir) { context.assets.open("sonivox.sf2").use { it.readBytes() } }.use {
-                it.render(score, api.settings, listOf(GuitarTone.Original),
-                    mapOf(0 to GuitarAmpSettings(AmpPreset.Modern)), 0, file, { false }, {})
-            }
-            ui { activity.acceptAmpAudio(score, result) }
+            ui { activity.acceptAmpAudio(score, result, preset) }
             awaitReady()
             ui {
                 assertEquals("音箱混音", activity.findViewById<Button>(R.id.audio_source).text.toString())
@@ -87,7 +85,37 @@ class PlayerIntegrationTest {
             }
             playPause()
             await("prepared amp audio advances along the score") { api.tickPosition > target + 60 }
-        } finally { ui { api.pause(); activity.switchSource(false) }; file.delete() }
+            val at = ui { api.tickPosition }
+            val stream = ui { (api.player!!.output as IExternalMediaSynthOutput).handler as StemAudio }
+            ui {
+                assertTrue(activity.applyLiveAmps(mapOf(0 to GuitarAmpSettings(AmpPreset.Crunch))))
+                assertSame(stream, (api.player!!.output as IExternalMediaSynthOutput).handler)
+                assertEquals(PlayerState.Playing, api.playerState)
+            }
+            await("amp switch keeps playback and cursor moving inside the loop") { api.tickPosition > at + 60 }
+            ui {
+                assertTrue(api.isLooping)
+                assertEquals(0.5, api.playbackSpeed, 0.001)
+                assertTrue(activity.applyLiveAmps(emptyMap()))
+                activity.changeSpeed(0.1)
+            }
+            val slowAt = ui { stream.currentPositionMs }
+            await("10% pitch-corrected stream still advances") { stream.currentPositionMs > slowAt + 50.0 }
+            val measuredAt = ui { stream.currentPositionMs }
+            SystemClock.sleep(1500)
+            val advanced = ui { stream.currentPositionMs - measuredAt }
+            assertTrue("10% media clock advanced $advanced ms in 1500 ms", advanced in 80.0..260.0)
+            val range = ui {
+                activity.changeSpeed(0.5)
+                api.playbackRange!!.also { api.tickPosition = it.endTick - 120.0 }
+            }
+            ui { assertTrue(activity.applyLiveAmps(mapOf(0 to GuitarAmpSettings(AmpPreset.British)))) }
+            await("switch at the loop boundary stays on one audio stream", timeout = 5000) {
+                stream.completedLoops > 0 && api.playerState == PlayerState.Playing &&
+                    api.tickPosition in range.startTick..(range.startTick + 550.0) &&
+                    (api.player!!.output as IExternalMediaSynthOutput).handler === stream
+            }
+        } finally { ui { api.pause(); activity.switchSource(false) }; result.close() }
     }
 
     @Test fun guitarToneReloadPreservesLoopTempoAndTransportAndRemembersTheScore() {

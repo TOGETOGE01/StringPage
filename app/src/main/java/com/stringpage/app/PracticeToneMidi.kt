@@ -65,7 +65,9 @@ internal class PracticeToneMidi(private val score: Score) {
         if (channels != original) {
             // Regenerate with separate channels so alphaTab retains both tracks' authored program
             // automation and routes bends to the new secondary channel before loading the synth.
-            val copy = JsonConverter.jsObjectToScore(JsonConverter.scoreToJsObject(score), settings)
+            val json = checkNotNull(JsonConverter.scoreToJsObject(score))
+            json.delete("backingtrack")
+            val copy = JsonConverter.jsObjectToScore(json, settings)
             for ((index, track) in copy.tracks.withIndex()) {
                 val route = channels[index]
                 track.playbackInfo.primaryChannel = route.primary

@@ -18,6 +18,7 @@ class EmbeddedAudio(private val failed: (Throwable) -> Unit) : IExternalMediaHan
     private var ready = false
     private var playRequested = false
     private var rate = 1.0
+    private var appliedRate = 1.0
     private var volume = 1.0
     private var pendingSeek: Long? = null
     private var queuedSeek: Long? = null
@@ -26,10 +27,6 @@ class EmbeddedAudio(private val failed: (Throwable) -> Unit) : IExternalMediaHan
 
     /** Preserve the recording clock when the notation engine snaps a pause to a beat. */
     internal fun restorePausedPosition(time: Double) = requestSeek(time)
-    /** The prepared RSE file may contain an anticipatory slide before the first
-     * written beat. Seeking that first cue rewinds through its introduction. */
-    var firstCueMs = 0.0
-        set(value) { require(value.isFinite() && value >= 0);field=value }
     var output: IExternalMediaSynthOutput? = null
         set(value) { field?.handler = null; field = value; value?.handler = this }
     private val poll = object : Runnable {
@@ -51,6 +48,7 @@ class EmbeddedAudio(private val failed: (Throwable) -> Unit) : IExternalMediaHan
     fun load(file: File, onReady: () -> Unit) {
         release()
         rate = 1.0
+        appliedRate = 1.0
         val next = MediaPlayer()
         media = next
         next.setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA)
@@ -104,17 +102,17 @@ class EmbeddedAudio(private val failed: (Throwable) -> Unit) : IExternalMediaHan
         get() = volume
         set(value) { volume = value; if (ready) media?.setVolume(value.toFloat(), value.toFloat()) }
 
-    override fun seekTo(time: Double) {
-        val target=if(firstCueMs > 0.0 && kotlin.math.abs(time-firstCueMs) < 1.0) 0.0 else time
-        requestSeek(target)
-    }
+    override fun seekTo(time: Double) = requestSeek(time)
     private fun requestSeek(time: Double) {
         if (!ready) return
         val current = media ?: return
         val target = time.coerceIn(0.0, backingTrackDuration).toLong()
         // MediaPlayer may complete an older seek after a newer request. Keep
         // only the latest destination and never publish the intermediate clock.
-        if (pendingSeek != null) { queuedSeek = target; return }
+        if (pendingSeek != null) {
+            queuedSeek = target.takeUnless { it == pendingSeek }
+            return
+        }
         pendingSeek = target
         current.seekTo(target, MediaPlayer.SEEK_CLOSEST)
     }
@@ -126,10 +124,15 @@ class EmbeddedAudio(private val failed: (Throwable) -> Unit) : IExternalMediaHan
     }
     private fun startPlayback(current: MediaPlayer) {
         if (pendingSeek != null) return
-        applyRate(current);current.start(); main.removeCallbacks(poll); main.post(poll)
+        applyRate(current)
+        if (!current.isPlaying) current.start()
+        main.removeCallbacks(poll)
+        main.post(poll)
     }
     private fun applyRate(current: MediaPlayer) {
-        current.playbackParams=PlaybackParams().setSpeed(rate.toFloat()).setPitch(1f)
+        if (appliedRate == rate) return
+        current.playbackParams = PlaybackParams().setSpeed(rate.toFloat()).setPitch(1f)
+        appliedRate = rate
     }
     override fun pause() {
         playRequested = false
@@ -139,7 +142,6 @@ class EmbeddedAudio(private val failed: (Throwable) -> Unit) : IExternalMediaHan
     fun release() {
         main.removeCallbacks(poll); ready = false; playRequested = false
         pendingSeek = null; queuedSeek = null
-        firstCueMs = 0.0
         output = null
         media?.release(); media = null
     }

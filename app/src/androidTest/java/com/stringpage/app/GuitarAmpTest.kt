@@ -17,8 +17,6 @@ import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import kotlin.math.PI
 import kotlin.math.sin
 import kotlin.math.sqrt
@@ -56,35 +54,36 @@ class GuitarAmpTest {
         val directory = File(context.cacheDir, "amp-test-${System.nanoTime()}").apply { mkdir() }
         val settings = Settings()
         val score = testScore(settings)
-        val first = File(directory, "clean.wav")
-        val second = File(directory, "dirty.wav")
         try {
-            SynthAmpMix(directory) { context.assets.open("sonivox.sf2").use { it.readBytes() } }.use { mixer ->
+            val source = SynthAmpMix(directory) { context.assets.open("sonivox.sf2").use { it.readBytes() } }
+            source.prepare(score, settings, listOf(GuitarTone.Clean, GuitarTone.Clean), 0, { false }, {}).use { stems ->
                 val config = GuitarAmpSettings(AmpPreset.Clean, pan = -100)
-                val tones = listOf(GuitarTone.Clean, GuitarTone.Clean)
-                mixer.render(score, settings, tones, mapOf(0 to config), 0, first, { false }, {})
                 val before = directory.listFiles()!!.filter { it.extension == "pcm" }.associate { it.name to it.lastModified() }
-                mixer.render(score, settings, tones, mapOf(0 to config.copy(preset = AmpPreset.British)), 0, second, { false }, {})
+                val clean = FloatArray(1024)
+                val dirty = FloatArray(1024)
+                val original = mapOf(0 to config)
+                val changed = mapOf(0 to config.copy(preset = AmpPreset.British))
+                LiveAmpMixer(stems, 512).use { control ->
+                    LiveAmpMixer(stems, 512).use { mixed ->
+                        val at = 6000L
+                        control.seek(at, original)
+                        mixed.seek(at, original)
+                        control.read(clean, 512, original)
+                        mixed.read(dirty, 512, changed)
+                        assertEquals(clean[0], dirty[0], 0f)
+                        assertTrue(clean.indices.any { it % 2 == 0 && clean[it] != dirty[it] })
+                        assertTrue(clean.indices.any { it % 2 == 1 && clean[it] != 0f })
+                        assertTrue(clean.indices.all { it % 2 == 0 || clean[it] == dirty[it] })
+                    }
+                }
                 val after = directory.listFiles()!!.filter { it.extension == "pcm" }.associate { it.name to it.lastModified() }
-                assertEquals(2, before.size)
+                assertEquals(4, before.size)
                 assertEquals(before, after)
-                val clean = pcm(first)
-                val dirty = pcm(second)
-                assertEquals(clean.size, dirty.size)
-                assertTrue(clean.indices.any { it % 2 == 0 && clean[it] != dirty[it] })
-                assertTrue(clean.indices.any { it % 2 == 1 && clean[it] != 0.toShort() })
-                assertTrue(clean.indices.all { it % 2 == 0 || clean[it] == dirty[it] })
             }
         } finally {
             directory.listFiles()?.forEach { it.delete() }
             directory.delete()
         }
-    }
-
-    private fun pcm(file: File): ShortArray {
-        val bytes = file.readBytes()
-        val data = ByteBuffer.wrap(bytes, 44, bytes.size - 44).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer()
-        return ShortArray(data.remaining()).apply { data.get(this) }
     }
 
     private fun testScore(settings: Settings) = Score().apply {

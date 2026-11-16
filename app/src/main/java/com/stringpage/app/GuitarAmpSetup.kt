@@ -18,7 +18,6 @@ import android.widget.Spinner
 import android.widget.TextView
 import org.json.JSONObject
 import java.io.Closeable
-import java.io.File
 import java.security.MessageDigest
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
@@ -27,7 +26,8 @@ internal class GuitarAmpSetup(
     private val activity: Activity,
     private val isCurrent: (Score) -> Boolean,
     private val busy: (Boolean) -> Unit,
-    private val ready: (Score, SynthAmpMix.Result) -> Unit
+    private val applyLive: (Map<Int, GuitarAmpSettings>) -> Boolean,
+    private val ready: (Score, AmpStems, Map<Int, GuitarAmpSettings>) -> Unit
 ) : Closeable {
     private val worker = Executors.newSingleThreadExecutor()
     private val mixer = SynthAmpMix(activity.cacheDir) { activity.assets.open("sonivox.sf2").use { it.readBytes() } }
@@ -49,18 +49,20 @@ internal class GuitarAmpSetup(
 
     fun show(
         score: Score, document: String?, slot: Int, settings: Settings, tones: List<GuitarTone>,
-        transpose: Int, backToSynth: () -> Unit
+        transpose: Int, live: Boolean
     ) {
         val track = score.tracks[slot]
         if (!GuitarTone.supports(track)) return
+        dialog?.dismiss()
         val current = settingsFor(score, document)
         val initial = current[slot] ?: GuitarAmpSettings(
             volume = (track.playbackInfo.volume * 75 / 16).toInt().coerceIn(0, 100),
             pan = ((track.playbackInfo.balance - 8) * 12.5).toInt().coerceIn(-100, 100)
         )
         val content = column()
-        val enabled = CheckBox(activity).apply { text = "使用音箱效果"; isChecked = true }
+        val enabled = CheckBox(activity).apply { text = "使用音箱效果"; isChecked = !live || current[slot] != null }
         content.addView(enabled)
+        var preview: (() -> Unit)? = null
         fun selector(label: String, choices: List<String>, selected: Int, host: LinearLayout = content): Spinner {
             host.addView(caption(label))
             return Spinner(activity).apply {
@@ -80,6 +82,7 @@ internal class GuitarAmpSetup(
                 setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                     override fun onProgressChanged(view: SeekBar?, progress: Int, fromUser: Boolean) {
                         text.text = "$label ${progress + min}"
+                        if (fromUser) preview?.invoke()
                     }
                     override fun onStartTrackingTouch(view: SeekBar?) {}
                     override fun onStopTrackingTouch(view: SeekBar?) {}
@@ -96,36 +99,53 @@ internal class GuitarAmpSetup(
             setOnCheckedChangeListener { _, checked -> advanced.visibility = if (checked) View.VISIBLE else View.GONE }
         })
         val cabinet = selector("箱体", GuitarCabinet.entries.map { it.label }, initial.cabinet.ordinal, advanced)
-        var previousPreset = initial.preset
-        preset.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, selected: View?, position: Int, id: Long) {
-                val next = AmpPreset.entries[position]
-                if (cabinet.selectedItemPosition == previousPreset.defaultCabinet.ordinal) {
-                    cabinet.setSelection(next.defaultCabinet.ordinal)
-                }
-                previousPreset = next
-            }
-            override fun onNothingSelected(parent: AdapterView<*>?) {}
-        }
         val pan = slider("声像", initial.pan, -100, 100, advanced)
         val bass = slider("低频 dB", initial.bass, -12, 12, advanced)
         val mids = slider("中频 dB", initial.mids, -12, 12, advanced)
         val treble = slider("高频 dB", initial.treble, -12, 12, advanced)
         content.addView(advanced)
-        content.addView(caption("应用后准备合成混音。已准备的吉他干声可用于切换预设。"))
-        dialog?.dismiss()
+        fun selectedSettings() = current.toMutableMap().apply {
+            if (enabled.isChecked) put(slot, GuitarAmpSettings(AmpPreset.entries[preset.selectedItemPosition],
+                gain.progress, volume.progress, pan.progress - 100, GuitarCabinet.entries[cabinet.selectedItemPosition],
+                bass.progress - 12, mids.progress - 12, treble.progress - 12))
+            else remove(slot)
+        }
+        var appliedPreview = current
+        var committed = false
+        if (live) preview = {
+            val values = selectedSettings()
+            if (values != appliedPreview && isCurrent(score) && applyLive(values)) appliedPreview = values
+        }
+        fun selection(action: (Int) -> Unit) = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, selected: View?, position: Int, id: Long) = action(position)
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+        var previousPreset = initial.preset
+        preset.onItemSelectedListener = selection { slot ->
+            val next = AmpPreset.entries[slot]
+            if (next != previousPreset) {
+                if (cabinet.selectedItemPosition == previousPreset.defaultCabinet.ordinal) {
+                    cabinet.setSelection(next.defaultCabinet.ordinal)
+                }
+                previousPreset = next
+                enabled.isChecked = true
+                preview?.invoke()
+            }
+        }
+        cabinet.onItemSelectedListener = selection { preview?.invoke() }
+        enabled.setOnCheckedChangeListener { _, _ -> preview?.invoke() }
         dialog = AlertDialog.Builder(activity).setTitle("${track.name.ifBlank { "声部 ${slot + 1}" }} · 吉他音箱")
             .setView(ScrollView(activity).apply { addView(content) })
             .setNegativeButton("取消", null)
+            .setOnDismissListener {
+                preview = null
+                if (!committed && appliedPreview != current && isCurrent(score)) applyLive(current)
+            }
             .setPositiveButton("应用") { _, _ ->
-                val values = current.toMutableMap()
-                if (enabled.isChecked) values[slot] = GuitarAmpSettings(AmpPreset.entries[preset.selectedItemPosition],
-                    gain.progress, volume.progress, pan.progress - 100, GuitarCabinet.entries[cabinet.selectedItemPosition],
-                    bass.progress - 12, mids.progress - 12, treble.progress - 12)
-                else values.remove(slot)
-                if (values.isEmpty()) {
-                    save(score, document, slot, null, values)
-                    backToSynth()
+                committed = true
+                val values = selectedSettings()
+                if (applyLive(values) || values.isEmpty()) {
+                    save(score, document, slot, values[slot], values)
                 } else prepare(score, settings, tones, values, transpose) {
                     save(score, document, slot, values[slot], values)
                 }
@@ -142,12 +162,11 @@ internal class GuitarAmpSetup(
         cancel()
         transientScore = null
         transient = emptyMap()
-        worker.execute { mixer.close() }
     }
 
-    private fun prepare(
+    fun prepare(
         score: Score, settings: Settings, tones: List<GuitarTone>, amps: Map<Int, GuitarAmpSettings>,
-        transpose: Int, onReady: () -> Unit
+        transpose: Int, onReady: () -> Unit = {}
     ) {
         cancel()
         val flag = AtomicBoolean(false)
@@ -160,10 +179,8 @@ internal class GuitarAmpSetup(
         dialog = AlertDialog.Builder(activity).setTitle("准备音箱混音").setView(content)
             .setCancelable(false).setNegativeButton("取消") { _, _ -> cancel() }.show()
         worker.execute {
-            var file: File? = null
             try {
-                file = File.createTempFile("factory-score-amp-", ".wav", activity.cacheDir)
-                val result = mixer.render(score, settings, tones, amps, transpose, file, flag::get) { percent ->
+                val result = mixer.prepare(score, settings, tones, transpose, flag::get) { percent ->
                     activity.runOnUiThread {
                         if (active === flag && !flag.get() && !closed) {
                             note.text = "正在准备 $percent%"
@@ -173,15 +190,14 @@ internal class GuitarAmpSetup(
                 }
                 activity.runOnUiThread {
                     if (closed || active !== flag || flag.get() || !isCurrent(score)) {
-                        result.file.delete()
+                        result.close()
                     } else {
                         cancel()
                         onReady()
-                        ready(score, result)
+                        ready(score, result, amps)
                     }
                 }
             } catch (failure: Exception) {
-                file?.delete()
                 activity.runOnUiThread {
                     if (!closed && active === flag && !flag.get() && isCurrent(score)) {
                         cancel()
