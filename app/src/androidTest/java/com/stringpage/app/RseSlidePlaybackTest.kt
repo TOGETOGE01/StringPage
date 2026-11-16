@@ -12,7 +12,6 @@ import alphaTab.model.BackingTrack
 import alphaTab.model.Score
 import androidx.test.platform.app.InstrumentationRegistry
 import android.content.Intent
-import android.media.MediaPlayer
 import android.net.Uri
 import android.os.SystemClock
 import android.widget.Button
@@ -186,29 +185,28 @@ class RseSlidePlaybackTest {
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)) as MainActivity
         val api=ui { activity.findViewById<AlphaTabView>(R.id.score_view).api }
         val button=ui { activity.findViewById<Button>(R.id.play_pause) }
-        var file: File?=null
+        var stems: AmpStems?=null
         try {
             ui { activity.openUri(Uri.fromFile(document)) }
             await("Slide document ready") { button.isEnabled && api.score?.masterBars?.length == 1.0 }
             val loaded=ui { api.score!! };val performance=RseSlidePlayback.compile(loaded)
             val bank=BankLibrary.Item(bankFile,Gp7Bank.open(bankFile).readMetadata())
-            file=File.createTempFile("slide-player-",".wav",context.cacheDir)
-            val result=FactoryScoreRenderer.render(performance,mapOf(FactoryScoreRenderer.Route(0) to bank),file)
-            assertTrue(result.firstCueMs > 0)
+            val result=FactoryScoreRenderer.prepareStems(performance,mapOf(FactoryScoreRenderer.Route(0) to bank),
+                context.cacheDir,emptySet(),0,setOf(0))
+            stems = result.stems
+            assertTrue(result.stems.firstCueMs > 0)
             ui { activity.acceptFactoryAudio(loaded,result) }
             await("Native slide playback ready") { button.isEnabled && api.player?.output is IExternalMediaSynthOutput }
-            val handler=ui { (api.player!!.output as IExternalMediaSynthOutput).handler as EmbeddedAudio }
-            val field=EmbeddedAudio::class.java.getDeclaredField("media").apply { isAccessible=true }
-            val media=ui { field.get(handler) as MediaPlayer }
-            val seek=result.firstCueMs+400.0
+            val handler=ui { (api.player!!.output as IExternalMediaSynthOutput).handler as StemAudio }
+            val seek=result.stems.firstCueMs+400.0
             ui { handler.seekTo(seek) }
-            await("Physical audio seek reaches its offset") { media.currentPosition >= seek-40 }
-            await("Score clock subtracts the prepared lead-in") { kotlin.math.abs(api.timePosition-(media.currentPosition-result.syncOffsetMs)) < 35.0 }
-            ui { handler.seekTo(result.firstCueMs) }
-            await("Seeking the first written cue rewinds through the audible introduction") { media.currentPosition < 20 }
+            await("Physical audio seek reaches its offset") { handler.currentPositionMs >= seek-40 }
+            await("Score clock subtracts the prepared lead-in") { kotlin.math.abs(api.timePosition-(handler.currentPositionMs-result.stems.syncOffsetMs)) < 35.0 }
+            ui { handler.seekTo(result.stems.firstCueMs) }
+            await("Seeking the first written cue rewinds through the audible introduction") { handler.currentPositionMs < 20 }
             ui { button.performClick() }
-            await("Prepared slide audio advances after rewind") { media.currentPosition > result.firstCueMs+150 }
-            ui { assertEquals(media.currentPosition-result.syncOffsetMs,api.timePosition,100.0);api.pause() }
-        } finally { ui { activity.finish() };instrument.waitForIdleSync();file?.delete();document.delete() }
+            await("Prepared slide audio advances after rewind") { handler.currentPositionMs > result.stems.firstCueMs+150 }
+            ui { assertEquals(handler.currentPositionMs-result.stems.syncOffsetMs,api.timePosition,100.0);api.pause() }
+        } finally { ui { activity.finish() };instrument.waitForIdleSync();stems?.close();document.delete() }
     }
 }

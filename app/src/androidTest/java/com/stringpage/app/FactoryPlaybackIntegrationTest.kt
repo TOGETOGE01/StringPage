@@ -36,6 +36,7 @@ class FactoryPlaybackIntegrationTest {
         val api = ui { activity.findViewById<AlphaTabView>(R.id.score_view).api }
         val button = ui { activity.findViewById<Button>(R.id.play_pause) }
         var generated: File? = null
+        var stems: AmpStems? = null
         try {
             ui { activity.openDemo() }; await("demo ready") { button.isEnabled }
             val score = ui { api.score!! }
@@ -45,20 +46,35 @@ class FactoryPlaybackIntegrationTest {
             val bank = Gp7Bank.open(bankFile).readMetadata()
             val routes = performance.notes.map { it.track }.distinct().associate { FactoryScoreRenderer.Route(it) to BankLibrary.Item(bankFile, bank) }
             val output = File(context.cacheDir, "factory-integration.wav"); generated = output
-            val result = FactoryScoreRenderer.render(performance, routes, output)
+            val dry = FactoryScoreRenderer.render(performance, routes, output)
+            val checksum = java.security.MessageDigest.getInstance("SHA-256").digest(output.readBytes()).toList()
+            val result = FactoryScoreRenderer.renderWithAmps(performance, routes, output, emptySet(), 0,
+                mapOf(0 to GuitarAmpSettings(AmpPreset.Crunch)))
+            assertEquals(dry.durationMs, result.durationMs, 0.0)
+            assertNotEquals(checksum, java.security.MessageDigest.getInstance("SHA-256").digest(output.readBytes()).toList())
             assertTrue(result.noteCount > 0); assertTrue(result.peak > 0.001f)
             assertTrue(kotlin.math.abs(44L + (result.durationMs * 44.1).toLong() * 4 - output.length()) <= 4L)
-            ui { activity.acceptFactoryAudio(score, result) }
+            val prepared = FactoryScoreRenderer.prepareStems(performance, routes, context.cacheDir, emptySet(), 0, setOf(0))
+            stems = prepared.stems
+            assertEquals(dry.noteCount, prepared.noteCount)
+            ui { activity.acceptFactoryAudio(score, prepared) }
             await("factory score ready") { button.isEnabled && activity.findViewById<Button>(R.id.audio_source).text == "原厂采样" }
-            ui {
+            val stream = ui {
                 assertSame(originalAudio, api.score!!.backingTrack!!.rawAudioFile)
                 assertEquals(syncCount, score.masterBars.sumOf { it.syncPoints?.length?.toInt() ?: 0 })
-                assertEquals(result.durationMs, (api.player!!.output as IExternalMediaSynthOutput).handler!!.backingTrackDuration, 30.0)
+                val handler = (api.player!!.output as IExternalMediaSynthOutput).handler as StemAudio
+                assertEquals(result.durationMs, handler.backingTrackDuration, 30.0)
                 button.performClick()
+                handler
             }
             await("factory audio clock advances") { api.timePosition > 1100.0 }
             ui {
                 assertEquals(performance.msToTick(api.timePosition), api.tickPosition, 80.0)
+                assertTrue(activity.applyLiveAmps(mapOf(0 to GuitarAmpSettings(AmpPreset.Crunch))))
+                assertSame(stream, (api.player!!.output as IExternalMediaSynthOutput).handler)
+            }
+            await("factory amp change keeps physical cursor advancing") { api.timePosition > 1400.0 }
+            ui {
                 button.performClick(); api.timePosition = 5000.0
             }
             await("factory seek follows the actual score") { api.timePosition > 4700.0 }
@@ -76,17 +92,17 @@ class FactoryPlaybackIntegrationTest {
                 SystemClock.sleep(50)
             }
             assertTrue("Prepared original-bank score must loop", wrapped)
+            assertTrue("Loop is already queued on the same audio stream", stream.completedLoops > 0)
             ui { api.pause(); activity.switchSource(true) }
             await("original embedded recording restored without recreating the external player") {
                 button.isEnabled && activity.findViewById<Button>(R.id.audio_source).text == "内嵌原曲"
             }
-            assertFalse("Prepared file must be removed when returning to embedded audio", output.exists())
+            await("Prepared stems removed on source change") { prepared.stems.parts.none { it.original.file.exists() } }
             ui { button.performClick() }
             await("restored recording advances") { api.timePosition > 800.0 }
             ui { api.pause(); activity.switchSource(false) }
             await("GeneralUser source restored") { button.isEnabled && api.player!!.output !is IExternalMediaSynthOutput }
             ui { assertSame(originalAudio, api.score!!.backingTrack!!.rawAudioFile) }
-            assertFalse("Private prepared file must be removed on source change", output.exists())
-        } finally { ui { activity.finish() }; generated?.delete(); instrument.waitForIdleSync() }
+        } finally { ui { activity.finish() }; generated?.delete(); stems?.close(); instrument.waitForIdleSync() }
     }
 }

@@ -18,18 +18,26 @@ class EmbeddedAudio(private val failed: (Throwable) -> Unit) : IExternalMediaHan
     private var ready = false
     private var playRequested = false
     private var rate = 1.0
+    private var appliedRate = 1.0
     private var volume = 1.0
     private var pendingSeek: Long? = null
     private var queuedSeek: Long? = null
+    private val dispatchSeek = Runnable {
+        val current = media ?: return@Runnable
+        val target = queuedSeek ?: return@Runnable
+        if (!ready || pendingSeek != null) return@Runnable
+        queuedSeek = null
+        if (current.currentPosition.toLong() == target) publishSeek(current)
+        else {
+            pendingSeek = target
+            current.seekTo(target, MediaPlayer.SEEK_CLOSEST)
+        }
+    }
     internal val currentPositionMs: Double?
         get() = if (ready) (queuedSeek ?: pendingSeek ?: media!!.currentPosition.toLong()).toDouble() else null
 
     /** Preserve the recording clock when the notation engine snaps a pause to a beat. */
     internal fun restorePausedPosition(time: Double) = requestSeek(time)
-    /** The prepared RSE file may contain an anticipatory slide before the first
-     * written beat. Seeking that first cue rewinds through its introduction. */
-    var firstCueMs = 0.0
-        set(value) { require(value.isFinite() && value >= 0);field=value }
     var output: IExternalMediaSynthOutput? = null
         set(value) { field?.handler = null; field = value; value?.handler = this }
     private val poll = object : Runnable {
@@ -37,7 +45,7 @@ class EmbeddedAudio(private val failed: (Throwable) -> Unit) : IExternalMediaHan
             main.removeCallbacks(this)
             val current = media ?: return
             if (!ready || !playRequested) return
-            if (pendingSeek == null) output?.updatePosition(current.currentPosition.toDouble())
+            if (pendingSeek == null && queuedSeek == null) output?.updatePosition(current.currentPosition.toDouble())
             // Native start/seek/buffering can temporarily report not playing.
             // Keep the clock alive until the controller pauses or completes.
             // Position notification can synchronously release or replace us.
@@ -51,6 +59,7 @@ class EmbeddedAudio(private val failed: (Throwable) -> Unit) : IExternalMediaHan
     fun load(file: File, onReady: () -> Unit) {
         release()
         rate = 1.0
+        appliedRate = 1.0
         val next = MediaPlayer()
         media = next
         next.setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA)
@@ -62,19 +71,11 @@ class EmbeddedAudio(private val failed: (Throwable) -> Unit) : IExternalMediaHan
         }
         next.setOnSeekCompleteListener {
             if (media !== next || !ready) return@setOnSeekCompleteListener
-            val queued = queuedSeek
-            pendingSeek = null; queuedSeek = null
-            if (queued != null) {
-                requestSeek(queued.toDouble())
-                return@setOnSeekCompleteListener
-            }
-            output?.updatePosition(next.currentPosition.toDouble())
-            // The controller loops by seeking, without sending another play
-            // command. A completed native player needs an explicit restart.
-            if (media === next && ready && playRequested) startPlayback(next)
+            pendingSeek = null
+            if (queuedSeek != null) main.post(dispatchSeek) else publishSeek(next)
         }
         next.setOnCompletionListener {
-            if (media === next && ready && pendingSeek == null) {
+            if (media === next && ready && pendingSeek == null && queuedSeek == null) {
                 main.removeCallbacks(poll)
                 output?.updatePosition(it.duration.toDouble())
             }
@@ -104,19 +105,22 @@ class EmbeddedAudio(private val failed: (Throwable) -> Unit) : IExternalMediaHan
         get() = volume
         set(value) { volume = value; if (ready) media?.setVolume(value.toFloat(), value.toFloat()) }
 
-    override fun seekTo(time: Double) {
-        val target=if(firstCueMs > 0.0 && kotlin.math.abs(time-firstCueMs) < 1.0) 0.0 else time
-        requestSeek(target)
-    }
+    override fun seekTo(time: Double) = requestSeek(time)
     private fun requestSeek(time: Double) {
-        if (!ready) return
-        val current = media ?: return
+        if (!ready || media == null) return
         val target = time.coerceIn(0.0, backingTrackDuration).toLong()
-        // MediaPlayer may complete an older seek after a newer request. Keep
-        // only the latest destination and never publish the intermediate clock.
-        if (pendingSeek != null) { queuedSeek = target; return }
-        pendingSeek = target
-        current.seekTo(target, MediaPlayer.SEEK_CLOSEST)
+        // Source restoration updates sync points, the loop and the playhead
+        // in one UI turn. Only seek the native decoder to the final position.
+        queuedSeek = target.takeUnless { it == pendingSeek }
+        if (pendingSeek == null) {
+            main.removeCallbacks(dispatchSeek)
+            main.post(dispatchSeek)
+        }
+    }
+    private fun publishSeek(current: MediaPlayer) {
+        output?.updatePosition(current.currentPosition.toDouble())
+        // The controller loops by seeking without a separate play command.
+        if (media === current && ready && playRequested) startPlayback(current)
     }
     override fun play() {
         if (!ready) return
@@ -125,11 +129,16 @@ class EmbeddedAudio(private val failed: (Throwable) -> Unit) : IExternalMediaHan
         startPlayback(current)
     }
     private fun startPlayback(current: MediaPlayer) {
-        if (pendingSeek != null) return
-        applyRate(current);current.start(); main.removeCallbacks(poll); main.post(poll)
+        if (pendingSeek != null || queuedSeek != null) return
+        applyRate(current)
+        if (!current.isPlaying) current.start()
+        main.removeCallbacks(poll)
+        main.post(poll)
     }
     private fun applyRate(current: MediaPlayer) {
-        current.playbackParams=PlaybackParams().setSpeed(rate.toFloat()).setPitch(1f)
+        if (appliedRate == rate) return
+        current.playbackParams = PlaybackParams().setSpeed(rate.toFloat()).setPitch(1f)
+        appliedRate = rate
     }
     override fun pause() {
         playRequested = false
@@ -137,9 +146,8 @@ class EmbeddedAudio(private val failed: (Throwable) -> Unit) : IExternalMediaHan
         main.removeCallbacks(poll)
     }
     fun release() {
-        main.removeCallbacks(poll); ready = false; playRequested = false
+        main.removeCallbacks(poll); main.removeCallbacks(dispatchSeek); ready = false; playRequested = false
         pendingSeek = null; queuedSeek = null
-        firstCueMs = 0.0
         output = null
         media?.release(); media = null
     }

@@ -37,6 +37,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import com.stringpage.app.rse.FactoryScoreRenderer
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.Executors
@@ -59,7 +60,9 @@ open class MainActivity : AppCompatActivity() {
     private var score: Score? = null
     private var audioMode = true
     private var factoryMode = false
-    private var factoryResult: com.stringpage.app.rse.FactoryScoreRenderer.Result? = null
+    private var factoryNoteCount = 0
+    private var liveAmp: StemAudio? = null
+    private val preparedMode get() = liveAmp != null
     private var activeTrack = 0
     private var playing = false
     private var duration = 0.0
@@ -70,6 +73,8 @@ open class MainActivity : AppCompatActivity() {
     private var embeddedFile: File? = null
     private var embeddedReady = false
     private var midiReady = false
+    private var preparedScoreTime: PreparedScoreTime? = null
+    private var restoreAmpSource = false
     private val embedded by lazy { EmbeddedAudio { error ->
         pausePlayback(); embeddedReady = false; setControlsReady(false)
         showError("内嵌音频播放失败", error)
@@ -122,6 +127,7 @@ open class MainActivity : AppCompatActivity() {
     private var documentKey: String? = null
     private var pendingReaderSession: ReaderSession? = null
     private var restoreRequestedTick: Double? = null
+    private var resumeAfterToneReload: Boolean? = null
     private var loopFromBar: Int? = null
     private var loopToBar: Int? = null
     private var exportFile: File? = null
@@ -132,11 +138,12 @@ open class MainActivity : AppCompatActivity() {
     private var mixChanged = false
     private lateinit var moreButton: Button
     private lateinit var recentHeader: Button
-    private val practice by lazy { PlaybackControls(this, { sheet.api }, { !audioMode }, { switchSource(false) },
+    internal val practice by lazy { PlaybackControls(this, { sheet.api }, { !audioMode }, { switchSource(false) },
         { editor.beginExternalChange() }, { modified = true; mixChanged = true; updateDocumentSubtitle() },
         { if (mixChanged) { editor.commitExternalChange("修改声部混音"); mixChanged = false; saveDraft() } },
-        { if (factoryMode) "原厂采样播放已按当前声部混音准备。修改混音、节拍器或预备拍时，请先切换至合成音源；之后可以重新准备原厂采样播放。"
-          else "内嵌录音是完整音频，不能按乐谱声部分别静音或独奏。轨道混音、节拍器、预备拍和播放移调在合成音源模式下使用。" }) }
+        { if (liveAmp != null) "可在播放中调整各声部的吉他音箱。"
+          else "内嵌录音是整首混音。切换到合成音源后可调整吉他音色、混音、节拍器、预备拍和播放移调。" },
+        { documentKey }, this::reloadTonePlayback, { liveAmp?.guitarTracks.orEmpty() }, this::chooseAmpSettings) }
     private val editor by lazy { BasicScoreEditor(this, { score }, this::applyEditedScore, { sheet.settings }) }
     private val prefs by lazy { getSharedPreferences("library", MODE_PRIVATE) }
     private val library by lazy { RecentLibrary(prefs) }
@@ -166,7 +173,8 @@ open class MainActivity : AppCompatActivity() {
         fullSheet=pendingReaderSession?.fullScreen ?: false
         if (!factoryCacheSwept) {
             factoryCacheSwept = true
-            cacheDir.listFiles()?.filter { it.isFile && it.name.startsWith("factory-score-") && it.extension == "wav" }
+            cacheDir.listFiles()?.filter { it.isFile && ((it.name.startsWith("factory-score-") && it.extension == "wav") ||
+                (it.name.startsWith("amp-dry-") && it.extension == "pcm")) }
                 ?.forEach { it.delete() }
         }
         volumeControlStream = AudioManager.STREAM_MUSIC
@@ -579,13 +587,15 @@ open class MainActivity : AppCompatActivity() {
         }
         val syncCount = loaded?.masterBars?.sumOf { it.syncPoints?.length?.toInt() ?: 0 } ?: 0
         audioDetails.text = when {
-            factoryMode -> "原厂采样 · 按谱播放\n${factoryResult?.noteCount ?: 0} 个演奏音符\n$fileLabel"
+            factoryMode -> "原厂采样 · 按谱播放\n$factoryNoteCount 个演奏音符\n$fileLabel"
+            liveAmp != null -> "按谱合成 · 吉他音箱\n$fileLabel"
             hasAudio && audioMode -> "内嵌录音\n$syncCount 个同步点\n${fileLabel}"
             loaded != null -> "GeneralUser GS 1.44\n按谱合成演奏\n$fileLabel"
             else -> "未打开乐谱"
         }
         sourceNotice.text = when {
             factoryMode -> "按分配的音色库播放；部分复杂技法和音色效果尚未支持。"
+            liveAmp != null -> "支持播放中切换吉他音箱。"
             hasAudio && audioMode -> "切换声部只改变谱面显示，内嵌录音保持完整。"
             else -> ""
         }
@@ -637,8 +647,13 @@ open class MainActivity : AppCompatActivity() {
     }
 
     private fun wirePlayer() {
+        sheet.api.midiLoad.on { midi ->
+            practice.applyPlaybackMidi(midi)
+            preparedScoreTime = PreparedScoreTime(midi)
+        }
         sheet.api.error.on { error -> runOnUiThread {
             if (!isDestroyed) {
+                resumeAfterToneReload = null
                 setControlsReady(false)
                 status.text = "播放或显示失败，可尝试切换音源或重新导入。"
                 showError("无法处理这份谱子", error)
@@ -652,6 +667,10 @@ open class MainActivity : AppCompatActivity() {
                 practice.reapply()
                 restorePlaybackPosition()
                 setControlsReady((!audioMode || embeddedReady) && pendingReaderSession==null && restoreTick==null)
+                if (restoreAmpSource) {
+                    restoreAmpSource = false
+                    prepareSynthAmp()
+                }
             }
         } }
         sheet.api.playerStateChanged.on { e -> runOnUiThread {
@@ -666,12 +685,20 @@ open class MainActivity : AppCompatActivity() {
             if (!progress.isPressed) progress.progress = if (duration > 0) (e.currentTime / duration * 10000).toInt() else 0
             position.text = "${formatTime(e.currentTime)} / ${formatTime(duration)}"
             val requested=restoreRequestedTick
-            if(requested!=null && kotlin.math.abs(e.currentTick-requested)<=20.0 &&
+            val rewoundLeadIn = requested != null && liveAmp?.let { audio ->
+                val raw = preparedScoreTime?.timeAt(requested)?.plus(audio.syncOffsetMs)
+                raw != null && audio.firstCueMs > 0 && audio.currentPositionMs < 1.0 &&
+                    kotlin.math.abs(raw - audio.firstCueMs) < 1.0
+            } == true
+            if(requested!=null && (kotlin.math.abs(e.currentTick-requested)<=20.0 || rewoundLeadIn) &&
                 (if(audioMode) !e.isSeek else e.isSeek)) {
                 // Worker commands and native recording seeks finish after the
                 // ready event. A cached setter value is not a seek completion.
                 restoreRequestedTick=null;pendingReaderSession=null;restoreTick=null
                 setControlsReady(!loading && midiReady && sheet.api.isReadyForPlayback && (!audioMode || embeddedReady))
+                val resume = resumeAfterToneReload
+                resumeAfterToneReload = null
+                if (resume == true && (!audioMode || liveAmp != null) && !loading && !isFinishing && !isDestroyed) startPlayback()
             }
             if((pendingReaderSession!=null || restoreTick!=null) && !loading && e.endTick>0) {
                 restorePlaybackPosition()
@@ -682,6 +709,7 @@ open class MainActivity : AppCompatActivity() {
         sheet.api.playbackRangeChanged.on { runOnUiThread {
             if (pendingReaderSession==null && restoreTick==null && sheet.api.playbackRange == null && sheet.api.isLooping) sheet.api.isLooping = false
             loop.text = if (sheet.api.playbackRange != null && sheet.api.isLooping) "循环中" else "循环"
+            play.post { updateLiveLoop() }
         } }
         sheet.api.playedBeatChanged.on { beat -> runOnUiThread {
             barCounter.text = "小节 ${(beat.voice.bar.masterBar.index + 1).toInt()} / ${score?.masterBars?.length?.toInt() ?: 0}"
@@ -689,7 +717,7 @@ open class MainActivity : AppCompatActivity() {
         sheet.api.playerFinished.on {
             // Post after alphaTab has rewound its loop position.
             play.post {
-                if (sheet.api.isLooping && !audioMode) trainer.onLoopFinished()?.let { changeSpeed(it, false) }
+                if (sheet.api.isLooping && (!audioMode || liveAmp != null)) trainer.onLoopFinished()?.let { changeSpeed(it, false) }
             }
         }
         progress.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
@@ -869,6 +897,8 @@ open class MainActivity : AppCompatActivity() {
     }
 
     private fun loadFile(read: () -> Pair<String, ByteArray>, uri: Uri?, recovered: Boolean = false) {
+        resumeAfterToneReload = null
+        if (ampSetupDelegate.isInitialized()) ampSetup.discardScore()
         if (factorySetupDelegate.isInitialized()) factorySetup.cancel()
         pausePlayback()
         val token = ++generation
@@ -906,8 +936,9 @@ open class MainActivity : AppCompatActivity() {
                     if (!recovered && !pdfPreview) io.execute { drafts.delete() }
                     hasAudio = (parsed.backingTrack?.rawAudioFile?.length ?: 0.0) > 0.0
                     audioMode = hasAudio && (resume==null || resume.source=="embedded"); factoryMode = false
-                    embedded.release(); embeddedReady = false; midiReady = false
-                    factoryResult?.file?.delete(); factoryResult = null
+                    restoreAmpSource = resume?.source == "amp"
+                    embedded.release(); embeddedReady = false; midiReady = false; preparedScoreTime = null
+                    liveAmp?.close(); liveAmp = null
                     embeddedFile?.delete(); embeddedFile = audioFile
                     currentSpeed = resume?.speed ?: 1.0; speed.text = "${currentSpeed}×"
                     resume?.let {
@@ -964,23 +995,36 @@ open class MainActivity : AppCompatActivity() {
 
     private fun bindEmbeddedOutput() {
         if (audioMode) {
-            embedded.output = sheet.api.player?.output as? IExternalMediaSynthOutput
-            if (factoryMode) applyFactorySync()
+            val output = sheet.api.player?.output as? IExternalMediaSynthOutput
+            val amp = liveAmp
+            if (amp == null) embedded.output = output else amp.output = output
+            if (preparedMode) applyPreparedSync()
         }
     }
 
-    private fun applyFactorySync() {
-        val point = alphaTab.synth.BackingTrackSyncPoint().apply {
-            synthTick = 0.0; synthTime = 0.0; syncTime = factoryResult?.syncOffsetMs ?: 0.0
-            synthBpm = score?.tempo ?: 120.0; syncBpm = synthBpm
+    private fun applyPreparedSync() {
+        val audio = liveAmp ?: return
+        val timing = preparedScoreTime ?: return
+        sheet.api.player?.updateSyncPoints(timing.syncPoints(audio.syncOffsetMs, audio.backingTrackDuration))
+        updateLiveLoop()
+    }
+
+    private fun updateLiveLoop() {
+        val audio = liveAmp ?: return
+        val timing = preparedScoreTime ?: return
+        val range = sheet.api.playbackRange?.takeIf { sheet.api.isLooping }
+        val end = range?.let {
+            if (it.endTick >= sheet.api.endTick) audio.backingTrackDuration
+            else timing.timeAt(it.endTick) + audio.syncOffsetMs
         }
-        sheet.api.player?.updateSyncPoints(alphaTab.collections.List(point))
+        audio.setLoop(range?.let { timing.timeAt(it.startTick) + audio.syncOffsetMs }, end)
     }
 
     private fun restorePlaybackPosition() {
         if (!midiReady || !sheet.api.isReadyForPlayback || sheet.api.endTick<=0 || sheet.api.score!==score || (audioMode && !embeddedReady)) return
         if(restoreRequestedTick!=null) return
-        pendingReaderSession?.takeIf { it.document==documentKey }?.let { session ->
+        val identity = documentKey ?: if (resumeAfterToneReload != null) transientPlaybackKey else null
+        pendingReaderSession?.takeIf { it.document == identity }?.let { session ->
             restoreTick=null
             val target=session.tick.coerceAtMost((sheet.api.endTick-1).coerceAtLeast(0.0))
             // Setting the range can synchronously report a seek. Mark the
@@ -991,6 +1035,7 @@ open class MainActivity : AppCompatActivity() {
             val range=session.loop?.takeIf { it.start<sheet.api.endTick && it.end<=sheet.api.endTick }
             sheet.api.playbackRange=range?.let { saved -> PlaybackRange().apply { startTick=saved.start;endTick=saved.end } }
             sheet.api.isLooping=range?.enabled ?: false
+            updateLiveLoop()
             loopFromBar=range?.fromBar;loopToBar=range?.toBar
             loopFromBar?.let { inlineFrom.setText(it.toString()) };loopToBar?.let { inlineTo.setText(it.toString()) }
             loop.text=if(sheet.api.isLooping) "循环中" else "循环"
@@ -1002,17 +1047,39 @@ open class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun captureReaderSession(): ReaderSession? {
-        val document=documentKey ?: return null
+    private val transientPlaybackKey get() = "practice-session:$generation"
+
+    private fun captureReaderSession(allowTransient: Boolean = false): ReaderSession? {
+        val document = documentKey ?: if (allowTransient) transientPlaybackKey else return null
         if(score==null) return null
         val waiting=pendingReaderSession?.takeIf { it.document==document }
         val current=sheet.api.score===score
         val range=if(waiting!=null) waiting.loop else if(current) sheet.api.playbackRange?.let {
             ReaderSession.Loop(it.startTick,it.endTick,sheet.api.isLooping,loopFromBar,loopToBar)
         } else null
-        return ReaderSession(document,activeTrack,if(factoryMode) "prepared" else if(audioMode) "embedded" else "synth",
+        return ReaderSession(document,activeTrack,when {
+            factoryMode -> "prepared"
+            liveAmp != null -> "amp"
+            audioMode -> "embedded"
+            else -> "synth"
+        },
             waiting?.tick ?: if(current) sheet.api.tickPosition else 0.0,currentSpeed,sheet.settings.display.scale,
             sheet.settings.display.staveProfile.name,fullSheet,waiting?.masterVolume ?: if(current) sheet.api.masterVolume else 1.0,range)
+    }
+
+    private fun reloadTonePlayback(): Boolean {
+        val api = sheet.api
+        if (loading || audioMode || !midiReady || !api.isReadyForPlayback ||
+            api.score !== score || pendingReaderSession != null || restoreTick != null || restoreRequestedTick != null) return false
+        val session = captureReaderSession(allowTransient = true) ?: return false
+        val resume = api.playerState == PlayerState.Playing
+        pausePlayback()
+        resumeAfterToneReload = resume
+        pendingReaderSession = session
+        midiReady = false
+        setControlsReady(false)
+        api.loadMidiForScore()
+        return true
     }
 
     private val factorySetupDelegate = lazy { com.stringpage.app.rse.FactoryPlaybackSetup(this,
@@ -1020,30 +1087,93 @@ open class MainActivity : AppCompatActivity() {
             loading = preparing
             loadingIndicator.visibility = if (preparing) View.VISIBLE else View.GONE
             setControlsReady(!preparing && score != null && sheet.api.isReadyForPlayback && (!audioMode || embeddedReady))
-        }, { bankLibrary.show() }, this::acceptFactoryAudio) }
+        }, { bankLibrary.show() }, this::acceptFactoryAudio, { ampSetup.settingsFor(it, documentKey) }) }
     private val factorySetup by factorySetupDelegate
+
+    private val ampSetupDelegate = lazy {
+        GuitarAmpSetup(this, { score === it }, { preparing ->
+            loading = preparing
+            loadingIndicator.visibility = if (preparing) View.VISIBLE else View.GONE
+            setControlsReady(!preparing && score != null && sheet.api.isReadyForPlayback && (!audioMode || embeddedReady))
+        }, this::applyLiveAmps, this::acceptAmpAudio)
+    }
+    private val ampSetup by ampSetupDelegate
+
+    internal fun applyLiveAmps(values: Map<Int, GuitarAmpSettings>): Boolean {
+        val amp = liveAmp ?: return false
+        amp.setAmps(values)
+        return true
+    }
+
+    private fun chooseAmpSettings(index: Int = activeTrack) {
+        val loaded = score ?: return
+        if (!practice.canChooseTone(index)) return
+        ampSetup.show(loaded, documentKey, index, sheet.settings, practice.snapshotTones(),
+            practice.snapshot().transposition, liveAmp != null)
+    }
+
+    private fun prepareSynthAmp() {
+        val loaded = score ?: return
+        if (!loaded.tracks.any(GuitarTone::supports)) return
+        ampSetup.prepare(loaded, sheet.settings, practice.snapshotTones(), ampSetup.settingsFor(loaded, documentKey),
+            practice.snapshot().transposition)
+    }
+
+    internal fun acceptAmpAudio(expected: Score, stems: AmpStems, settings: Map<Int, GuitarAmpSettings>) =
+        acceptLiveAudio(expected, stems, settings, null)
+
+    private fun acceptLiveAudio(
+        expected: Score, stems: AmpStems, settings: Map<Int, GuitarAmpSettings>, factory: FactoryScoreRenderer.StemResult?
+    ) {
+        if (score !== expected || isDestroyed) { stems.close(); return }
+        val api = sheet.api
+        val session = captureReaderSession(allowTransient = true)?.copy(source = if (factory == null) "amp" else "prepared")
+        val resume = factory == null && api.playerState == PlayerState.Playing
+        val externalWasReady = api.player?.output is IExternalMediaSynthOutput && api.isReadyForPlayback
+        midiReady = false; pendingReaderSession = null; restoreRequestedTick = null; restoreTick = null
+        pausePlayback(); embedded.release(); embeddedReady = false
+        liveAmp?.close()
+        val audio = StemAudio(stems, settings) { error ->
+            pausePlayback()
+            switchSource(false)
+            showError("实时音箱播放失败", error)
+        }
+        liveAmp = audio
+        factoryMode = factory != null
+        factoryNoteCount = factory?.noteCount ?: 0
+        audioMode = true; midiReady = externalWasReady
+        resumeAfterToneReload = resume
+        pendingReaderSession = session
+        setControlsReady(false)
+        sheet.settings.player.playerMode = PlayerMode.EnabledExternalMedia
+        api.updateSettings()
+        audio.open {
+            if (liveAmp !== audio || isDestroyed) return@open
+            embeddedReady = true
+            bindEmbeddedOutput()
+            audio.masterVolume = api.masterVolume
+            api.playbackSpeed = currentSpeed
+            restorePlaybackPosition()
+            if (midiReady && !loading) setControlsReady(pendingReaderSession == null && restoreTick == null)
+        }
+        api.render()
+        source.text = if (factoryMode) "原厂采样" else "音箱混音"
+        status.text = if (factory != null) {
+            "已准备 ${factory.noteCount} 个演奏音符" +
+                if (factory.substitutedArticulations > 0) " · ${factory.substitutedArticulations} 个音符使用替代技法采样" else ""
+        } else "已准备 ${stems.guitarTracks.size} 个吉他声部"
+        refreshPanels()
+    }
 
     private fun chooseFactorySource() {
         val loaded = score ?: return
+        if (ampSetupDelegate.isInitialized()) ampSetup.cancel()
         pausePlayback(); embedded.pause()
         factorySetup.show(loaded, sheet.settings, practice.snapshot().transposition)
     }
 
-    internal fun acceptFactoryAudio(expected: Score, result: com.stringpage.app.rse.FactoryScoreRenderer.Result) {
-        if (score !== expected || isDestroyed) { result.file.delete(); return }
-        val externalWasReady = sheet.api.player?.output is IExternalMediaSynthOutput && sheet.api.isReadyForPlayback
-        pausePlayback(); embedded.release(); embeddedReady = false
-        factoryResult?.file?.delete(); factoryResult = result
-        factoryMode = true; audioMode = true; midiReady = externalWasReady; trainer.stop(); restoreTick = currentTick
-        setControlsReady(false)
-        sheet.settings.player.playerMode = PlayerMode.EnabledExternalMedia
-        sheet.api.updateSettings(); prepareEmbedded(result.file); sheet.api.render()
-        source.text = "原厂采样"
-        status.text = "已准备 ${result.noteCount} 个演奏音符" +
-            (if (result.substitutedArticulations > 0) " · ${result.substitutedArticulations} 个音符使用替代技法采样" else "") +
-            (if (result.clippedSamples > 0) " · 输出电平达到上限，可降低声部音量后重新准备" else "")
-        refreshPanels()
-    }
+    internal fun acceptFactoryAudio(expected: Score, result: FactoryScoreRenderer.StemResult) =
+        acceptLiveAudio(expected, result.stems, ampSetup.settingsFor(expected, documentKey), result)
 
     private val bankLibraryDelegate = lazy { com.stringpage.app.rse.BankLibraryUi(this) { pausePlayback(); embedded.pause() } }
     private val bankLibrary by bankLibraryDelegate
@@ -1052,7 +1182,7 @@ open class MainActivity : AppCompatActivity() {
         val menu = PopupMenu(this, moreButton)
         val available = score != null && !loading
         fun item(id: Int, label: String, enabled: Boolean = available) {
-            val order=when(id) { 1 -> 0;11 -> 1;12 -> 2;13 -> 3;8 -> 4;9 -> 5;10 -> 6;else -> id+20 }
+            val order=when(id) { 1 -> 0;11 -> 1;15 -> 2;12 -> 3;13 -> 4;8 -> 5;9 -> 6;10 -> 7;else -> id+20 }
             menu.menu.add(0,id,order,label).isEnabled=enabled
         }
         item(1, "混音与练习设置")
@@ -1069,6 +1199,8 @@ open class MainActivity : AppCompatActivity() {
         item(12, "播放音源")
         item(13, "谱面大小")
         item(14, "PDF 转 GP", !loading && !importing && !pdfPreview)
+        if (available && practice.canChooseTone(activeTrack)) item(15, "当前声部音色")
+        if (available && practice.canChooseTone(activeTrack)) item(16, "吉他音箱")
         menu.setOnMenuItemClickListener {
             when (it.itemId) {
                 1 -> practice.show()
@@ -1085,6 +1217,8 @@ open class MainActivity : AppCompatActivity() {
                 12 -> chooseSource()
                 13 -> chooseZoom()
                 14 -> openPdf()
+                15 -> practice.showTone(activeTrack)
+                16 -> chooseAmpSettings()
             }
             true
         }
@@ -1092,8 +1226,10 @@ open class MainActivity : AppCompatActivity() {
     }
 
     private fun applyEditedScore(next: Score, description: String) {
+        resumeAfterToneReload = null
+        if (ampSetupDelegate.isInitialized()) ampSetup.discardScore()
         score?.let { com.stringpage.app.rse.GpRseProperties.transfer(it, next) }
-        if (factoryMode) switchSource(false)
+        if (preparedMode) switchSource(false)
         pausePlayback()
         restoreTick = currentTick
         score = next; modified = true; midiReady = false
@@ -1167,48 +1303,70 @@ open class MainActivity : AppCompatActivity() {
     private fun prepareEmbedded(file: File) {
         embedded.load(file) {
             embeddedReady = true
-            embedded.firstCueMs = if(factoryMode) factoryResult?.firstCueMs ?: 0.0 else 0.0
             bindEmbeddedOutput()
             embedded.masterVolume = sheet.api.masterVolume
             sheet.api.playbackSpeed = currentSpeed
-            if (factoryMode) applyFactorySync() else sheet.api.updateSyncPoints()
+            if (preparedMode) applyPreparedSync() else sheet.api.updateSyncPoints()
             restorePlaybackPosition()
             if (midiReady && !loading) setControlsReady(pendingReaderSession==null && restoreTick==null)
         }
     }
 
     private fun pausePlayback() {
-        val recordingPosition=if(audioMode && sheet.api.playerState==PlayerState.Playing) embedded.currentPositionMs else null
+        val amp = liveAmp
+        val recordingPosition = if (audioMode && sheet.api.playerState == PlayerState.Playing)
+            amp?.currentPositionMs ?: embedded.currentPositionMs else null
         sheet.api.pause()
         // alphaTab pauses at the current beat's start. A recording can be in
         // the middle of a long rest, so restore its exact physical timestamp.
-        recordingPosition?.let { embedded.restorePausedPosition(it) }
+        recordingPosition?.let { if (amp == null) embedded.restorePausedPosition(it) else amp.restorePausedPosition(it) }
     }
 
     private fun togglePlayback() {
         if(pendingReaderSession!=null || restoreTick!=null || restoreRequestedTick!=null) return
         if (!sheet.api.isReadyForPlayback || (audioMode && !embeddedReady)) return
         if (playing) pausePlayback()
-        else if (audioManager.requestAudioFocus(focus) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) sheet.api.play()
+        else startPlayback()
+    }
+
+    private fun startPlayback() {
+        updateLiveLoop()
+        if (audioManager.requestAudioFocus(focus) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) sheet.api.play()
         else Toast.makeText(this, "当前无法获得音频播放权限，请稍后重试。", Toast.LENGTH_SHORT).show()
     }
 
     private fun chooseSource() {
-        if (score == null) return
-        val options = if (hasAudio) arrayOf("内嵌原曲 / 伴奏", "按谱合成 · GeneralUser GS", "原厂采样 · 按谱播放")
-            else arrayOf("按谱合成 · GeneralUser GS", "原厂采样 · 按谱播放")
-        val selected = if (factoryMode) options.lastIndex else if (hasAudio && !audioMode) 1 else 0
+        val loaded = score ?: return
+        val options = buildList {
+            if (hasAudio) add("内嵌原曲 / 伴奏")
+            add("按谱合成 · GeneralUser GS")
+            if (loaded.tracks.any(GuitarTone::supports)) add("按谱合成 · 吉他音箱")
+            add("原厂采样 · 按谱播放")
+        }
+        val ampOption = if (loaded.tracks.any(GuitarTone::supports)) options.lastIndex - 1 else -1
+        val selected = when {
+            factoryMode -> options.lastIndex
+            liveAmp != null -> ampOption
+            hasAudio && !audioMode -> 1
+            else -> 0
+        }
         AlertDialog.Builder(this).setTitle("选择播放音源")
-            .setSingleChoiceItems(options, selected) { dialog, which ->
+            .setSingleChoiceItems(options.toTypedArray(), selected) { dialog, which ->
                 dialog.dismiss()
-                if (which == options.lastIndex) chooseFactorySource() else switchSource(hasAudio && which == 0)
+                when (which) {
+                    options.lastIndex -> chooseFactorySource()
+                    ampOption -> if (liveAmp == null || factoryMode) prepareSynthAmp()
+                    else -> switchSource(hasAudio && which == 0)
+                }
             }.setNeutralButton("音色库") { _, _ -> bankLibrary.show() }.setNegativeButton("关闭", null).show()
     }
 
     internal fun switchSource(useEmbedded: Boolean) {
-        if ((useEmbedded == audioMode && !factoryMode) || score == null) return
+        if ((useEmbedded == audioMode && !preparedMode) || score == null) return
         if (factorySetupDelegate.isInitialized()) factorySetup.cancel()
+        if (ampSetupDelegate.isInitialized()) ampSetup.cancel()
         val session=captureReaderSession()?.copy(source=if(useEmbedded && hasAudio) "embedded" else "synth")
+        resumeAfterToneReload = null
         val externalWasReady = sheet.api.player?.output is IExternalMediaSynthOutput && sheet.api.isReadyForPlayback
         midiReady=false; pendingReaderSession=null; restoreRequestedTick=null
         pausePlayback(); embedded.pause()
@@ -1222,9 +1380,9 @@ open class MainActivity : AppCompatActivity() {
         setControlsReady(false); midiReady = audioMode && externalWasReady
         sheet.settings.player.playerMode = if (audioMode) PlayerMode.EnabledExternalMedia else PlayerMode.EnabledSynthesizer
         sheet.api.updateSettings()
+        liveAmp?.close(); liveAmp = null
         if (audioMode) embeddedFile?.let { prepareEmbedded(it) }
         else { embedded.release(); embeddedReady = false }
-        factoryResult?.file?.delete(); factoryResult = null
         sheet.api.render()
         source.text = if (audioMode) "内嵌原曲" else "合成音源"
         status.text = if (audioMode) "播放内嵌录音" else "按谱合成演奏"
@@ -1310,7 +1468,7 @@ open class MainActivity : AppCompatActivity() {
     }
 
     private fun showTrainer() {
-        if (audioMode) {
+        if (audioMode && liveAmp == null) {
             AlertDialog.Builder(this).setTitle("逐轮加速练习")
                 .setMessage("逐轮加速使用合成音源。请切换音源并选择小节循环，再设置起始速度、目标速度和重复次数。")
                 .setPositiveButton("切换到合成音源") { _, _ -> switchSource(false) }
@@ -1347,7 +1505,7 @@ open class MainActivity : AppCompatActivity() {
     }
 
     internal fun startTrainer(settings: ProgressivePractice.Configuration): Boolean {
-        if (audioMode || !sheet.api.isReadyForPlayback || !sheet.api.isLooping) return false
+        if ((audioMode && liveAmp == null) || !sheet.api.isReadyForPlayback || !sheet.api.isLooping) return false
         val range = sheet.api.playbackRange ?: return false
         pausePlayback()
         changeSpeed(trainer.start(settings), false)
@@ -1396,7 +1554,9 @@ open class MainActivity : AppCompatActivity() {
         if (end <= start) return false
         loopFromBar=from;loopToBar=to
         sheet.api.playbackRange = PlaybackRange().apply { startTick = start; endTick = end }
-        sheet.api.isLooping = true; sheet.api.tickPosition = start
+        sheet.api.isLooping = true
+        updateLiveLoop()
+        sheet.api.tickPosition = start
         inlineFrom.setText(from.toString()); inlineTo.setText(to.toString())
         loop.text = "循环中"; status.text = "循环第 $from–$to 小节"
         return true
@@ -1406,6 +1566,7 @@ open class MainActivity : AppCompatActivity() {
         trainer.stop()
         loopFromBar=null;loopToBar=null
         sheet.api.isLooping = false; sheet.api.playbackRange = null; loop.text = "循环"
+        updateLiveLoop()
         status.text = "循环已关闭"
     }
 
@@ -1450,16 +1611,18 @@ open class MainActivity : AppCompatActivity() {
     }
 
     override fun onPause() {
+        if (resumeAfterToneReload != null) resumeAfterToneReload = false
         if (bankLibraryDelegate.isInitialized()) bankLibrary.stop()
         pausePlayback(); embedded.pause(); practice.close(); audioManager.abandonAudioFocusRequest(focus); super.onPause()
     }
     override fun onDestroy() {
+        if (ampSetupDelegate.isInitialized()) ampSetup.close()
         if (factorySetupDelegate.isInitialized()) factorySetup.close()
         if (bankLibraryDelegate.isInitialized()) bankLibrary.close()
         batchCancellation?.set(true); batchDialog?.dismiss(); recentUi.close()
         generation++; io.shutdownNow(); unregisterReceiver(unplugged)
         embedded.release(); embeddedFile?.delete()
-        factoryResult?.file?.delete()
+        liveAmp?.close()
         practice.close()
         super.onDestroy()
         // AlphaTabView releases audio workers and rendering resources on detach.
