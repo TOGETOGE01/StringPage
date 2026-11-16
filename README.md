@@ -12,11 +12,11 @@ An Android Guitar Pro score reader and practice player, with embedded audio play
 
 ## 下载与安装
 
-**[直接下载 StringPage 1.28.0 APK](https://github.com/TOGETOGE01/StringPage/releases/download/v1.28.0/StringPage-1.28.0.apk)** · [版本说明与附件](https://github.com/TOGETOGE01/StringPage/releases/tag/v1.28.0) · [所有版本](https://github.com/TOGETOGE01/StringPage/releases)
+**[直接下载 StringPage 1.31.1 APK](https://github.com/TOGETOGE01/StringPage/releases/download/v1.31.1/StringPage-1.31.1.apk)** · [版本说明与附件](https://github.com/TOGETOGE01/StringPage/releases/tag/v1.31.1) · [所有版本](https://github.com/TOGETOGE01/StringPage/releases)
 
 下载 `.apk` 文件到安卓设备安装，最低 Android 8.0。该安装包包含 ARM64、ARMv7、x86 和 x86_64，沿用项目发布签名。Release 页面中的 `Source code` 是源码压缩包，直接安装请选 APK 附件。
 
-SHA-256 为 `81a464578b6f8885b1c2d2c82810c52239bab58f6f5f2cc89c16a6ac647f3ac3`。也可下载[校验文件](https://github.com/TOGETOGE01/StringPage/releases/download/v1.28.0/SHA256-1.28.0.txt)。
+SHA-256 为 `ba2b3941a1904f9d6ae3182801d6c68f65e0ca039e161c190ea2fc05fd5361f2`。也可下载[校验文件](https://github.com/TOGETOGE01/StringPage/releases/download/v1.31.1/SHA256-1.31.1.txt)。
 
 ## 功能
 
