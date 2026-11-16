@@ -16,6 +16,7 @@ import alphaTab.model.Score
 import alphaTab.model.SlideInType
 import alphaTab.model.SlideOutType
 import alphaTab.model.Track
+import alphaTab.model.TremoloPickingEffect
 import alphaTab.model.Tuning
 import alphaTab.model.Voice
 import alphaTab.model.VibratoType
@@ -87,6 +88,17 @@ internal object PdfTabGp {
                         null -> GraceType.None
                     }
                     if (event.triplet) { tupletNumerator = 3.0; tupletDenominator = 2.0 }
+                    event.tremoloMarks?.let { count ->
+                        tremoloPicking = TremoloPickingEffect().apply { marks = count.toDouble() }
+                    }
+                    event.whammy?.let {
+                        addWhammyBarPoint(BendPoint(0.0, it.start.toDouble()))
+                        // GP stores intermediate points even for a straight line. Repeat the end
+                        // there to keep the exporter from rounding a fractional midpoint.
+                        addWhammyBarPoint(BendPoint(if (it.middle == null) 60.0 else 30.0,
+                            (it.middle ?: it.end).toDouble()))
+                        addWhammyBarPoint(BendPoint(60.0, it.end.toDouble()))
+                    }
                 }
                 voice.addBeat(beat)
                 for (fretted in event.notes) {
@@ -118,8 +130,15 @@ internal object PdfTabGp {
                         isHammerPullOrigin = fretted.hammerPull
                         isLetRing = fretted.letRing
                         fretted.harmonic?.let {
-                            harmonicType = if (fretted.artificialHarmonic) HarmonicType.Artificial else HarmonicType.Natural
-                            harmonicValue = it
+                            harmonicType = when (it.kind) {
+                                PdfHarmonicKind.NATURAL -> HarmonicType.Natural
+                                PdfHarmonicKind.ARTIFICIAL -> HarmonicType.Artificial
+                                PdfHarmonicKind.PINCH -> HarmonicType.Pinch
+                                PdfHarmonicKind.TAP -> HarmonicType.Tap
+                                PdfHarmonicKind.SEMI -> HarmonicType.Semi
+                                PdfHarmonicKind.FEEDBACK -> HarmonicType.Feedback
+                            }
+                            harmonicValue = it.node
                         }
                         fretted.bend?.let { bend ->
                             addBendPoint(BendPoint(0.0, bend.start.toDouble()))

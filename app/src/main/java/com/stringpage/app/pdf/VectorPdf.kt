@@ -304,16 +304,18 @@ private data class PdfGraphics(
     val formScale: Double = 1.0
 )
 
+private const val MAX_CLIP_RECTANGLES = 1024
+
 private class PdfClip(val rectangles: List<PdfBox>) {
     val empty get() = rectangles.isEmpty()
     fun contains(point: PdfPoint) = rectangles.any { it.contains(point) }
     fun within(bounds: PdfBox) = PdfClip(rectangles.mapNotNull { it.intersect(bounds) })
     fun within(region: List<PdfBox>): PdfClip {
-        pdfRequire(region.size <= 1024, "PDF 裁切区域过于复杂。")
+        pdfRequire(region.size <= MAX_CLIP_RECTANGLES, "PDF 裁切区域过于复杂。")
         val intersection = ArrayList<PdfBox>()
         for (old in rectangles) {
             region.mapNotNullTo(intersection, old::intersect)
-            pdfRequire(intersection.size <= 1024, "PDF 裁切区域过于复杂。")
+            pdfRequire(intersection.size <= MAX_CLIP_RECTANGLES, "PDF 裁切区域过于复杂。")
         }
         return PdfClip(intersection)
     }
@@ -527,7 +529,8 @@ private class PdfDrawingReader(
 
     private fun applyClip(evenOdd: Boolean) {
         if (graphics.clip.empty) return
-        if (curves.isNotEmpty() || subpaths.size > 128) {
+        // Paired notation can cut a small opening around each printed notehead.
+        if (curves.isNotEmpty() || subpaths.size > MAX_CLIP_RECTANGLES) {
             result.containsExternalDrawing = true
             return
         }
@@ -573,7 +576,10 @@ private class PdfDrawingReader(
             for ((x, delta) in edges) {
                 val before = filled()
                 winding += delta
-                if (before && !filled()) regions.add(PdfBox(left, top, x, bottom))
+                if (before && !filled()) {
+                    regions.add(PdfBox(left, top, x, bottom))
+                    pdfRequire(regions.size <= MAX_CLIP_RECTANGLES, "PDF 裁切区域过于复杂。")
+                }
                 if (!before && filled()) left = x
             }
         }

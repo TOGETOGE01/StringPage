@@ -14,9 +14,13 @@ internal fun pdfBeatsFit(beats: List<PdfTabBeat>, meter: PdfMeter): Boolean {
 
 /** A compact textual form for correcting the rhythm and fingering of one recognized measure. */
 internal object PdfTabCorrection {
-    private val duration = Regex("""(1|2|4|8|16|32|64)(\.{0,2})(t?)(g!|g)?""")
-    private val fingering = Regex("""([1-9])-(\d{1,2}|X)(m?)(?:\^([0-6](?:\.5)?(?:>[0-6](?:\.5)?){0,2}))?""",
-        RegexOption.IGNORE_CASE)
+    private val pitch = """-?\d(?:\.(?:25|5|75))?"""
+    private val duration = Regex("""(1|2|4|8|16|32|64)(\.{0,2})(t?)(g!|g)?(?:r(8|16|32))?(?:w($pitch(?:>$pitch){1,2}))?""")
+    private val tremoloDivisions = listOf(8, 16, 32)
+    private val fingering = Regex(
+        """([1-9])-(\d{1,2}|X)(m?)(?:\^([0-6](?:\.5)?(?:>[0-6](?:\.5)?){0,2}))?(?:@((?:NH|AH|PH|TH|SH|FB)\d{1,2}(?:\.\d{1,2})?|0))?""",
+        RegexOption.IGNORE_CASE
+    )
 
     fun format(beats: List<PdfTabBeat>, strings: Int): String = beats.joinToString("\n") { beat ->
         val value = buildString {
@@ -24,6 +28,13 @@ internal object PdfTabCorrection {
             repeat(beat.dots) { append('.') }
             if (beat.triplet) append('t')
             if (beat.grace != null) append(if (beat.grace == PdfGrace.ON_BEAT) "g!" else "g")
+            beat.tremoloMarks?.let { append('r').append(tremoloDivisions[it - 1]) }
+            beat.whammy?.let {
+                append('w')
+                append(listOfNotNull(it.start, it.middle, it.end).joinToString(">") { value ->
+                    (value / 4.0).toString().removeSuffix(".0")
+                })
+            }
         }
         val tokens = beat.notes.sortedByDescending { it.string }.joinToString(" ") { note ->
             buildString {
@@ -33,6 +44,11 @@ internal object PdfTabCorrection {
                     append('^')
                     val values = if (bend.start == 0 && bend.middle == null) listOf(bend.end) else bend.levels
                     append(values.joinToString(">") { if (it % 2 == 0) (it / 2).toString() else (it / 2.0).toString() })
+                }
+                note.harmonic?.let {
+                    append('@')
+                    append(it.kind.code)
+                    append(it.node.toString().removeSuffix(".0"))
                 }
             }
         }
@@ -60,17 +76,37 @@ internal object PdfTabCorrection {
                     !dead && values.any { it > 0 } && values.all { it in 0..PdfBend.MAX_PITCH }), fail)
                 val string = strings - conventionalString + 1
                 val prior = original.beats.getOrNull(index)?.notes?.singleOrNull { it.string == string && it.fret == fret && it.dead == dead }
+                val harmonic = when (val mark = match.groupValues[5]) {
+                    "" -> prior?.harmonic
+                    "0" -> null
+                    else -> {
+                        val kind = PdfHarmonicKind.fromCode(mark.take(2)) ?: throw PdfConversionException(fail)
+                        val node = mark.drop(2).toDouble()
+                        pdfRequire(!dead && node > 0 && node <= 36, fail)
+                        PdfHarmonic(kind, node)
+                    }
+                }
                 val bend = when (values.size) {
                     1 -> prior?.bend?.takeIf { it.peak == values[0] } ?: PdfBend.up(values[0])
                     2 -> PdfBend(values[0], values[1])
                     3 -> PdfBend(values[0], values[2], values[1])
                     else -> null
                 }
-                (prior ?: PdfTabNote(string, fret, dead)).copy(palmMute = muted, bend = bend)
+                (prior ?: PdfTabNote(string, fret, dead)).copy(palmMute = muted, bend = bend, harmonic = harmonic)
             }
             pdfRequire(notes.distinctBy { it.string }.size == notes.size, "第 ${index + 1} 行的一根弦上有多个音。")
             pdfRequire(grace == null || notes.isNotEmpty() && index < rows.lastIndex, "装饰音需接到后面的主音。")
-            PdfTabBeat(length.groupValues[1].toInt(), notes.sortedBy { it.string }, length.groupValues[3].isNotEmpty(), length.groupValues[2].length, grace)
+            val tremolo = length.groupValues[5].toIntOrNull()?.let { tremoloDivisions.indexOf(it) + 1 }
+            pdfRequire(tremolo == null || notes.isNotEmpty() && grace == null, "快速拨弦只能加在主音或和弦上。")
+            val points = length.groupValues[6].takeIf(String::isNotEmpty)?.split('>')
+                ?.map { (it.toDouble() * 4).toInt() }.orEmpty()
+            val whammy = points.takeIf { it.isNotEmpty() }?.let {
+                pdfRequire(notes.any { !it.dead } && grace == null && it.any { point -> point != 0 } &&
+                    it.all { point -> point in -24..24 }, "颤音杆需加在主音或和弦上，音高偏移范围为 −6 到 6 个全音。")
+                PdfWhammy(it.first(), it.last(), if (it.size == 3) it[1] else null)
+            }
+            PdfTabBeat(length.groupValues[1].toInt(), notes.sortedBy { it.string },
+                length.groupValues[3].isNotEmpty(), length.groupValues[2].length, grace, tremolo, whammy)
         }
         pdfRequire(pdfBeatsFit(beats, original.meter), "音符与休止符的时值需要填满 ${original.meter} 小节。")
         return original.copy(beats = beats, issues = emptyList(), review = emptyList())

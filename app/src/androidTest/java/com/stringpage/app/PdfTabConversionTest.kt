@@ -21,6 +21,7 @@ import com.stringpage.app.pdf.PdfTabCorrection
 import com.stringpage.app.pdf.PdfTabGp
 import com.stringpage.app.pdf.PdfTabNote
 import com.stringpage.app.pdf.PdfTabRecognition
+import com.stringpage.app.pdf.PdfWhammy
 import com.stringpage.app.pdf.Ref
 import com.stringpage.app.pdf.VectorPdf
 import java.io.ByteArrayOutputStream
@@ -347,6 +348,166 @@ class PdfTabConversionTest {
         assertEquals(0.0, note.bendPoints!![1].value, 0.0)
     }
 
+    @Test fun harmonicTypesAndTouchPositionsSurviveRangesChordsAndCorrection() {
+        val content = buildString {
+            append("1 0 0 -1 0 400 cm\n")
+            for (y in 100..130 step 6) append("28 $y m 374 $y l S\n")
+            for (x in listOf(28, 200, 374)) append("$x 100 m $x 130 l S\n")
+            append(drawText("G", "17", "31", "115", "\ue06d"))
+            append(drawText("G", "17", "42", "110", "\ue084"))
+            append(drawText("G", "17", "42", "118", "\ue084"))
+            fun note(x: Int, y: Int, fret: String, touch: Int? = null) {
+                append(drawText("A", "6.6", "${x - fret.length * 1.815}", "${y + 2.2}", fret))
+                if (touch != null) append(drawText("A", "5", "${x + 3.5}", "${y + 1.7}", "<$touch>"))
+            }
+            fun mark(x: Int, text: String, y: Int = 95) {
+                append(drawText("A", "8", "${x - text.length * 2.2}", "$y", text))
+            }
+            for (x in listOf(68, 102, 136, 168, 230, 264, 298, 332)) append("$x 133 m $x 148 l S\n")
+            note(68, 130, "<12>")
+            mark(102, "P.H.")
+            note(102, 130, "5", 17)
+            note(136, 124, "5", 12)
+            append("q [2 1] 0 d 112 92.5 m 138 92.5 l S Q\n")
+            mark(168, "AH")
+            note(168, 130, "5", 17)
+            mark(230, "PH")
+            mark(230, "TH", 86)
+            note(230, 130, "5", 12)
+            note(230, 124, "7", 12)
+            append("q [2 1] 0 d 236 83.5 m 266 83.5 l S Q\n")
+            mark(264, "SH")
+            note(264, 130, "5", 12)
+            note(264, 124, "7", 11)
+            mark(298, "Fdbk")
+            note(298, 130, "5", 17)
+            mark(332, "AH")
+            note(332, 130, "5")
+        }
+        val bars = PdfTabRecognition.read(VectorPdf(wrapPdf(content)), 1).bars
+        assertTrue(bars.toString(), bars.all { it.issues.isEmpty() })
+        assertTrue(bars.last().review.any { "未标泛音触弦位置" in it })
+        val corrected = PdfTabCorrection.correct(bars[1], 6, PdfTabCorrection.format(bars[1].beats, 6))
+        assertEquals(bars[1].beats, corrected.beats)
+        val score = load(PdfTabGp.encode("Harmonics", 120, bars))
+        val notes = score.tracks[0].staves[0].bars.asSequence().flatMap { bar ->
+            bar.voices[0].beats.asSequence().flatMap { beat -> beat.notes.asSequence().sortedBy { it.string } }
+        }.map { it.harmonicType to it.harmonicValue }.toList()
+        assertEquals(listOf(
+            HarmonicType.Natural to 12.0, HarmonicType.Pinch to 12.0, HarmonicType.Pinch to 7.0,
+            HarmonicType.Artificial to 12.0, HarmonicType.Tap to 7.0, HarmonicType.Pinch to 5.0,
+            HarmonicType.Tap to 7.0, HarmonicType.Semi to 4.0,
+            HarmonicType.Feedback to 12.0, HarmonicType.Artificial to 12.0
+        ), notes)
+    }
+
+    @Test fun tremoloMarksAndCorrectedWhammyAreIndependentBeatEffects() {
+        val content = buildString {
+            append("1 0 0 -1 0 400 cm\n")
+            for (y in 100..130 step 6) append("28 $y m 374 $y l S\n")
+            for (x in listOf(28, 374)) append("$x 100 m $x 130 l S\n")
+            append(drawText("G", "17", "31", "115", "\ue06d"))
+            append(drawText("G", "17", "42", "110", "\ue084"))
+            append(drawText("G", "17", "42", "118", "\ue084"))
+            for ((index, x) in listOf(68, 135, 202, 269).withIndex()) {
+                append("$x 133 m $x 148 l S\n")
+                append(drawText("A", "6.6", "${x - 2}", "132.2", "5"))
+                if (index < 3) {
+                    append(drawText("G", "16", "$x", "${136 + index * 1.5}", ('\ue220' + index).toString()))
+                }
+            }
+            append(drawText("A", "6.6", "133", "126.2", "7"))
+            append("135 82 m 168 92 l 202 82 l S\n")
+            append(drawText("T", "6.6", "165", "88.5", "-½"))
+        }
+        val original = PdfTabRecognition.read(VectorPdf(wrapPdf(content, includeEffectFont = true)), 1).bars.single()
+        assertTrue(original.toString(), original.issues.isEmpty())
+        assertEquals(listOf(1, 2, 3, null), original.beats.map { it.tremoloMarks })
+        assertTrue(original.review.any { "颤音杆" in it })
+        assertTrue(original.beats.all { it.whammy == null })
+        val rows = PdfTabCorrection.format(original.beats, 6).lines().toMutableList()
+        rows[1] = rows[1].replace("4r16 ", "4r16w0>-0.5>0 ")
+        rows[2] = rows[2].replace("4r32 ", "4r32w-0.25>0 ")
+        val corrected = PdfTabCorrection.correct(original, 6, rows.joinToString("\n"))
+        assertEquals(rows.joinToString("\n"), PdfTabCorrection.format(corrected.beats, 6))
+        val beats = load(PdfTabGp.encode("Tremolo", 120, listOf(corrected))).tracks[0].staves[0].bars[0].voices[0].beats
+        assertEquals(listOf(1.0, 2.0, 3.0, null), beats.asSequence().map { it.tremoloPicking?.marks }.toList())
+        assertEquals(2, beats[1].notes.length.toInt())
+        assertEquals(listOf(0.0 to 0.0, 30.0 to -2.0, 60.0 to 0.0),
+            beats[1].whammyBarPoints?.asSequence()?.map { it.offset to it.value }?.toList())
+        assertEquals(listOf(0.0 to -1.0, 60.0 to 0.0),
+            beats[2].whammyBarPoints?.asSequence()?.map { it.offset to it.value }?.distinct()?.toList())
+    }
+
+    @Test fun nativeWhammyCurvesPreserveSignedPitchAndFlagAmbiguousJoins() {
+        val content = buildString {
+            append("1 0 0 -1 0 400 cm\n")
+            for (y in 100..130 step 6) append("28 $y m 374 $y l S\n")
+            for (x in listOf(28, 190, 374)) append("$x 100 m $x 130 l S\n")
+            append(drawText("G", "17", "31", "115", "\ue06d"))
+            append(drawText("G", "17", "42", "110", "\ue084"))
+            append(drawText("G", "17", "42", "118", "\ue084"))
+            for (x in listOf(68, 100, 132, 163, 215, 250, 286, 323)) {
+                append("$x 133 m $x 148 l S\n")
+                append(drawText("A", "6.6", "${x - 2}", "132.2", "5"))
+            }
+            append("68 80 m 98 86.6 l S\n")
+            append(drawText("T", "6.6", "94", "83.2", "-¼"))
+            append("q [2 1] 0 d 100 80 m 100 89.46 l S 100 89.46 m 130 89.46 l S Q\n")
+            append(drawText("T", "6.6", "96", "76.6", "-¾"))
+            append("132 80 m 146.5 70.54 l 161 80 l S\n")
+            append(drawText("T", "6.6", "144", "67.1", "¾"))
+            append("215 80 m 250 90.21 l 284 80 l S\n")
+            append(drawText("T", "6.6", "246", "86.8", "-1"))
+        }
+        val bars = PdfTabRecognition.read(VectorPdf(wrapPdf(content, includeEffectFont = true)), 1).bars
+        assertTrue(bars.toString(), bars.all { it.issues.isEmpty() })
+        assertEquals(listOf(PdfWhammy(0, -1), PdfWhammy(-3, -3), PdfWhammy(0, 0, 3), null),
+            bars[0].beats.map { it.whammy })
+        assertTrue(bars[0].review.isEmpty())
+        assertEquals(listOf(PdfWhammy(0, -4), null, null, null), bars[1].beats.map { it.whammy })
+        assertTrue(bars[1].review.any { "颤音杆" in it })
+        val score = load(PdfTabGp.encode("Whammy", 120, bars))
+        val replay = score.tracks[0].staves[0].bars[0].voices[0].beats
+        assertEquals(listOf(0.0, -1.0), replay[0].whammyBarPoints?.asSequence()?.map { it.value }?.distinct()?.toList())
+        assertEquals(listOf(-3.0), replay[1].whammyBarPoints?.asSequence()?.map { it.value }?.distinct()?.toList())
+        assertEquals(listOf(0.0 to 0.0, 30.0 to 3.0, 60.0 to 0.0),
+            replay[2].whammyBarPoints?.asSequence()?.map { it.offset to it.value }?.toList())
+    }
+
+    @Test fun pairedWhammyCueUsesTabFingeringsUnderLargeRectangleClip() {
+        val content = buildString {
+            append("1 0 0 -1 0 400 cm\nq 0 0 400 400 re\n")
+            for (row in 0 until 12) for (column in 0 until 12) {
+                append("${30 + column * 10} ${280 + row * 4} 2 2 re\n")
+            }
+            append("W* n\n")
+            for (y in 48..64 step 4) append("28 $y m 374 $y l S\n")
+            for (y in 140..170 step 6) append("28 $y m 374 $y l S\n")
+            for (x in listOf(28, 374)) append("$x 140 m $x 170 l S\n")
+            append("28 48 m 28 170 l S\n")
+            append(drawText("G", "16", "31", "60", "\ue050"))
+            append(drawText("G", "16", "42", "53", "\ue084"))
+            append(drawText("G", "16", "42", "61", "\ue084"))
+            append(drawText("G", "17", "31", "155", "\ue06d"))
+            for (x in listOf(80, 140, 200, 264)) {
+                append(drawText("G", "16", "${x - 4.4}", "72", "\ue0a4"))
+                append("${x + 4} 57 m ${x + 4} 71 l S\n")
+                append(drawText("A", "6.6", "${x - 2}", "172.2", "5"))
+            }
+            append(drawText("T", "8", "75", "43", "w/bar"))
+            append(drawText("G", "12", "129", "72", "\ue0a4"))
+            append("80 120 m 138 126.6 l S\n")
+            append(drawText("T", "6.6", "134", "123.2", "-¼"))
+            append("Q\n")
+        }
+        val bar = PdfTabRecognition.read(VectorPdf(wrapPdf(content, includeEffectFont = true)), 1).bars.single()
+        assertTrue(bar.toString(), bar.issues.isEmpty() && bar.review.isEmpty())
+        assertEquals(listOf(4, 4, 4, 4), bar.beats.map { it.denominator })
+        assertEquals(listOf(5, 5, 5, 5), bar.beats.map { it.notes.single().fret })
+        assertEquals(listOf(PdfWhammy(0, -1), null, null, null), bar.beats.map { it.whammy })
+    }
+
     private fun load(bytes: ByteArray) = ScoreLoader.loadScoreFromBytes(Uint8Array(bytes.asUByteArray()), Settings())
 
     private fun drawText(font: String, size: String, x: String, y: String, value: String): String {
@@ -382,9 +543,11 @@ class PdfTabConversionTest {
         return wrapPdf(content)
     }
 
-    private fun wrapPdf(content: String, continuation: String? = null): ByteArray {
+    private fun wrapPdf(content: String, continuation: String? = null, includeEffectFont: Boolean = false): ByteArray {
         val map = "2 beginbfrange\n<0000> <00ff> <0000>\n<e000> <efff> <e000>\nendbfrange\n"
-        fun page(stream: Int) = "<< /Type /Page /Parent 2 0 R /Resources << /Font << /A 5 0 R /G 6 0 R >> >> /MediaBox [0 0 400 400] /Contents $stream 0 R >>"
+        val labelId = if (continuation == null) 9 else 11
+        val labelResource = if (includeEffectFont) " /T $labelId 0 R" else ""
+        fun page(stream: Int) = "<< /Type /Page /Parent 2 0 R /Resources << /Font << /A 5 0 R /G 6 0 R$labelResource >> >> /MediaBox [0 0 400 400] /Contents $stream 0 R >>"
         fun stream(data: String) = "<< /Length ${data.length} >>\nstream\n${data}endstream"
         val objects = mutableListOf(
             "<< /Type /Catalog /Pages 2 0 R >>",
@@ -397,6 +560,7 @@ class PdfTabConversionTest {
             stream(map)
         )
         if (continuation != null) objects.addAll(listOf(page(10), stream(continuation)))
+        if (includeEffectFont) objects.add("<< /Type /Font /Subtype /Type0 /BaseFont /TimesNewRomanRegular /Encoding /Identity-H /DescendantFonts [7 0 R] /ToUnicode 8 0 R >>")
         return classicPdf(objects)
     }
 

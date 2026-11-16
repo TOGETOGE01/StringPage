@@ -402,9 +402,13 @@ class PdfConvertActivity : AppCompatActivity() {
                 }, LinearLayout.LayoutParams(MATCH_PARENT, dp(112)))
             }
             addView(label("每行填写时值与弦号-品位。和弦 4 1-3 2-0，休止符 8 R。\n8. 6-3m 表示附点八分音符加闷音。推弦 ^1 表示一个半音，^0>2>0 表示推两个半音后释放。时值加 t 表示三连音，加 g 表示拍前装饰音。", 13f))
+            addView(label("泛音加 @类型品位。NH 自然、AH 人工、PH 拨片、TH 点弦、SH 半泛音、FB 反馈。6-5@AH12 表示按第 5 品，触弦位置再高 12 品。@0 清除泛音。", 13f))
+            addView(label("快速拨弦在时值后加 r8、r16 或 r32。4r16 表示四分音符内按十六分音符反复拨弦。", 13f))
+            addView(label("颤音杆在时值后加 w 和音高偏移，单位为全音。4w0>-0.5>0 表示降半个全音再回原音。", 13f))
             addView(field)
         }
-        val dialog = AlertDialog.Builder(this).setTitle("第 ${bar.number} 小节 · ${bar.meter}").setView(form)
+        val scroll = ScrollView(this).apply { addView(form) }
+        val dialog = AlertDialog.Builder(this).setTitle("第 ${bar.number} 小节 · ${bar.meter}").setView(scroll)
             .setNegativeButton("取消", null).setPositiveButton("应用", null)
             .setNeutralButton(if (corrections.containsKey(key)) "恢复识别" else null) { _, _ ->
                 corrections.remove(key); pageData?.let { showPage(it, selected) }

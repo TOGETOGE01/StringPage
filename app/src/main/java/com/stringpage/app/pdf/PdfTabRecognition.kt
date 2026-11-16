@@ -32,7 +32,9 @@ internal data class PdfTabBeat(
     val notes: List<PdfTabNote>,
     val triplet: Boolean = false,
     val dots: Int = 0,
-    val grace: PdfGrace? = null
+    val grace: PdfGrace? = null,
+    val tremoloMarks: Int? = null,
+    val whammy: PdfWhammy? = null
 )
 
 internal data class PdfTabNote(
@@ -40,8 +42,7 @@ internal data class PdfTabNote(
     val fret: Int,
     val dead: Boolean = false,
     val palmMute: Boolean = false,
-    val harmonic: Double? = null,
-    val artificialHarmonic: Boolean = false,
+    val harmonic: PdfHarmonic? = null,
     val bend: PdfBend? = null,
     val tied: Boolean = false,
     val ghost: Boolean = false,
@@ -61,6 +62,7 @@ internal object PdfTabRecognition {
     private val tempoPattern = Regex("""=\s*(\d{2,3})(?!\d)""")
     private val doubleBars = setOf("\ue040", "\ue041", "\ue044", "\ue046")
     private data class Event(val x: Double, val beat: PdfTabBeat)
+    private data class PositionedBar(val bar: PdfTabBar, val onsets: List<Double>)
 
     fun read(document: VectorPdf, page: Int): PdfTabResult = Document(document).read(page)
 
@@ -116,8 +118,9 @@ internal object PdfTabRecognition {
                     for ((track, staff) in system.withIndex()) {
                         val previous = recognized[track].lastOrNull() ?: pages.lastOrNull()?.tracks?.get(track)?.bars?.lastOrNull()
                         val precedingNotes = previous?.beats?.lastOrNull()?.notes.orEmpty()
-                        val bar = readBar(drawings[track], staff.tab.rows, staff.tab.gap, staff.edges[column], staff.edges[column + 1],
+                        val fromTab = readBar(drawings[track], staff.tab.rows, staff.tab.gap, staff.edges[column], staff.edges[column + 1],
                             barNumber, page, mutes[track], time, newTempo, precedingNotes)
+                        val bar = fromTab.bar
                         val notation = staff.notation
                         val timed = if (bar.issues.isNotEmpty() && notation != null) {
                             readWithStandardRhythm(geometry, drawings[track], staff.tab, notation, bar, mutes[track], precedingNotes)
@@ -125,9 +128,11 @@ internal object PdfTabRecognition {
                         val sustained = if (timed == null && previous != null && notation == null) {
                             readSustainedMeasure(drawings[track], staff.tab, bar, previous)
                         } else null
-                        recognized[track].add(timed ?: sustained ?: if (system.size > 1 && isBlankStaffBar(geometry, staff, bar)) {
+                        val result = timed?.bar ?: sustained ?: if (system.size > 1 && isBlankStaffBar(geometry, staff, bar)) {
                             bar.copy(beats = listOf(PdfTabBeat(1, emptyList())), issues = emptyList())
-                        } else bar)
+                        } else bar
+                        val onsets = if (result === bar) fromTab.onsets else timed?.onsets.orEmpty()
+                        recognized[track].add(PdfTabWhammy.read(geometry, staff, result, onsets))
                     }
                     barNumber++
                 }
@@ -185,7 +190,7 @@ internal object PdfTabRecognition {
         g: PdfGeometry, staff: List<Double>, gap: Double, left: Double, right: Double, number: Int, page: Int,
         muteRanges: List<ClosedFloatingPointRange<Double>>, meter: PdfMeter, bpm: Int?,
         precedingNotes: List<PdfTabNote>
-    ): PdfTabBar {
+    ): PositionedBar {
         val top = staff.first()
         val bottom = staff.last()
         val spans = g.text.filter { it.x > left && it.x < right }
@@ -235,11 +240,13 @@ internal object PdfTabRecognition {
             if (note == null) issues.add("品位超出支持范围或无法确认")
             else anchors.add(PdfTabAnchor(stem, span.right, staff[stringIndex], note, span.x))
         }
+        PdfTabHarmonics.apply(g, staff, gap, anchors, precedingNotes, review)
         for (stem in stems.filter { candidate -> anchors.none { it.stem == candidate } }) {
             for ((start, end) in ties.filter { (_, end) -> stem.x - end.x in (gap * 0.16)..(gap * 1.1) }) {
                 val origin = anchors.filter {
                     val reachesFret = tieReachesAnchor(start, it, gap)
-                    val reachesHarmonic = it.note.artificialHarmonic && spans.any { label ->
+                    val reachesHarmonic = it.note.harmonic?.kind?.let { kind -> kind != PdfHarmonicKind.NATURAL } == true &&
+                        spans.any { label ->
                         label.x - it.right in 0.0..gap && abs(start.x - label.right) < gap * 0.4 &&
                             abs(label.y - it.line) < gap / 2 && harmonicPattern.matches(label.text.trim())
                     }
@@ -293,11 +300,16 @@ internal object PdfTabRecognition {
             } else issues.add("附点位置待确认")
         }
         val beats = sorted.mapIndexed { index, event ->
-            event.beat.copy(triplet = index in tripletMembers, dots = (dotsByBeat[index] ?: 0).coerceAtMost(2))
+            event.beat.copy(
+                triplet = index in tripletMembers,
+                dots = (dotsByBeat[index] ?: 0).coerceAtMost(2),
+                tremoloMarks = if (event.beat.notes.isNotEmpty() && event.beat.grace == null)
+                    tremoloAt(spans, event.x, bottom, gap) else null
+            )
         }
         if (!pdfBeatsFit(beats, meter)) issues.add("音符与休止符不足或超过 $meter 小节")
-        return PdfTabBar(number, page, PdfBox(left, (top - gap * 4).coerceAtLeast(0.0), right, bottom + gap * 4),
-            beats, issues.toList(), review.toList(), meter, bpm)
+        return PositionedBar(PdfTabBar(number, page, PdfBox(left, (top - gap * 4).coerceAtLeast(0.0), right, bottom + gap * 4),
+            beats, issues.toList(), review.toList(), meter, bpm), sorted.map { it.x })
     }
 
     private fun tieReachesAnchor(start: PdfPoint, anchor: PdfTabAnchor, gap: Double): Boolean {
@@ -358,7 +370,7 @@ internal object PdfTabRecognition {
     private fun readWithStandardRhythm(
         g: PdfGeometry, tabGeometry: PdfGeometry, tab: PdfStaff, notation: PdfStaff, bar: PdfTabBar,
         muteRanges: List<ClosedFloatingPointRange<Double>>, precedingNotes: List<PdfTabNote>
-    ): PdfTabBar? {
+    ): PositionedBar? {
         val spans = tabGeometry.text.filter { it.x > bar.bounds.left && it.x < bar.bounds.right }
         val smallFrets = spans.filter { isSmallFret(it, tab.rows, tab.gap) }
         val bendArrows = spans.filter { PdfTabBends.isArrow(it, tab.rows, tab.gap) }.map { (it.x + it.right) / 2 }
@@ -377,6 +389,8 @@ internal object PdfTabRecognition {
             val note = readFret(span, tab.rows, string, tab.gap, spans, ties, muteRanges.any { onset.x in it }) ?: return null
             anchors.add(PdfTabAnchor(PdfTabStem(onset.x, null), span.right, tab.rows[string], note, span.x))
         }
+        val review = linkedSetOf<String>()
+        PdfTabHarmonics.apply(tabGeometry, tab.rows, tab.gap, anchors, precedingNotes, review)
         for ((index, event) in rhythm.withIndex()) {
             if (event.rest || anchors.any { it.stem.x == event.x }) continue
             for ((start, end) in ties.filter { (_, end) -> event.x - end.x in (tab.gap * 0.16)..(tab.gap * 1.1) }) {
@@ -392,7 +406,6 @@ internal object PdfTabRecognition {
             }
         }
         val issues = linkedSetOf<String>()
-        val review = linkedSetOf<String>()
         PdfTabBends.apply(tabGeometry, tab.rows, tab.gap, bar.bounds.left..bar.bounds.right, anchors, precedingNotes, issues, review)
         PdfTabTechniques.apply(tabGeometry, spans, tab.rows, tab.gap, anchors, review)
         if (bar.issues.any { it == "反复或结束线需校对" }) issues.add("反复或结束线需校对")
@@ -400,12 +413,25 @@ internal object PdfTabRecognition {
         val beats = rhythm.map { event ->
             val notes = byOnset[event.x].orEmpty().map { it.note }.sortedBy { it.string }
             if (event.rest != notes.isEmpty() || notes.distinctBy { it.string }.size != notes.size) return null
-            PdfTabBeat(event.denominator, notes, event.triplet, event.dots, event.grace)
+            val tremolo = if (notes.isNotEmpty() && event.grace == null) {
+                tremoloAt(spans, event.x, tab.bottom, tab.gap)
+            } else null
+            PdfTabBeat(event.denominator, notes, event.triplet, event.dots, event.grace, tremolo)
+        }
+        val tabOnsets = rhythm.map { event ->
+            val printed = byOnset[event.x].orEmpty().filter { it.left < it.right }
+            if (printed.isEmpty()) event.x else printed.map { (it.left + it.right) / 2 }.average()
         }
         return bar.copy(beats = beats, issues = issues.toList(), review = review.toList())
-            .takeIf { pdfBeatsFit(it.beats, it.meter) }
+            .takeIf { pdfBeatsFit(it.beats, it.meter) }?.let { PositionedBar(it, tabOnsets) }
     }
 
+    private fun tremoloAt(spans: List<PdfText>, x: Double, bottom: Double, gap: Double): Int? =
+        spans.asSequence().filter {
+            it.font.contains("Bravura", ignoreCase = true) && abs(it.x - x) <= gap * 0.5 &&
+                it.y - bottom in (gap * 0.6)..(gap * 2.8)
+        }.mapNotNull { it.text.trim().singleOrNull()?.takeIf { glyph -> glyph in '\ue220'..'\ue222' } }
+            .map { it - '\ue220' + 1 }.distinct().singleOrNull()
 
     private fun fretLabel(span: PdfText, gap: Double) =
         span.font.startsWith("Arial", true) && span.size in (gap * 1.02)..(gap * 1.17)
@@ -429,8 +455,9 @@ internal object PdfTabRecognition {
         }.mapNotNull { harmonicPattern.matchEntire(it.text.trim())?.groupValues?.get(1)?.toDoubleOrNull() }.singleOrNull() else null
         val tied = parenthesized != null && ties.any { (_, end) -> span.x - end.x in (-gap * 0.1)..(gap * 0.55) &&
             abs(end.y - staff[stringIndex]) < gap * 0.58 }
-        return PdfTabNote(staff.size - stringIndex, fret, match.groups[3] != null, muted,
-            harmonic ?: artificial?.let { round((it - fret) * 100) / 100 }, artificial != null,
+        val technique = if (harmonic != null) PdfHarmonic(PdfHarmonicKind.NATURAL, harmonic) else
+            artificial?.takeIf { it > fret }?.let { PdfHarmonic(PdfHarmonicKind.ARTIFICIAL, round((it - fret) * 100) / 100) }
+        return PdfTabNote(staff.size - stringIndex, fret, match.groups[3] != null, muted, technique,
             tied = tied, ghost = parenthesized != null && !tied)
     }
 }

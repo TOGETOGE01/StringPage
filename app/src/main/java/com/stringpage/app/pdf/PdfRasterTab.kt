@@ -144,7 +144,7 @@ internal class PdfRasterTab(private val glyphs: PdfRasterGlyphs) {
             val token = recognized
             val fretNumber = token.trim('(', ')', '<', '>').toDoubleOrNull() ?: 0.0
             val fret = fretNumber.toInt()
-            val harmonic = fretNumber.takeIf { token.startsWith('<') }
+            val harmonic = fretNumber.takeIf { token.startsWith('<') }?.let { PdfHarmonic(PdfHarmonicKind.NATURAL, it) }
             val note = PdfTabNote(staff.rows.size - index, fret, dead = token == "X", palmMute = mutes.any { x in it },
                 harmonic = harmonic, ghost = token.startsWith('('))
             notes.add(note)

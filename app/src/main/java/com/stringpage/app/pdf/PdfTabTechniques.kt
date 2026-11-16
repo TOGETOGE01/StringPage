@@ -7,6 +7,9 @@ internal enum class PdfSlideOut { SHIFT, LEGATO, UP, DOWN }
 internal enum class PdfVibrato { SLIGHT, WIDE }
 internal enum class PdfGrace { BEFORE_BEAT, ON_BEAT }
 
+/** Whammy bar pitch offsets in quarter tones, independent of individual string bends. */
+internal data class PdfWhammy(val start: Int, val end: Int, val middle: Int? = null)
+
 internal data class PdfTabStem(val x: Double, val end: Double?, val short: Boolean = false)
 internal data class PdfTabAnchor(
     val stem: PdfTabStem, val right: Double, val line: Double, var note: PdfTabNote,

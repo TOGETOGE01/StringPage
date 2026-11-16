@@ -25,6 +25,7 @@ internal object PdfNotationRhythm {
             it.y in (staff.top - gap * 5)..(staff.bottom + gap * 5) }
         val lines = g.lines.filter { abs(it.from.x - it.to.x) < 0.08 && it.from.x in bar.bounds.left..bar.bounds.right &&
             abs(it.from.y - it.to.y) in (gap * 1.9)..(gap * 13) }
+        val hasWhammyCue = spans.any { it.text.trim().equals("w/bar", ignoreCase = true) && it.y < staff.top }
         val onsets = ArrayList<Positioned>()
         val noteheads = ArrayList<Notehead>()
         for (span in spans) {
@@ -40,8 +41,8 @@ internal object PdfNotationRhythm {
                 val slashed = spans.any { it.text in setOf("\ue564", "\ue565") && abs(it.x - center) < gap * 1.4 }
                 if (slashed) PdfGrace.BEFORE_BEAT else PdfGrace.ON_BEAT
             } else null
-            // Guitar Pro draws unfretted miniature pitch cues around the bend in the notation staff.
-            if (small && grace == null && bendArrows.any { abs(it - center) < gap * 6.5 }) continue
+            // Guitar Pro draws miniature pitch cues without TAB frets for bends and whammy effects.
+            if (small && grace == null && (hasWhammyCue || bendArrows.any { abs(it - center) < gap * 6.5 })) continue
             if (kind == 1) {
                 noteheads.add(Notehead(span, kind, null, grace))
                 continue

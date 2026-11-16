@@ -46,7 +46,11 @@ internal object PdfTabLayout {
                 val edges = measureEdges(geometry, mark, tab)
                 val clef = geometry.text.lastOrNull { span ->
                     span.text.length == 1 && span.text[0] in notationClefs &&
-                        abs(span.x - mark.x) < 16 && span.y in (previousBottom + 2)..(tab.top - 7) && tab.top - span.y < 65
+                        abs(span.x - mark.x) < 16 && span.y in (previousBottom + 2)..(tab.top - 7) &&
+                        (tab.top - span.y < 65 || connectors.any {
+                            mark.x - it.from.x in 0.0..12.0 &&
+                                minOf(it.from.y, it.to.y) <= span.y && maxOf(it.from.y, it.to.y) >= tab.bottom - 0.15
+                        })
                 }
                 val notation = clef?.let { symbol ->
                     regular(rows.filter { it in (symbol.y - 17)..(symbol.y + 17) }, 5)
