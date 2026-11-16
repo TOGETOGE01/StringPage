@@ -34,6 +34,8 @@ internal class StemAudio(
     private var played = 0L
     private var blockOffset = 0
     private var blockSamples = 0
+    private var underruns = 0
+    private var recoveredBufferFrames = 0
     private var workerPlaying = false
     private var workerEpoch = 0
     private var rate = 1.0
@@ -107,8 +109,22 @@ internal class StemAudio(
     }
 
     private fun applyRate(speed: Double) {
-        track?.playbackParams = PlaybackParams().setSpeed(speed.toFloat()).setPitch(1f)
+        val device = track ?: return
+        device.playbackParams = PlaybackParams().setSpeed(speed.toFloat()).setPitch(1f)
             .setAudioFallbackMode(PlaybackParams.AUDIO_FALLBACK_MODE_FAIL)
+        // A full native buffer delays new guitar settings longer in wall time
+        // at slower practice speeds. Keep its capacity available for recovery.
+        val preferred = BLOCK * if (speed < 0.5) 3 else 4
+        device.setBufferSizeInFrames(maxOf(preferred, recoveredBufferFrames).coerceAtMost(device.bufferCapacityInFrames))
+    }
+
+    private fun allowForUnderruns(device: AudioTrack) {
+        val count = device.underrunCount
+        if (count > underruns && device.bufferSizeInFrames < device.bufferCapacityInFrames) {
+            recoveredBufferFrames = (device.bufferSizeInFrames + BLOCK).coerceAtMost(device.bufferCapacityInFrames)
+            device.setBufferSizeInFrames(recoveredBufferFrames)
+        }
+        underruns = count
     }
 
     override fun seekTo(time: Double) {
@@ -254,6 +270,7 @@ internal class StemAudio(
             if (closed || !workerPlaying) return
             try {
                 if (updateClock(device)) return
+                allowForUnderruns(device)
                 fill(device)
                 worker.postDelayed(this, 4)
             } catch (error: Exception) { reportFailure(error) }
