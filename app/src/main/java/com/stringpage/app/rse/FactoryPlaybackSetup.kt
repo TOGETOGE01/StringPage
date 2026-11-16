@@ -13,17 +13,19 @@ import android.widget.ScrollView
 import android.widget.SeekBar
 import android.widget.Spinner
 import android.widget.TextView
+import com.stringpage.app.GuitarAmpSettings
 import java.io.File
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
 /** Owns asynchronous preparation and explicit per-track/per-drum bank assignment. */
-class FactoryPlaybackSetup(
+internal class FactoryPlaybackSetup(
     private val activity: Activity,
     private val isCurrent: (Score) -> Boolean,
     private val busy: (Boolean) -> Unit,
     private val openLibrary: () -> Unit,
-    private val ready: (Score, FactoryScoreRenderer.Result) -> Unit
+    private val ready: (Score, FactoryScoreRenderer.Result) -> Unit,
+    private val ampsFor: (Score) -> Map<Int, GuitarAmpSettings> = { emptyMap() }
 ) {
     private val worker = Executors.newSingleThreadExecutor()
     private val prefs = activity.getSharedPreferences("factory-routes", 0)
@@ -88,6 +90,7 @@ class FactoryPlaybackSetup(
         val form = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL; setPadding(padding, padding/2, padding, padding/2) }
         fun label(text: String) = TextView(activity).apply { this.text = text; textSize = 14f; setPadding(0,16,0,8); form.addView(this) }
         label("为参与播放的声部选择音色库。鼓组按击打音分别分配。完整连奏、拾音器与效果链仍在还原。")
+        if (ampsFor(score).keys.any { it !in muted }) label("准备时会应用已保存的吉他音箱设置。")
         val choices = arrayOf("请选择音色库") + banks.map { "${it.bank.name} · ${it.bank.id}" }
         val widgets = LinkedHashMap<FactoryScoreRenderer.Route, Spinner>()
         fun key(route: FactoryScoreRenderer.Route) = "bank.${score.tracks[route.track].playbackInfo.program.toInt()}.${route.percussionMidi ?: -1}"
@@ -133,11 +136,12 @@ class FactoryPlaybackSetup(
         val progress = ProgressBar(activity, null, android.R.attr.progressBarStyleHorizontal).apply { max = 100 }; form.addView(progress)
         dialog = AlertDialog.Builder(activity).setTitle("准备原厂采样播放").setView(form).setCancelable(false)
             .setNegativeButton("取消") { _, _ -> cancel() }.show()
+        val amps = ampsFor(score)
         worker.execute {
             val file = File(activity.cacheDir, "factory-score-${System.nanoTime()}.wav")
             preparingFile = file
             try {
-                val result = FactoryScoreRenderer.render(performance, bindings, file, mutedTracks, transposition,
+                val result = FactoryScoreRenderer.renderWithAmps(performance, bindings, file, mutedTracks, transposition, amps,
                     { flag.get() }) { percentage -> ui { if (active === flag && !flag.get()) {
                         caption.text = "正在准备 $percentage%"; progress.progress = percentage
                     } } }

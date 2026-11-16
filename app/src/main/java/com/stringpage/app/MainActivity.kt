@@ -60,6 +60,8 @@ open class MainActivity : AppCompatActivity() {
     private var audioMode = true
     private var factoryMode = false
     private var factoryResult: com.stringpage.app.rse.FactoryScoreRenderer.Result? = null
+    private var ampResult: SynthAmpMix.Result? = null
+    private val preparedMode get() = factoryMode || ampResult != null
     private var activeTrack = 0
     private var playing = false
     private var duration = 0.0
@@ -137,6 +139,7 @@ open class MainActivity : AppCompatActivity() {
         { editor.beginExternalChange() }, { modified = true; mixChanged = true; updateDocumentSubtitle() },
         { if (mixChanged) { editor.commitExternalChange("修改声部混音"); mixChanged = false; saveDraft() } },
         { if (factoryMode) "当前正在播放已准备好的采样混音。切换到合成音源后可调整吉他音色、混音、节拍器或预备拍。"
+          else if (ampResult != null) "当前正在播放已准备好的音箱混音。可从“吉他音箱”调整各声部效果。"
           else "内嵌录音是整首混音。切换到合成音源后可调整吉他音色、混音、节拍器、预备拍和播放移调。" },
         { documentKey }, this::reloadTonePlayback) }
     private val editor by lazy { BasicScoreEditor(this, { score }, this::applyEditedScore, { sheet.settings }) }
@@ -168,7 +171,8 @@ open class MainActivity : AppCompatActivity() {
         fullSheet=pendingReaderSession?.fullScreen ?: false
         if (!factoryCacheSwept) {
             factoryCacheSwept = true
-            cacheDir.listFiles()?.filter { it.isFile && it.name.startsWith("factory-score-") && it.extension == "wav" }
+            cacheDir.listFiles()?.filter { it.isFile && ((it.name.startsWith("factory-score-") && it.extension == "wav") ||
+                (it.name.startsWith("amp-dry-") && it.extension == "pcm")) }
                 ?.forEach { it.delete() }
         }
         volumeControlStream = AudioManager.STREAM_MUSIC
@@ -582,12 +586,14 @@ open class MainActivity : AppCompatActivity() {
         val syncCount = loaded?.masterBars?.sumOf { it.syncPoints?.length?.toInt() ?: 0 } ?: 0
         audioDetails.text = when {
             factoryMode -> "原厂采样 · 按谱播放\n${factoryResult?.noteCount ?: 0} 个演奏音符\n$fileLabel"
+            ampResult != null -> "按谱合成 · 音箱混音\n${ampResult?.renderedGuitars ?: 0} 个吉他声部使用音箱\n$fileLabel"
             hasAudio && audioMode -> "内嵌录音\n$syncCount 个同步点\n${fileLabel}"
             loaded != null -> "GeneralUser GS 1.44\n按谱合成演奏\n$fileLabel"
             else -> "未打开乐谱"
         }
         sourceNotice.text = when {
             factoryMode -> "按分配的音色库播放；部分复杂技法和音色效果尚未支持。"
+            ampResult != null -> "按已准备的声部音箱和箱体播放。"
             hasAudio && audioMode -> "切换声部只改变谱面显示，内嵌录音保持完整。"
             else -> ""
         }
@@ -678,7 +684,7 @@ open class MainActivity : AppCompatActivity() {
                 setControlsReady(!loading && midiReady && sheet.api.isReadyForPlayback && (!audioMode || embeddedReady))
                 val resume = resumeAfterToneReload
                 resumeAfterToneReload = null
-                if (resume == true && !audioMode && !loading && !isFinishing && !isDestroyed) startPlayback()
+                if (resume == true && (!audioMode || ampResult != null) && !loading && !isFinishing && !isDestroyed) startPlayback()
             }
             if((pendingReaderSession!=null || restoreTick!=null) && !loading && e.endTick>0) {
                 restorePlaybackPosition()
@@ -877,6 +883,7 @@ open class MainActivity : AppCompatActivity() {
 
     private fun loadFile(read: () -> Pair<String, ByteArray>, uri: Uri?, recovered: Boolean = false) {
         resumeAfterToneReload = null
+        if (ampSetupDelegate.isInitialized()) ampSetup.discardScore()
         if (factorySetupDelegate.isInitialized()) factorySetup.cancel()
         pausePlayback()
         val token = ++generation
@@ -916,6 +923,7 @@ open class MainActivity : AppCompatActivity() {
                     audioMode = hasAudio && (resume==null || resume.source=="embedded"); factoryMode = false
                     embedded.release(); embeddedReady = false; midiReady = false
                     factoryResult?.file?.delete(); factoryResult = null
+                    ampResult?.file?.delete(); ampResult = null
                     embeddedFile?.delete(); embeddedFile = audioFile
                     currentSpeed = resume?.speed ?: 1.0; speed.text = "${currentSpeed}×"
                     resume?.let {
@@ -973,13 +981,14 @@ open class MainActivity : AppCompatActivity() {
     private fun bindEmbeddedOutput() {
         if (audioMode) {
             embedded.output = sheet.api.player?.output as? IExternalMediaSynthOutput
-            if (factoryMode) applyFactorySync()
+            if (preparedMode) applyPreparedSync()
         }
     }
 
-    private fun applyFactorySync() {
+    private fun applyPreparedSync() {
         val point = alphaTab.synth.BackingTrackSyncPoint().apply {
-            synthTick = 0.0; synthTime = 0.0; syncTime = factoryResult?.syncOffsetMs ?: 0.0
+            synthTick = 0.0; synthTime = 0.0
+            syncTime = ampResult?.syncOffsetMs ?: factoryResult?.syncOffsetMs ?: 0.0
             synthBpm = score?.tempo ?: 120.0; syncBpm = synthBpm
         }
         sheet.api.player?.updateSyncPoints(alphaTab.collections.List(point))
@@ -1021,7 +1030,7 @@ open class MainActivity : AppCompatActivity() {
         val range=if(waiting!=null) waiting.loop else if(current) sheet.api.playbackRange?.let {
             ReaderSession.Loop(it.startTick,it.endTick,sheet.api.isLooping,loopFromBar,loopToBar)
         } else null
-        return ReaderSession(document,activeTrack,if(factoryMode) "prepared" else if(audioMode) "embedded" else "synth",
+        return ReaderSession(document,activeTrack,if(preparedMode) "prepared" else if(audioMode) "embedded" else "synth",
             waiting?.tick ?: if(current) sheet.api.tickPosition else 0.0,currentSpeed,sheet.settings.display.scale,
             sheet.settings.display.staveProfile.name,fullSheet,waiting?.masterVolume ?: if(current) sheet.api.masterVolume else 1.0,range)
     }
@@ -1046,11 +1055,51 @@ open class MainActivity : AppCompatActivity() {
             loading = preparing
             loadingIndicator.visibility = if (preparing) View.VISIBLE else View.GONE
             setControlsReady(!preparing && score != null && sheet.api.isReadyForPlayback && (!audioMode || embeddedReady))
-        }, { bankLibrary.show() }, this::acceptFactoryAudio) }
+        }, { bankLibrary.show() }, this::acceptFactoryAudio, { ampSetup.settingsFor(it, documentKey) }) }
     private val factorySetup by factorySetupDelegate
+
+    private val ampSetupDelegate = lazy {
+        GuitarAmpSetup(this, { score === it }, { preparing ->
+            loading = preparing
+            loadingIndicator.visibility = if (preparing) View.VISIBLE else View.GONE
+            setControlsReady(!preparing && score != null && sheet.api.isReadyForPlayback && (!audioMode || embeddedReady))
+        }, this::acceptAmpAudio)
+    }
+    private val ampSetup by ampSetupDelegate
+
+    private fun chooseAmpSettings() {
+        val loaded = score ?: return
+        if (!practice.canChooseTone(activeTrack)) return
+        ampSetup.show(loaded, documentKey, activeTrack, sheet.settings, practice.snapshotTones(),
+            practice.snapshot().transposition, { switchSource(false) })
+    }
+
+    internal fun acceptAmpAudio(expected: Score, result: SynthAmpMix.Result) {
+        if (score !== expected || isDestroyed) { result.file.delete(); return }
+        val api = sheet.api
+        val session = captureReaderSession(allowTransient = true)?.copy(source = "prepared")
+        val resume = api.playerState == PlayerState.Playing
+        val externalWasReady = api.player?.output is IExternalMediaSynthOutput && api.isReadyForPlayback
+        midiReady = false; pendingReaderSession = null; restoreRequestedTick = null; restoreTick = null
+        pausePlayback(); embedded.release(); embeddedReady = false
+        ampResult?.file?.delete(); ampResult = result
+        factoryResult?.file?.delete(); factoryResult = null
+        factoryMode = false; audioMode = true; midiReady = externalWasReady
+        resumeAfterToneReload = resume
+        pendingReaderSession = session
+        setControlsReady(false)
+        sheet.settings.player.playerMode = PlayerMode.EnabledExternalMedia
+        api.updateSettings()
+        prepareEmbedded(result.file)
+        api.render()
+        source.text = "音箱混音"
+        status.text = "已准备 ${result.renderedGuitars} 个吉他声部的音箱效果"
+        refreshPanels()
+    }
 
     private fun chooseFactorySource() {
         val loaded = score ?: return
+        if (ampSetupDelegate.isInitialized()) ampSetup.cancel()
         pausePlayback(); embedded.pause()
         factorySetup.show(loaded, sheet.settings, practice.snapshot().transposition)
     }
@@ -1059,6 +1108,7 @@ open class MainActivity : AppCompatActivity() {
         if (score !== expected || isDestroyed) { result.file.delete(); return }
         val externalWasReady = sheet.api.player?.output is IExternalMediaSynthOutput && sheet.api.isReadyForPlayback
         pausePlayback(); embedded.release(); embeddedReady = false
+        ampResult?.file?.delete(); ampResult = null
         factoryResult?.file?.delete(); factoryResult = result
         factoryMode = true; audioMode = true; midiReady = externalWasReady; trainer.stop(); restoreTick = currentTick
         setControlsReady(false)
@@ -1096,6 +1146,7 @@ open class MainActivity : AppCompatActivity() {
         item(13, "谱面大小")
         item(14, "PDF 转 GP", !loading && !importing && !pdfPreview)
         if (available && practice.canChooseTone(activeTrack)) item(15, "当前声部音色")
+        if (available && practice.canChooseTone(activeTrack)) item(16, "吉他音箱")
         menu.setOnMenuItemClickListener {
             when (it.itemId) {
                 1 -> practice.show()
@@ -1113,6 +1164,7 @@ open class MainActivity : AppCompatActivity() {
                 13 -> chooseZoom()
                 14 -> openPdf()
                 15 -> practice.showTone(activeTrack)
+                16 -> chooseAmpSettings()
             }
             true
         }
@@ -1121,8 +1173,9 @@ open class MainActivity : AppCompatActivity() {
 
     private fun applyEditedScore(next: Score, description: String) {
         resumeAfterToneReload = null
+        if (ampSetupDelegate.isInitialized()) ampSetup.discardScore()
         score?.let { com.stringpage.app.rse.GpRseProperties.transfer(it, next) }
-        if (factoryMode) switchSource(false)
+        if (preparedMode) switchSource(false)
         pausePlayback()
         restoreTick = currentTick
         score = next; modified = true; midiReady = false
@@ -1200,7 +1253,7 @@ open class MainActivity : AppCompatActivity() {
             bindEmbeddedOutput()
             embedded.masterVolume = sheet.api.masterVolume
             sheet.api.playbackSpeed = currentSpeed
-            if (factoryMode) applyFactorySync() else sheet.api.updateSyncPoints()
+            if (preparedMode) applyPreparedSync() else sheet.api.updateSyncPoints()
             restorePlaybackPosition()
             if (midiReady && !loading) setControlsReady(pendingReaderSession==null && restoreTick==null)
         }
@@ -1230,7 +1283,12 @@ open class MainActivity : AppCompatActivity() {
         if (score == null) return
         val options = if (hasAudio) arrayOf("内嵌原曲 / 伴奏", "按谱合成 · GeneralUser GS", "原厂采样 · 按谱播放")
             else arrayOf("按谱合成 · GeneralUser GS", "原厂采样 · 按谱播放")
-        val selected = if (factoryMode) options.lastIndex else if (hasAudio && !audioMode) 1 else 0
+        val selected = when {
+            ampResult != null -> -1
+            factoryMode -> options.lastIndex
+            hasAudio && !audioMode -> 1
+            else -> 0
+        }
         AlertDialog.Builder(this).setTitle("选择播放音源")
             .setSingleChoiceItems(options, selected) { dialog, which ->
                 dialog.dismiss()
@@ -1239,8 +1297,9 @@ open class MainActivity : AppCompatActivity() {
     }
 
     internal fun switchSource(useEmbedded: Boolean) {
-        if ((useEmbedded == audioMode && !factoryMode) || score == null) return
+        if ((useEmbedded == audioMode && !preparedMode) || score == null) return
         if (factorySetupDelegate.isInitialized()) factorySetup.cancel()
+        if (ampSetupDelegate.isInitialized()) ampSetup.cancel()
         val session=captureReaderSession()?.copy(source=if(useEmbedded && hasAudio) "embedded" else "synth")
         resumeAfterToneReload = null
         val externalWasReady = sheet.api.player?.output is IExternalMediaSynthOutput && sheet.api.isReadyForPlayback
@@ -1259,6 +1318,7 @@ open class MainActivity : AppCompatActivity() {
         if (audioMode) embeddedFile?.let { prepareEmbedded(it) }
         else { embedded.release(); embeddedReady = false }
         factoryResult?.file?.delete(); factoryResult = null
+        ampResult?.file?.delete(); ampResult = null
         sheet.api.render()
         source.text = if (audioMode) "内嵌原曲" else "合成音源"
         status.text = if (audioMode) "播放内嵌录音" else "按谱合成演奏"
@@ -1489,12 +1549,14 @@ open class MainActivity : AppCompatActivity() {
         pausePlayback(); embedded.pause(); practice.close(); audioManager.abandonAudioFocusRequest(focus); super.onPause()
     }
     override fun onDestroy() {
+        if (ampSetupDelegate.isInitialized()) ampSetup.close()
         if (factorySetupDelegate.isInitialized()) factorySetup.close()
         if (bankLibraryDelegate.isInitialized()) bankLibrary.close()
         batchCancellation?.set(true); batchDialog?.dismiss(); recentUi.close()
         generation++; io.shutdownNow(); unregisterReceiver(unplugged)
         embedded.release(); embeddedFile?.delete()
         factoryResult?.file?.delete()
+        ampResult?.file?.delete()
         practice.close()
         super.onDestroy()
         // AlphaTabView releases audio workers and rendering resources on detach.

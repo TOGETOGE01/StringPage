@@ -55,6 +55,41 @@ class PlayerIntegrationTest {
     }
     @After fun close() { ui { activity.finish() }; instrument.waitForIdleSync() }
 
+    @Test fun preparedGuitarAmpUsesTheExistingLoopAndDoesNotRewriteTheScore() {
+        demo()
+        ui { activity.switchSource(false) }
+        awaitReady()
+        val score = ui { api.score!! }
+        val original = score.tracks[0].playbackInfo.program
+        val target = ui {
+            assertTrue(activity.applyLoopRange(2, 3))
+            activity.changeSpeed(0.5)
+            api.playbackRange!!.startTick + 160.0
+        }
+        ui { api.tickPosition = target }
+        await("paused inside the original loop") { kotlin.math.abs(api.tickPosition - target) < 20 }
+        val context = instrument.targetContext
+        val file = File.createTempFile("tone-transport-", ".wav", context.cacheDir)
+        try {
+            val result = SynthAmpMix(context.cacheDir) { context.assets.open("sonivox.sf2").use { it.readBytes() } }.use {
+                it.render(score, api.settings, listOf(GuitarTone.Original),
+                    mapOf(0 to GuitarAmpSettings(AmpPreset.Modern)), 0, file, { false }, {})
+            }
+            ui { activity.acceptAmpAudio(score, result) }
+            awaitReady()
+            ui {
+                assertEquals("音箱混音", activity.findViewById<Button>(R.id.audio_source).text.toString())
+                assertEquals(target, api.tickPosition, 30.0)
+                assertEquals(0.5, api.playbackSpeed, 0.001)
+                assertEquals(PlayerState.Paused, api.playerState)
+                assertEquals(original, score.tracks[0].playbackInfo.program, 0.0)
+                assertTrue(api.isLooping)
+            }
+            playPause()
+            await("prepared amp audio advances along the score") { api.tickPosition > target + 60 }
+        } finally { ui { api.pause(); activity.switchSource(false) }; file.delete() }
+    }
+
     @Test fun guitarToneReloadPreservesLoopTempoAndTransportAndRemembersTheScore() {
         demo()
         ui { activity.switchSource(false) }

@@ -92,6 +92,7 @@ class PlaybackControls(
     }
 
     fun snapshot() = Snapshot(tracks.toList(), transposition, metronomeEnabled, metronomeVolume, countInEnabled)
+    internal fun snapshotTones() = tones.toList()
 
     private fun preferenceKey(index: Int) = toneDocument?.let { "$it/$index" }
 

@@ -45,7 +45,12 @@ class FactoryPlaybackIntegrationTest {
             val bank = Gp7Bank.open(bankFile).readMetadata()
             val routes = performance.notes.map { it.track }.distinct().associate { FactoryScoreRenderer.Route(it) to BankLibrary.Item(bankFile, bank) }
             val output = File(context.cacheDir, "factory-integration.wav"); generated = output
-            val result = FactoryScoreRenderer.render(performance, routes, output)
+            val dry = FactoryScoreRenderer.render(performance, routes, output)
+            val checksum = java.security.MessageDigest.getInstance("SHA-256").digest(output.readBytes()).toList()
+            val result = FactoryScoreRenderer.renderWithAmps(performance, routes, output, emptySet(), 0,
+                mapOf(0 to GuitarAmpSettings(AmpPreset.Crunch)))
+            assertEquals(dry.durationMs, result.durationMs, 0.0)
+            assertNotEquals(checksum, java.security.MessageDigest.getInstance("SHA-256").digest(output.readBytes()).toList())
             assertTrue(result.noteCount > 0); assertTrue(result.peak > 0.001f)
             assertTrue(kotlin.math.abs(44L + (result.durationMs * 44.1).toLong() * 4 - output.length()) <= 4L)
             ui { activity.acceptFactoryAudio(score, result) }

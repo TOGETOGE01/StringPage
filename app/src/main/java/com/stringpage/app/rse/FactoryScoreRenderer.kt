@@ -1,6 +1,8 @@
 @file:OptIn(kotlin.contracts.ExperimentalContracts::class, ExperimentalUnsignedTypes::class)
 package com.stringpage.app.rse
 
+import com.stringpage.app.GuitarAmp
+import com.stringpage.app.GuitarAmpSettings
 import java.io.File
 import java.io.RandomAccessFile
 import kotlin.math.roundToInt
@@ -35,7 +37,14 @@ object FactoryScoreRenderer {
 
     fun render(performance: ScorePerformance, bindings: Map<Route, BankLibrary.Item>,
         destination: File, mutedTracks: Set<Int> = emptySet(), transposition: Int = 0,
-        cancelled: () -> Boolean = { false }, progress: (Int) -> Unit = {}): Result {
+        cancelled: () -> Boolean = { false }, progress: (Int) -> Unit = {}): Result =
+        renderWithAmps(performance, bindings, destination, mutedTracks, transposition, emptyMap(), cancelled, progress)
+
+    internal fun renderWithAmps(
+        performance: ScorePerformance, bindings: Map<Route, BankLibrary.Item>, destination: File,
+        mutedTracks: Set<Int>, transposition: Int, ampSettings: Map<Int, GuitarAmpSettings>,
+        cancelled: () -> Boolean = { false }, progress: (Int) -> Unit = {}
+    ): Result {
         require(transposition in -12..12)
         val notes = performance.notes.filter { it.track !in mutedTracks && it.velocity > 0 }
         require(notes.isNotEmpty()) { "没有参与播放的音符。" }
@@ -83,6 +92,9 @@ object FactoryScoreRenderer {
         }
         val mixed = FloatArray(1024); val voiceBuffer = FloatArray(1024)
         val channelBuffer = FloatArray(1024); val silence = FloatArray(0); val bytes = ByteArray(2048)
+        val audibleTracks = notes.mapTo(mutableSetOf()) { it.track }
+        val amps = ampSettings.filterKeys { it in audibleTracks }.mapValues { GuitarAmp(it.value, SAMPLE_RATE) }
+        val dryBuffers = amps.mapValues { FloatArray(1024) }
         var position = 0L; var actionIndex = 0; var lastProgress = -1; var peak = 0f; var clipped = 0L
         var success = false
         try {
@@ -145,8 +157,9 @@ object FactoryScoreRenderer {
                     val next = actions.getOrNull(actionIndex)?.frame ?: totalFrames
                     val count = minOf(512L, totalFrames - position, (next - position).coerceAtLeast(1)).toInt()
                     mixed.fill(0f)
+                    dryBuffers.values.forEach { it.fill(0f) }
                     val grouped = voices.groupBy { channel(it.event.track, it.event.channel) }
-                    for (state in channels.values) {
+                    for ((route, state) in channels) {
                         val activeVoices = grouped[state]
                         if (activeVoices == null) {
                             // A silent active block reaches the same control state as
@@ -175,7 +188,13 @@ object FactoryScoreRenderer {
                         // One native processor per channel, independently of voice
                         // count. Our event-split scheduling is not native timing parity.
                         state.pan.processStereo(channelBuffer, count)
-                        for (i in 0 until count * 2) mixed[i] += channelBuffer[i]
+                        val target = dryBuffers[route.first] ?: mixed
+                        for (i in 0 until count * 2) target[i] += channelBuffer[i]
+                    }
+                    for ((track, amp) in amps) {
+                        val dry = dryBuffers.getValue(track)
+                        amp.process(dry, count)
+                        for (i in 0 until count * 2) mixed[i] += dry[i]
                     }
                     for (i in 0 until count * 2) {
                         val sample = mixed[i]; require(sample.isFinite()) { "生成音频包含无效数据。" }
