@@ -122,6 +122,7 @@ open class MainActivity : AppCompatActivity() {
     private var documentKey: String? = null
     private var pendingReaderSession: ReaderSession? = null
     private var restoreRequestedTick: Double? = null
+    private var resumeAfterToneReload: Boolean? = null
     private var loopFromBar: Int? = null
     private var loopToBar: Int? = null
     private var exportFile: File? = null
@@ -132,11 +133,12 @@ open class MainActivity : AppCompatActivity() {
     private var mixChanged = false
     private lateinit var moreButton: Button
     private lateinit var recentHeader: Button
-    private val practice by lazy { PlaybackControls(this, { sheet.api }, { !audioMode }, { switchSource(false) },
+    internal val practice by lazy { PlaybackControls(this, { sheet.api }, { !audioMode }, { switchSource(false) },
         { editor.beginExternalChange() }, { modified = true; mixChanged = true; updateDocumentSubtitle() },
         { if (mixChanged) { editor.commitExternalChange("修改声部混音"); mixChanged = false; saveDraft() } },
-        { if (factoryMode) "原厂采样播放已按当前声部混音准备。修改混音、节拍器或预备拍时，请先切换至合成音源；之后可以重新准备原厂采样播放。"
-          else "内嵌录音是完整音频，不能按乐谱声部分别静音或独奏。轨道混音、节拍器、预备拍和播放移调在合成音源模式下使用。" }) }
+        { if (factoryMode) "当前正在播放已准备好的采样混音。切换到合成音源后可调整吉他音色、混音、节拍器或预备拍。"
+          else "内嵌录音是整首混音。切换到合成音源后可调整吉他音色、混音、节拍器、预备拍和播放移调。" },
+        { documentKey }, this::reloadTonePlayback) }
     private val editor by lazy { BasicScoreEditor(this, { score }, this::applyEditedScore, { sheet.settings }) }
     private val prefs by lazy { getSharedPreferences("library", MODE_PRIVATE) }
     private val library by lazy { RecentLibrary(prefs) }
@@ -637,8 +639,10 @@ open class MainActivity : AppCompatActivity() {
     }
 
     private fun wirePlayer() {
+        sheet.api.midiLoad.on { practice.applyPlaybackMidi(it) }
         sheet.api.error.on { error -> runOnUiThread {
             if (!isDestroyed) {
+                resumeAfterToneReload = null
                 setControlsReady(false)
                 status.text = "播放或显示失败，可尝试切换音源或重新导入。"
                 showError("无法处理这份谱子", error)
@@ -672,6 +676,9 @@ open class MainActivity : AppCompatActivity() {
                 // ready event. A cached setter value is not a seek completion.
                 restoreRequestedTick=null;pendingReaderSession=null;restoreTick=null
                 setControlsReady(!loading && midiReady && sheet.api.isReadyForPlayback && (!audioMode || embeddedReady))
+                val resume = resumeAfterToneReload
+                resumeAfterToneReload = null
+                if (resume == true && !audioMode && !loading && !isFinishing && !isDestroyed) startPlayback()
             }
             if((pendingReaderSession!=null || restoreTick!=null) && !loading && e.endTick>0) {
                 restorePlaybackPosition()
@@ -869,6 +876,7 @@ open class MainActivity : AppCompatActivity() {
     }
 
     private fun loadFile(read: () -> Pair<String, ByteArray>, uri: Uri?, recovered: Boolean = false) {
+        resumeAfterToneReload = null
         if (factorySetupDelegate.isInitialized()) factorySetup.cancel()
         pausePlayback()
         val token = ++generation
@@ -980,7 +988,8 @@ open class MainActivity : AppCompatActivity() {
     private fun restorePlaybackPosition() {
         if (!midiReady || !sheet.api.isReadyForPlayback || sheet.api.endTick<=0 || sheet.api.score!==score || (audioMode && !embeddedReady)) return
         if(restoreRequestedTick!=null) return
-        pendingReaderSession?.takeIf { it.document==documentKey }?.let { session ->
+        val identity = documentKey ?: if (resumeAfterToneReload != null) transientPlaybackKey else null
+        pendingReaderSession?.takeIf { it.document == identity }?.let { session ->
             restoreTick=null
             val target=session.tick.coerceAtMost((sheet.api.endTick-1).coerceAtLeast(0.0))
             // Setting the range can synchronously report a seek. Mark the
@@ -1002,8 +1011,10 @@ open class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun captureReaderSession(): ReaderSession? {
-        val document=documentKey ?: return null
+    private val transientPlaybackKey get() = "practice-session:$generation"
+
+    private fun captureReaderSession(allowTransient: Boolean = false): ReaderSession? {
+        val document = documentKey ?: if (allowTransient) transientPlaybackKey else return null
         if(score==null) return null
         val waiting=pendingReaderSession?.takeIf { it.document==document }
         val current=sheet.api.score===score
@@ -1013,6 +1024,21 @@ open class MainActivity : AppCompatActivity() {
         return ReaderSession(document,activeTrack,if(factoryMode) "prepared" else if(audioMode) "embedded" else "synth",
             waiting?.tick ?: if(current) sheet.api.tickPosition else 0.0,currentSpeed,sheet.settings.display.scale,
             sheet.settings.display.staveProfile.name,fullSheet,waiting?.masterVolume ?: if(current) sheet.api.masterVolume else 1.0,range)
+    }
+
+    private fun reloadTonePlayback(): Boolean {
+        val api = sheet.api
+        if (loading || audioMode || !midiReady || !api.isReadyForPlayback ||
+            api.score !== score || pendingReaderSession != null || restoreTick != null || restoreRequestedTick != null) return false
+        val session = captureReaderSession(allowTransient = true) ?: return false
+        val resume = api.playerState == PlayerState.Playing
+        pausePlayback()
+        resumeAfterToneReload = resume
+        pendingReaderSession = session
+        midiReady = false
+        setControlsReady(false)
+        api.loadMidiForScore()
+        return true
     }
 
     private val factorySetupDelegate = lazy { com.stringpage.app.rse.FactoryPlaybackSetup(this,
@@ -1052,7 +1078,7 @@ open class MainActivity : AppCompatActivity() {
         val menu = PopupMenu(this, moreButton)
         val available = score != null && !loading
         fun item(id: Int, label: String, enabled: Boolean = available) {
-            val order=when(id) { 1 -> 0;11 -> 1;12 -> 2;13 -> 3;8 -> 4;9 -> 5;10 -> 6;else -> id+20 }
+            val order=when(id) { 1 -> 0;11 -> 1;15 -> 2;12 -> 3;13 -> 4;8 -> 5;9 -> 6;10 -> 7;else -> id+20 }
             menu.menu.add(0,id,order,label).isEnabled=enabled
         }
         item(1, "混音与练习设置")
@@ -1069,6 +1095,7 @@ open class MainActivity : AppCompatActivity() {
         item(12, "播放音源")
         item(13, "谱面大小")
         item(14, "PDF 转 GP", !loading && !importing && !pdfPreview)
+        if (available && practice.canChooseTone(activeTrack)) item(15, "当前声部音色")
         menu.setOnMenuItemClickListener {
             when (it.itemId) {
                 1 -> practice.show()
@@ -1085,6 +1112,7 @@ open class MainActivity : AppCompatActivity() {
                 12 -> chooseSource()
                 13 -> chooseZoom()
                 14 -> openPdf()
+                15 -> practice.showTone(activeTrack)
             }
             true
         }
@@ -1092,6 +1120,7 @@ open class MainActivity : AppCompatActivity() {
     }
 
     private fun applyEditedScore(next: Score, description: String) {
+        resumeAfterToneReload = null
         score?.let { com.stringpage.app.rse.GpRseProperties.transfer(it, next) }
         if (factoryMode) switchSource(false)
         pausePlayback()
@@ -1189,7 +1218,11 @@ open class MainActivity : AppCompatActivity() {
         if(pendingReaderSession!=null || restoreTick!=null || restoreRequestedTick!=null) return
         if (!sheet.api.isReadyForPlayback || (audioMode && !embeddedReady)) return
         if (playing) pausePlayback()
-        else if (audioManager.requestAudioFocus(focus) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) sheet.api.play()
+        else startPlayback()
+    }
+
+    private fun startPlayback() {
+        if (audioManager.requestAudioFocus(focus) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) sheet.api.play()
         else Toast.makeText(this, "当前无法获得音频播放权限，请稍后重试。", Toast.LENGTH_SHORT).show()
     }
 
@@ -1209,6 +1242,7 @@ open class MainActivity : AppCompatActivity() {
         if ((useEmbedded == audioMode && !factoryMode) || score == null) return
         if (factorySetupDelegate.isInitialized()) factorySetup.cancel()
         val session=captureReaderSession()?.copy(source=if(useEmbedded && hasAudio) "embedded" else "synth")
+        resumeAfterToneReload = null
         val externalWasReady = sheet.api.player?.output is IExternalMediaSynthOutput && sheet.api.isReadyForPlayback
         midiReady=false; pendingReaderSession=null; restoreRequestedTick=null
         pausePlayback(); embedded.pause()
@@ -1450,6 +1484,7 @@ open class MainActivity : AppCompatActivity() {
     }
 
     override fun onPause() {
+        if (resumeAfterToneReload != null) resumeAfterToneReload = false
         if (bankLibraryDelegate.isInitialized()) bankLibrary.stop()
         pausePlayback(); embedded.pause(); practice.close(); audioManager.abandonAudioFocusRequest(focus); super.onPause()
     }

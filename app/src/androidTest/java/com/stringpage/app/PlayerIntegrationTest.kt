@@ -3,6 +3,7 @@
 package com.stringpage.app
 
 import alphaTab.AlphaTabView
+import alphaTab.midi.ProgramChangeEvent
 import alphaTab.synth.IExternalMediaSynthOutput
 import alphaTab.synth.PlayerState
 import android.content.Intent
@@ -53,6 +54,57 @@ class PlayerIntegrationTest {
         instrument.waitForIdleSync()
     }
     @After fun close() { ui { activity.finish() }; instrument.waitForIdleSync() }
+
+    @Test fun guitarToneReloadPreservesLoopTempoAndTransportAndRemembersTheScore() {
+        demo()
+        ui { activity.switchSource(false) }
+        awaitReady()
+        val programs = AtomicReference<Set<Double>>(emptySet())
+        val detach = ui {
+            api.midiLoad.on { file ->
+                programs.set(file.events.filterIsInstance<ProgramChangeEvent>().filter { it.track == 0.0 }.map { it.program }.toSet())
+            }
+        }
+        try {
+            ui { assertTrue(activity.practice.setTone(0, GuitarTone.Original)) }
+            awaitReady()
+            val authored = ui { api.score!!.tracks[0].playbackInfo.program }
+            val target = ui {
+                assertTrue(activity.applyLoopRange(2, 3))
+                activity.changeSpeed(0.5)
+                api.playbackRange!!.startTick + 180.0
+            }
+            ui { api.tickPosition = target }
+            await("inside a loop while paused") { kotlin.math.abs(api.tickPosition - target) < 20 }
+            playPause()
+            await("practice playback advances") { api.playerState == PlayerState.Playing && api.tickPosition > target + 30 }
+            ui { assertTrue(activity.practice.setTone(0, GuitarTone.Distortion)) }
+            awaitReady()
+            await("tone reload continues inside the original loop") {
+                api.playerState == PlayerState.Playing && api.tickPosition >= target && api.isLooping &&
+                    kotlin.math.abs(api.playbackSpeed - 0.5) < 0.001
+            }
+            assertEquals(setOf(30.0), programs.get())
+            playPause()
+            await("player is paused before the next tone change") { api.playerState == PlayerState.Paused }
+            ui {
+                assertEquals(authored, api.score!!.tracks[0].playbackInfo.program, 0.0)
+                assertTrue(activity.practice.setTone(0, GuitarTone.Overdrive))
+            }
+            awaitReady()
+            ui { assertEquals(PlayerState.Paused, api.playerState) }
+            assertEquals(setOf(29.0), programs.get())
+            demo()
+            ui { activity.switchSource(false) }
+            awaitReady()
+            assertEquals(setOf(29.0), programs.get())
+        } finally {
+            ui {
+                activity.practice.setTone(0, GuitarTone.Original)
+                detach()
+            }
+        }
+    }
 
     @Test fun tenPercentSlowsBothTheRecordingAndTheSynthesizer() {
         demo()

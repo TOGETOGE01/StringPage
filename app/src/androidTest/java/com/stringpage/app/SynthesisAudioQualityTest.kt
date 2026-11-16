@@ -62,8 +62,7 @@ class SynthesisAudioQualityTest {
         }
         return output.copyOf(count)
     }
-    private fun phrase(program: Int, drums: Boolean = false): MidiFile = MidiFile().apply {
-        val channel = if (drums) 9.0 else 0.0
+    private fun phrase(program: Int, drums: Boolean = false, channel: Double = if (drums) 9.0 else 0.0): MidiFile = MidiFile().apply {
         addEvent(TempoChangeEvent(0.0, 500000.0))
         addEvent(ControlChangeEvent(0.0, 0.0, channel, ControllerType.VolumeCoarse, 100.0))
         addEvent(ControlChangeEvent(0.0, 0.0, channel, ControllerType.PanCoarse, 64.0))
@@ -75,6 +74,13 @@ class SynthesisAudioQualityTest {
             addEvent(NoteOffEvent(0.0, tick + 720, channel, key.toDouble(), 0.0))
         }
         addEvent(EndOfTrackEvent(0.0, 3840.0))
+    }
+
+    @Test fun internalSynthChannelsAboveMidiWireLimitStillProduceIdenticalAudio() {
+        val regular = render(phrase(30), current, 2200)
+        val extended = render(phrase(30, channel = 21.0), current, 2200)
+        assertTrue(stats(extended).rms > 0.00001)
+        assertArrayEquals(regular, extended, 0.0000001f)
     }
 
     @Test fun packagedBankReallyReplacesTheSmallLegacyBank() {

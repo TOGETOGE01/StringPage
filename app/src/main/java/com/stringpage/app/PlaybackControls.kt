@@ -4,6 +4,7 @@ package com.stringpage.app
 
 import alphaTab.AlphaTabApiBase
 import alphaTab.AlphaTabView
+import alphaTab.midi.MidiFile
 import alphaTab.model.Score
 import android.app.AlertDialog
 import android.content.Context
@@ -12,11 +13,14 @@ import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.text.TextUtils
 import android.view.Gravity
+import android.widget.Button
 import android.widget.CheckBox
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.SeekBar
 import android.widget.TextView
+import android.widget.Toast
+import java.security.MessageDigest
 
 /**
  * Practice settings for the synthesized score. Full-band recordings are never presented as stems.
@@ -31,7 +35,9 @@ class PlaybackControls(
     private val beforeMixChange: () -> Unit = {},
     private val afterMixChange: () -> Unit = {},
     private val onMixSessionEnded: () -> Unit = {},
-    private val externalPlaybackDescription: () -> String = { "内嵌录音是完整音频，不能按乐谱声部分别静音或独奏。轨道混音、节拍器、预备拍和播放移调在合成音源模式下使用。" }
+    private val externalPlaybackDescription: () -> String = { "轨道混音、音色、节拍器、预备拍和播放移调在合成音源模式下使用。" },
+    private val documentKey: () -> String? = { null },
+    private val reloadTone: () -> Boolean = { false }
 ) {
     data class TrackMix(val volume: Double, val muted: Boolean, val solo: Boolean)
     data class Snapshot(
@@ -43,24 +49,39 @@ class PlaybackControls(
     )
 
     private var score: Score? = null
+    private var toneMidi: PracticeToneMidi? = null
+    private val tonePrefs by lazy { context.getSharedPreferences("practice-guitar-tones", Context.MODE_PRIVATE) }
+    private var toneDocument: String? = null
+    private val tones = mutableListOf<GuitarTone>()
     private val tracks = mutableListOf<TrackMix>()
     private var transposition = 0
     private var metronomeEnabled = false
     private var metronomeVolume = 0.7
     private var countInEnabled = false
     private var dialog: AlertDialog? = null
+    private var toneDialog: AlertDialog? = null
     private var openWhenReady = false
     private var updatingWidgets = false
-    private data class TrackWidgets(val slider: SeekBar, val volume: TextView, val mute: CheckBox, val solo: CheckBox)
+    private data class TrackWidgets(val slider: SeekBar, val volume: TextView, val mute: CheckBox, val solo: CheckBox, val tone: Button?)
     private val widgets = mutableMapOf<Int, TrackWidgets>()
 
     fun reset(newScore: Score, preservePractice: Boolean = false) {
         close()
         score = newScore
+        val previousTones = if (preservePractice) tones.toList() else emptyList()
+        toneMidi = PracticeToneMidi(newScore)
+        toneDocument = documentKey()?.let { key ->
+            MessageDigest.getInstance("SHA-256").digest(key.toByteArray()).joinToString("") { "%02x".format(it) }
+        }
+        tones.clear()
         tracks.clear()
-        for (track in newScore.tracks) {
+        for ((index, track) in newScore.tracks.withIndex()) {
             tracks.add(TrackMix((track.playbackInfo.volume / 16.0).coerceIn(0.0, 1.0),
                 track.playbackInfo.isMute && !track.playbackInfo.isSolo, track.playbackInfo.isSolo))
+            val saved = preferenceKey(index)?.let { tonePrefs.getString(it, null) }
+            tones.add(if (toneMidi?.canChooseTone(index) == true)
+                GuitarTone.entries.firstOrNull { it.name == saved } ?: previousTones.getOrNull(index) ?: GuitarTone.Original
+            else GuitarTone.Original)
         }
         if (!preservePractice) {
             transposition = 0
@@ -72,21 +93,73 @@ class PlaybackControls(
 
     fun snapshot() = Snapshot(tracks.toList(), transposition, metronomeEnabled, metronomeVolume, countInEnabled)
 
+    private fun preferenceKey(index: Int) = toneDocument?.let { "$it/$index" }
+
+    internal fun canChooseTone(index: Int) = toneMidi?.canChooseTone(index) == true
+
+    internal fun applyPlaybackMidi(midi: MidiFile) {
+        val api = apiProvider()
+        if (isSynthesizer() && api.score === score) toneMidi?.apply(midi, api.settings, tones)
+    }
+
+    internal fun showTone(index: Int) {
+        if (!canChooseTone(index)) return
+        toneDialog?.dismiss()
+        if (!isSynthesizer()) {
+            toneDialog = AlertDialog.Builder(context).setTitle("吉他音色")
+                .setMessage("切换至按谱合成后可选择声部音色。")
+                .setPositiveButton("切换至按谱合成") { _, _ -> openWhenReady = true; switchToSynthesizer() }
+                .setNegativeButton("取消", null).show()
+            return
+        }
+        val track = score?.tracks?.get(index) ?: return
+        val name = track.name.ifBlank { "声部 ${index + 1}" }
+        toneDialog = AlertDialog.Builder(context).setTitle("$name · 音色")
+            .setSingleChoiceItems(GuitarTone.entries.map { it.label }.toTypedArray(), tones[index].ordinal) { owner, choice ->
+                owner.dismiss()
+                if (!setTone(index, GuitarTone.entries[choice])) {
+                    Toast.makeText(context, "播放正在准备，请稍后切换音色。", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("取消", null).show()
+    }
+
+    internal fun setTone(index: Int, next: GuitarTone): Boolean {
+        if (!isSynthesizer() || !canChooseTone(index)) return false
+        val previous = tones[index]
+        if (next == previous) return true
+        tones[index] = next
+        if (!reloadTone()) {
+            tones[index] = previous
+            return false
+        }
+        preferenceKey(index)?.let { key ->
+            tonePrefs.edit().apply {
+                if (next == GuitarTone.Original) remove(key) else putString(key, next.name)
+            }.apply()
+        }
+        widgets[index]?.tone?.text = next.label
+        return true
+    }
+
     /** Replays controls after a new synth/score becomes ready. It deliberately ignores recordings. */
     fun reapply(): Boolean {
         val loaded = score ?: return false
         if (!isSynthesizer()) return false
         val api = apiProvider()
         if (!api.isReadyForPlayback || api.score !== loaded) return false
+        val player = api.player ?: return false
+        val routes = toneMidi?.channels ?: return false
         api.metronomeVolume = if (metronomeEnabled) metronomeVolume else 0.0
         api.countInVolume = if (countInEnabled) 1.0 else 0.0
         for ((index, track) in loaded.tracks.withIndex()) {
             val state = tracks[index]
-            val selection = alphaTab.collections.List(track)
-            api.changeTrackVolume(selection, state.volume)
-            api.changeTrackMute(selection, state.muted)
-            api.changeTrackSolo(selection, state.solo)
-            api.changeTrackTranspositionPitch(selection, if (track.isPercussion) 0.0 else transposition.toDouble())
+            for (channel in routes[index].all) {
+                player.setChannelVolume(channel, state.volume)
+                player.setChannelMute(channel, state.muted)
+                player.setChannelSolo(channel, state.solo)
+                player.setChannelTranspositionPitch(channel, if (track.isPercussion) 0.0 else transposition.toDouble())
+            }
         }
         if (openWhenReady) {
             openWhenReady = false
@@ -127,19 +200,17 @@ class PlaybackControls(
     }
 
     private fun linkedTracks(index: Int): Set<Int> {
-        val loaded = score ?: return emptySet()
+        val routes = toneMidi?.channels ?: return emptySet()
         val result = mutableSetOf(index)
         val channels = mutableSetOf<Double>()
         var changed = true
         while (changed) {
             changed = false
             for (member in result.toList()) {
-                channels.add(loaded.tracks[member].playbackInfo.primaryChannel)
-                channels.add(loaded.tracks[member].playbackInfo.secondaryChannel)
+                channels.addAll(routes[member].all)
             }
-            for ((candidate, track) in loaded.tracks.withIndex()) {
-                val info = track.playbackInfo
-                if ((info.primaryChannel in channels || info.secondaryChannel in channels) && result.add(candidate)) changed = true
+            for ((candidate, route) in routes.withIndex()) {
+                if (route.all.any { it in channels } && result.add(candidate)) changed = true
             }
         }
         return result
@@ -239,6 +310,13 @@ class PlaybackControls(
             }
             val titleRow = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
             titleRow.addView(label(name).apply { maxLines = 1; ellipsize = TextUtils.TruncateAt.END }, LinearLayout.LayoutParams(0, -2, 1f))
+            val tone = if (canChooseTone(index)) Button(context).apply {
+                text = tones[index].label
+                isAllCaps = false
+                contentDescription = "$name 音色"
+                setOnClickListener { showTone(index) }
+            } else null
+            tone?.let { titleRow.addView(it) }
             val volumeLabel = label("${(tracks[index].volume * 100).toInt()}%")
             titleRow.addView(volumeLabel)
             card.addView(titleRow)
@@ -258,7 +336,7 @@ class PlaybackControls(
             switches.addView(mute, LinearLayout.LayoutParams(0, dp(48), 1f))
             switches.addView(solo, LinearLayout.LayoutParams(0, dp(48), 1f))
             card.addView(switches)
-            widgets[index] = TrackWidgets(volumeSlider, volumeLabel, mute, solo)
+            widgets[index] = TrackWidgets(volumeSlider, volumeLabel, mute, solo, tone)
             content.addView(card, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
         }
         val scroll = object : ScrollView(context) {
@@ -283,6 +361,7 @@ class PlaybackControls(
 
     fun close() {
         openWhenReady = false
+        toneDialog?.dismiss(); toneDialog = null
         dialog?.dismiss(); dialog = null; widgets.clear()
     }
 
