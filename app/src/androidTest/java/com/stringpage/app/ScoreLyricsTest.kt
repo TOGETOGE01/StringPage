@@ -41,7 +41,28 @@ class ScoreLyricsTest {
         }
     }
 
-    private fun render(score: Score, profile: StaveProfile): String {
+    @Test fun guitarLyricsSitBelowTabNumbersWithoutSwitchingTracks() {
+        val bytes = mixedLyricsGp()
+        val score = read(bytes)
+        ScoreLyrics.restore(score, GpRseProperties.read(bytes))
+        for (profile in listOf(StaveProfile.ScoreTab, StaveProfile.Tab)) {
+            val direct = render(score, profile, track = 0)
+            assertTrue("Beat lyrics should sit below their fret in $profile",
+                textY(direct, "Inline lyric") > textY(direct, "5"))
+            val verses = render(score, profile, track = 1)
+            assertTrue("First verse should sit below its fret in $profile",
+                textY(verses, "星光") > textY(verses, "7"))
+            assertTrue("Second verse should follow the first in $profile",
+                textY(verses, "朝日") > textY(verses, "星光"))
+        }
+    }
+
+    private fun textY(svg: String, label: String): Double {
+        val glyph = Regex("""<text x="[^"]+" y="([^"]+)"[^>]*>${Regex.escape(label)}</text>""").find(svg)
+        return requireNotNull(glyph) { "No SVG text glyph for $label" }.groupValues[1].toDouble()
+    }
+
+    private fun render(score: Score, profile: StaveProfile, track: Int = 1): String {
         val settings = Settings().apply {
             core.engine = "svg"
             core.enableLazyLoading = false
@@ -53,7 +74,7 @@ class ScoreLyricsTest {
             renderer.width = 900.0
             renderer.error.on { throw AssertionError("Score render failed", it) }
             renderer.partialRenderFinished.on { e -> text.append(e.renderResult) }
-            renderer.renderScore(score, DoubleList().apply { push(1.0) }, null)
+            renderer.renderScore(score, DoubleList().apply { push(track.toDouble()) }, null)
             return text.toString()
         } finally { renderer.destroy() }
     }
@@ -97,7 +118,7 @@ class ScoreLyricsTest {
         require(start >= 0)
         val end = xml.indexOf("</Track>", start)
         var track = xml.substring(start, end)
-        track = track.replace(Regex("""<Lyrics[^>]*(?:/>|>[sS]*?</Lyrics>)"""), "")
+        track = track.replace(Regex("""<Lyrics\b[^>]*?(?:/>|>[\s\S]*?</Lyrics>)"""), "")
         val lyrics = """<Lyrics dispatched="false"><Line><Offset>1</Offset><Text>星光 ささやく</Text></Line><Line><Offset>1</Offset><Text>朝日 晨风</Text></Line></Lyrics>"""
         return (xml.substring(0, start) + track + lyrics + xml.substring(end)).toByteArray(Charsets.UTF_8)
     }

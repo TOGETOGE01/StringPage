@@ -4,7 +4,7 @@
 
 An Android Guitar Pro score reader, practice player, and touch editor for phones and tablets.
 
-当前源码版本：**1.33.0** · 最低系统：**Android 8.0 / API 26** · 项目代码：[MIT](LICENSE)
+当前源码版本：**1.33.1** · 最低系统：**Android 8.0 / API 26** · 项目代码：[MIT](LICENSE)
 
 当前优先改进读谱、声音与谱面同步、手机和平板体验。1.17.0 修复原曲暂停回退、音源切换和界面重建后练习位置丢失，以及手机横屏谱面被挤没的问题；详细范围见 [1.17.0 说明](docs/PRACTICE_1.17.0.md)。
 
@@ -12,16 +12,16 @@ An Android Guitar Pro score reader, practice player, and touch editor for phones
 
 ## 下载与安装
 
-**[直接下载 StringPage 1.33.0 APK](https://github.com/TOGETOGE01/StringPage/releases/download/v1.33.0/StringPage-1.33.0.apk)** · [版本说明与附件](https://github.com/TOGETOGE01/StringPage/releases/tag/v1.33.0) · [所有版本](https://github.com/TOGETOGE01/StringPage/releases)
+**[直接下载 StringPage 1.33.1 APK](https://github.com/TOGETOGE01/StringPage/releases/download/v1.33.1/StringPage-1.33.1.apk)** · [版本说明与附件](https://github.com/TOGETOGE01/StringPage/releases/tag/v1.33.1) · [所有版本](https://github.com/TOGETOGE01/StringPage/releases)
 
 下载 `.apk` 文件到安卓设备安装，最低 Android 8.0。该安装包包含 ARM64、ARMv7、x86 和 x86_64，沿用项目发布签名。Release 页面中的 `Source code` 是源码压缩包，直接安装请选 APK 附件。
 
-SHA-256 为 `f8ca32e199ea4867108391894d04a688c279985eb5d04f87ea463942e1cbea2e`。可下载 [SHA-256 校验文件](https://github.com/TOGETOGE01/StringPage/releases/download/v1.33.0/SHA256-1.33.0.txt)。
+SHA-256 为 `c4f1d7e56988200cd2537c4ac4bf125130d35d6617aeb6ec08bf1f2e9dde249e`。可下载 [SHA-256 校验文件](https://github.com/TOGETOGE01/StringPage/releases/download/v1.33.1/SHA256-1.33.1.txt)。
 
 ## 功能
 
 - **本地读谱**：读取 `.gp3`、`.gp4`、`.gp5`、`.gpx`、`.gp`，提供五线谱、六线谱、组合显示、声部切换、缩放和全屏。
-- **歌词**：在对应声部显示歌词。声部列表会标出带歌词的声部。
+- **歌词**：歌词在原声部的谱线下方与对应节拍对齐。同时显示五线谱和六线谱时，歌词排在六线谱下方。
 - **触屏编辑**：点工具栏「编辑」后，可直接点音符或品位数字，修改音高、品位和技法。支持新建乐谱、编辑轨道与小节、撤销和恢复草稿。
 - **录音与导出**：导入本地录音，使用波形校准同步点。可导出 GP 兼容副本、MIDI、WAV 合成混音和打印版 PDF。
 - **曲库管理**：批量导入、损坏文件反馈、最近打开的折叠与搜索、单项及批量移除记录。移除记录不会删除原始谱文件。
