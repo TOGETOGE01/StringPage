@@ -134,7 +134,7 @@ docs/USER_GUIDE.md        详细使用与限制说明
 
 ## 参与开发
 
-欢迎提交问题或 Pull Request。请附上设备、Android/HyperOS 版本、复现步骤及所用音源；测试谱应为可公开的最小示例。具体说明见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+欢迎提交问题或 Pull Request。请附上设备、Android版本、复现步骤及所用音源；测试谱应为可公开的最小示例。具体说明见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ## 许可证与致谢
 
