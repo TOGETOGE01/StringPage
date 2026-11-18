@@ -61,10 +61,19 @@ internal class GuitarEffectsPanel(
     private val wah = selector(inputPanel, "哇音", GuitarWah.entries.map { it.label }, initial.effects.wah.ordinal)
     private val wahControls = group(inputPanel)
     private val wahPosition = slider(wahControls, "踏板位置", initial.effects.wahPosition, 0..100, "%")
-    private val pedal = selector(inputPanel, "踏板", GuitarDrive.entries.map { it.label }, initial.pedal.ordinal)
-    private val pedalDrive = slider(inputPanel, "踏板驱动", initial.pedalDrive, 0..100)
+    private val firstPedal = PedalControls(inputPanel, "踏板 1", initial.firstPedal)
+    private val secondPedal = PedalControls(inputPanel, "踏板 2", initial.secondPedal)
+    private val swapPedals = button("交换踏板顺序") {
+        val first = firstPedal.settings()
+        updating = true
+        firstPedal.apply(secondPedal.settings())
+        secondPedal.apply(first)
+        updating = false
+        notifyChanged()
+    }.also(inputPanel::addView)
     private val cabinetEnabled = toggle(outputPanel, "箱体", initial.cabinetEnabled)
     private val cabinet = selector(outputPanel, "箱体型号", GuitarCabinet.entries.map { it.label }, initial.cabinet.ordinal)
+    private val cabinetMic = selector(outputPanel, "箱体拾音位置", CabinetMic.entries.map { it.label }, initial.cabinetMic.ordinal)
     private val impulseName = label("").apply { maxLines = 2; ellipsize = TextUtils.TruncateAt.END }
     private val clearImpulse = button("使用内置箱体") {
         impulse = null
@@ -149,9 +158,6 @@ internal class GuitarEffectsPanel(
             val next = AmpPreset.entries[index]
             if (next != rememberedAmp) {
                 updating = true
-                if (cabinet.selectedItemPosition == rememberedAmp.defaultCabinet.ordinal) {
-                    cabinet.setSelection(next.defaultCabinet.ordinal)
-                }
                 rememberedAmp = next
                 enabled.isChecked = true
                 updating = false
@@ -162,44 +168,51 @@ internal class GuitarEffectsPanel(
         refreshEnabled()
     }
 
-    fun settings() = GuitarAmpSettings(
-        preset = AmpPreset.entries[amp.selectedItemPosition],
-        gain = gain.progress,
-        volume = volume.progress,
-        pan = pan.progress - 100,
-        cabinet = GuitarCabinet.entries[cabinet.selectedItemPosition],
-        bass = bass.progress - 12,
-        mids = mids.progress - 12,
-        treble = treble.progress - 12,
-        enabled = enabled.isChecked,
-        inputDb = input.progress - 18,
-        gateDb = if (gateEnabled.isChecked) gate.progress - 80 else null,
-        pedal = GuitarDrive.entries[pedal.selectedItemPosition],
-        pedalDrive = pedalDrive.progress,
-        ampEnabled = ampEnabled.isChecked,
-        cabinetEnabled = cabinetEnabled.isChecked,
-        cabinetImpulse = impulse,
-        eqEnabled = eqEnabled.isChecked,
-        effects = GuitarEffects(
-            compression = compression.progress,
-            wah = GuitarWah.entries[wah.selectedItemPosition],
-            wahPosition = wahPosition.progress,
-            modulation = GuitarModulation.entries[modulation.selectedItemPosition],
-            modulationDepth = modulationDepth.progress,
-            modulationRate = modulationRate.progress + 10,
-            modulationPosition = ModulationPosition.entries[modulationPosition.selectedItemPosition],
-            delay = GuitarDelay.entries[delay.selectedItemPosition],
-            delayVoice = GuitarDelayVoice.entries[delayVoice.selectedItemPosition],
-            delayMs = delayMs.progress + 60,
-            delayMix = delayMix.progress,
-            delayFeedback = delayFeedback.progress,
-            delayPosition = SpacePosition.entries[delayPosition.selectedItemPosition],
-            reverb = GuitarReverb.entries[reverb.selectedItemPosition],
-            reverbMix = reverbMix.progress,
-            reverbDecay = reverbDecay.progress,
-            reverbPosition = SpacePosition.entries[reverbPosition.selectedItemPosition]
+    fun settings(): GuitarAmpSettings {
+        val first = firstPedal.settings()
+        return GuitarAmpSettings(
+            preset = AmpPreset.entries[amp.selectedItemPosition],
+            gain = gain.progress,
+            volume = volume.progress,
+            pan = pan.progress - 100,
+            cabinet = GuitarCabinet.entries[cabinet.selectedItemPosition],
+            bass = bass.progress - 12,
+            mids = mids.progress - 12,
+            treble = treble.progress - 12,
+            enabled = enabled.isChecked,
+            inputDb = input.progress - 18,
+            gateDb = if (gateEnabled.isChecked) gate.progress - 80 else null,
+            pedal = first.model,
+            pedalDrive = first.drive,
+            pedalTone = first.tone,
+            pedalLevelDb = first.levelDb,
+            secondPedal = secondPedal.settings(),
+            ampEnabled = ampEnabled.isChecked,
+            cabinetEnabled = cabinetEnabled.isChecked,
+            cabinetImpulse = impulse,
+            cabinetMic = CabinetMic.entries[cabinetMic.selectedItemPosition],
+            eqEnabled = eqEnabled.isChecked,
+            effects = GuitarEffects(
+                compression = compression.progress,
+                wah = GuitarWah.entries[wah.selectedItemPosition],
+                wahPosition = wahPosition.progress,
+                modulation = GuitarModulation.entries[modulation.selectedItemPosition],
+                modulationDepth = modulationDepth.progress,
+                modulationRate = modulationRate.progress + 10,
+                modulationPosition = ModulationPosition.entries[modulationPosition.selectedItemPosition],
+                delay = GuitarDelay.entries[delay.selectedItemPosition],
+                delayVoice = GuitarDelayVoice.entries[delayVoice.selectedItemPosition],
+                delayMs = delayMs.progress + 60,
+                delayMix = delayMix.progress,
+                delayFeedback = delayFeedback.progress,
+                delayPosition = SpacePosition.entries[delayPosition.selectedItemPosition],
+                reverb = GuitarReverb.entries[reverb.selectedItemPosition],
+                reverbMix = reverbMix.progress,
+                reverbDecay = reverbDecay.progress,
+                reverbPosition = SpacePosition.entries[reverbPosition.selectedItemPosition]
+            )
         )
-    )
+    }
 
     private fun choosePreset() {
         val names = presets.names()
@@ -238,13 +251,14 @@ internal class GuitarEffectsPanel(
         input.progress = preset.inputDb + 18
         gateEnabled.isChecked = preset.gateDb != null
         gate.progress = (preset.gateDb ?: -62) + 80
-        pedal.setSelection(preset.pedal.ordinal)
-        pedalDrive.progress = preset.pedalDrive
+        firstPedal.apply(preset.firstPedal)
+        secondPedal.apply(preset.secondPedal)
         ampEnabled.isChecked = preset.ampEnabled
         amp.setSelection(preset.preset.ordinal)
         gain.progress = preset.gain
         cabinetEnabled.isChecked = preset.cabinetEnabled
         cabinet.setSelection(preset.cabinet.ordinal)
+        cabinetMic.setSelection(preset.cabinetMic.ordinal)
         impulse = preset.cabinetImpulse
         eqEnabled.isChecked = preset.eqEnabled
         bass.progress = preset.bass + 12
@@ -339,8 +353,11 @@ internal class GuitarEffectsPanel(
         amp.isEnabled = ampEnabled.isChecked
         gain.isEnabled = ampEnabled.isChecked
         gate.isEnabled = gateEnabled.isChecked
-        pedalDrive.isEnabled = pedal.selectedItemPosition != GuitarDrive.Off.ordinal
+        firstPedal.refresh()
+        secondPedal.refresh()
+        swapPedals.visibility = visibility(firstPedal.active || secondPedal.active)
         cabinet.isEnabled = cabinetEnabled.isChecked && impulse == null
+        cabinetMic.isEnabled = cabinet.isEnabled
         impulseName.text = impulse?.name.orEmpty()
         impulseName.visibility = if (impulse == null) View.GONE else View.VISIBLE
         clearImpulse.visibility = impulseName.visibility
@@ -358,6 +375,28 @@ internal class GuitarEffectsPanel(
     }
 
     private fun visibility(shown: Boolean) = if (shown) View.VISIBLE else View.GONE
+
+    private inner class PedalControls(parent: LinearLayout, name: String, settings: GuitarPedalSettings) {
+        private val model = selector(parent, name, GuitarDrive.entries.map { it.label }, settings.model.ordinal)
+        private val knobs = group(parent)
+        private val drive = slider(knobs, "$name 驱动", settings.drive, 0..100, "%")
+        private val tone = slider(knobs, "$name 音色", settings.tone, 0..100, "%")
+        private val level = slider(knobs, "$name 输出", settings.levelDb, -18..12, "dB")
+
+        val active get() = model.selectedItemPosition != GuitarDrive.Off.ordinal
+
+        fun settings() = GuitarPedalSettings(GuitarDrive.entries[model.selectedItemPosition],
+            drive.progress, tone.progress, level.progress - 18)
+
+        fun apply(settings: GuitarPedalSettings) {
+            model.setSelection(settings.model.ordinal)
+            drive.progress = settings.drive
+            tone.progress = settings.tone
+            level.progress = settings.levelDb + 18
+        }
+
+        fun refresh() { knobs.visibility = visibility(active) }
+    }
 
     private fun page(panels: List<LinearLayout>) = LinearLayout(activity).apply {
         orientation = if (wide) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL

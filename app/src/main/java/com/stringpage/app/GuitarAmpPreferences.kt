@@ -11,6 +11,7 @@ internal object GuitarAmpPreferences {
         put("volume", config.volume)
         put("pan", config.pan)
         put("cabinet", config.cabinet.name)
+        put("cabinetMic", config.cabinetMic.name)
         put("bass", config.bass)
         put("mids", config.mids)
         put("treble", config.treble)
@@ -19,6 +20,14 @@ internal object GuitarAmpPreferences {
         put("gateDb", config.gateDb ?: JSONObject.NULL)
         put("pedal", config.pedal.name)
         put("pedalDrive", config.pedalDrive)
+        put("pedalTone", config.pedalTone)
+        put("pedalLevelDb", config.pedalLevelDb)
+        put("secondPedal", JSONObject().apply {
+            put("model", config.secondPedal.model.name)
+            put("drive", config.secondPedal.drive)
+            put("tone", config.secondPedal.tone)
+            put("levelDb", config.secondPedal.levelDb)
+        })
         put("ampEnabled", config.ampEnabled)
         put("cabinetEnabled", config.cabinetEnabled)
         put("eqEnabled", config.eqEnabled)
@@ -40,6 +49,7 @@ internal object GuitarAmpPreferences {
             volume = json.optInt("volume", 75).coerceIn(0, 100),
             pan = json.optInt("pan").coerceIn(-100, 100),
             cabinet = GuitarCabinet.entries.firstOrNull { it.name == json.optString("cabinet") } ?: preset.defaultCabinet,
+            cabinetMic = CabinetMic.entries.firstOrNull { it.name == json.optString("cabinetMic") } ?: CabinetMic.Center,
             bass = json.optInt("bass").coerceIn(-12, 12),
             mids = json.optInt("mids").coerceIn(-12, 12),
             treble = json.optInt("treble").coerceIn(-12, 12),
@@ -48,6 +58,16 @@ internal object GuitarAmpPreferences {
             gateDb = if (json.isNull("gateDb")) null else json.optInt("gateDb", -62).coerceIn(-80, -24),
             pedal = GuitarDrive.entries.firstOrNull { it.name == json.optString("pedal") } ?: GuitarDrive.Off,
             pedalDrive = json.optInt("pedalDrive", 35).coerceIn(0, 100),
+            pedalTone = json.optInt("pedalTone", 50).coerceIn(0, 100),
+            pedalLevelDb = json.optInt("pedalLevelDb").coerceIn(-18, 12),
+            secondPedal = json.optJSONObject("secondPedal")?.let { pedal ->
+                GuitarPedalSettings(
+                    model = GuitarDrive.entries.firstOrNull { it.name == pedal.optString("model") } ?: GuitarDrive.Off,
+                    drive = pedal.optInt("drive", 35).coerceIn(0, 100),
+                    tone = pedal.optInt("tone", 50).coerceIn(0, 100),
+                    levelDb = pedal.optInt("levelDb").coerceIn(-18, 12)
+                )
+            } ?: GuitarPedalSettings(),
             ampEnabled = json.optBoolean("ampEnabled", true),
             cabinetEnabled = json.optBoolean("cabinetEnabled", true),
             cabinetImpulse = json.optJSONObject("cabinetImpulse")?.let(::decodeImpulse),

@@ -17,7 +17,17 @@ internal object BuiltInGuitarPresets {
                 effects = GuitarEffects(compression = 18, delay = GuitarDelay.Eighth, delayMix = 15,
                     delayFeedback = 21, reverb = GuitarReverb.Plate, reverbMix = 12)),
             "冲浪弹簧" to GuitarAmpSettings(AmpPreset.Bright, gain = 45, mids = -2, treble = 2,
-                effects = GuitarEffects(reverb = GuitarReverb.Spring, reverbDecay = 58, reverbMix = 34))
+                effects = GuitarEffects(reverb = GuitarReverb.Spring, reverbDecay = 58, reverbMix = 34)),
+            "晶体管合唱" to GuitarAmpSettings(AmpPreset.SolidState, gain = 44, cabinetMic = CabinetMic.Edge,
+                effects = GuitarEffects(modulation = GuitarModulation.Chorus, modulationRate = 110, modulationDepth = 62,
+                    compression = 22, reverb = GuitarReverb.Plate, reverbMix = 14)),
+            "乡村短回声" to GuitarAmpSettings(AmpPreset.SmallTube, gain = 29, treble = 2,
+                effects = GuitarEffects(compression = 23, delay = GuitarDelay.Fixed, delayMs = 108,
+                    delayVoice = GuitarDelayVoice.Tape, delayMix = 25, delayFeedback = 13,
+                    reverb = GuitarReverb.Spring, reverbMix = 12)),
+            "边缘清音" to GuitarAmpSettings(AmpPreset.SmallTube, gain = 41, cabinet = GuitarCabinet.Twin,
+                pedal = GuitarDrive.Transparent, pedalDrive = 18, pedalTone = 63, pedalLevelDb = -3,
+                effects = GuitarEffects(reverb = GuitarReverb.Room, reverbMix = 10))
         )),
         Group("过载与失真", listOf(
             "轻过载" to GuitarAmpSettings(AmpPreset.Crunch),
@@ -32,7 +42,12 @@ internal object BuiltInGuitarPresets {
                 pedal = GuitarDrive.Fuzz, pedalDrive = 62,
                 effects = GuitarEffects(reverb = GuitarReverb.Room, reverbMix = 10)),
             "朋克节奏" to GuitarAmpSettings(AmpPreset.British, gain = 63, bass = -3, mids = 3, treble = 1,
-                pedal = GuitarDrive.Boost, pedalDrive = 22)
+                pedal = GuitarDrive.Boost, pedalDrive = 22),
+            "中频蓝调" to GuitarAmpSettings(AmpPreset.SmallTube, gain = 47, cabinetMic = CabinetMic.Edge,
+                pedal = GuitarDrive.MidOverdrive, pedalDrive = 25, pedalTone = 48,
+                effects = GuitarEffects(reverb = GuitarReverb.Spring, reverbMix = 17)),
+            "离轴车库摇滚" to GuitarAmpSettings(AmpPreset.British, gain = 48, cabinet = GuitarCabinet.ClosedTwin,
+                cabinetMic = CabinetMic.OffAxis, pedal = GuitarDrive.Distortion, pedalDrive = 41, mids = 2)
         )),
         Group("高增益", listOf(
             "现代高增益" to GuitarAmpSettings(AmpPreset.Modern, gateDb = -62),
@@ -40,7 +55,13 @@ internal object BuiltInGuitarPresets {
                 pedal = GuitarDrive.Overdrive, pedalDrive = 19),
             "高增益主音" to GuitarAmpSettings(AmpPreset.Modern, gain = 54, gateDb = -67, mids = 3, treble = -2,
                 effects = GuitarEffects(delay = GuitarDelay.DottedEighth, delayVoice = GuitarDelayVoice.Tape,
-                    delayMix = 21, delayFeedback = 32, reverb = GuitarReverb.Plate, reverbMix = 15))
+                    delayMix = 21, delayFeedback = 32, reverb = GuitarReverb.Plate, reverbMix = 15)),
+            "紧致金属" to GuitarAmpSettings(AmpPreset.Tight, gain = 58, gateDb = -55, bass = -2, treble = 1,
+                pedal = GuitarDrive.MidOverdrive, pedalDrive = 10, pedalTone = 62, pedalLevelDb = 3),
+            "加深箱体主音" to GuitarAmpSettings(AmpPreset.Modern, gain = 50, cabinet = GuitarCabinet.Deep,
+                cabinetMic = CabinetMic.Edge, mids = 3,
+                effects = GuitarEffects(delay = GuitarDelay.Quarter, delayPosition = SpacePosition.AmpLoop,
+                    delayMix = 22, delayFeedback = 25, reverb = GuitarReverb.Plate, reverbMix = 18))
         )),
         Group("调制与空间", listOf(
             "弹簧颤音" to GuitarAmpSettings(AmpPreset.Warm, gain = 40,
@@ -58,7 +79,35 @@ internal object BuiltInGuitarPresets {
             "氛围长尾" to GuitarAmpSettings(gain = 38, cabinet = GuitarCabinet.Twin, treble = -2,
                 effects = GuitarEffects(modulation = GuitarModulation.Chorus, modulationDepth = 44, modulationRate = 38,
                     delay = GuitarDelay.Quarter, delayVoice = GuitarDelayVoice.Tape, delayMix = 27, delayFeedback = 47,
-                    reverb = GuitarReverb.Hall, reverbDecay = 88, reverbMix = 36))
+                    reverb = GuitarReverb.Hall, reverbDecay = 88, reverbMix = 36)),
+            "颗粒梦幻摇滚" to GuitarAmpSettings(AmpPreset.SolidState, gain = 43, cabinetMic = CabinetMic.OffAxis,
+                pedal = GuitarDrive.Fuzz, pedalDrive = 22, pedalLevelDb = -4,
+                effects = GuitarEffects(modulation = GuitarModulation.Chorus, modulationRate = 45, modulationDepth = 39,
+                    reverb = GuitarReverb.Hall, reverbDecay = 86, reverbMix = 40)),
+            "颤音爵士清音" to GuitarAmpSettings(AmpPreset.SolidState, gain = 39, cabinet = GuitarCabinet.Compact,
+                cabinetMic = CabinetMic.Edge, treble = -2,
+                effects = GuitarEffects(modulation = GuitarModulation.Tremolo, modulationRate = 270,
+                    modulationDepth = 44, reverb = GuitarReverb.Room, reverbMix = 14))
+        )),
+        Group("双踏板预设", listOf(
+            "提升 → 透明过载" to GuitarAmpSettings(AmpPreset.SmallTube, gain = 38, cabinet = GuitarCabinet.Open,
+                pedal = GuitarDrive.Boost, pedalDrive = 28, pedalTone = 52, pedalLevelDb = 1,
+                secondPedal = GuitarPedalSettings(GuitarDrive.Transparent, 28, 59, -2),
+                effects = GuitarEffects(reverb = GuitarReverb.Spring, reverbMix = 15)),
+            "透明过载 → 法兹" to GuitarAmpSettings(AmpPreset.Warm, gain = 41, cabinet = GuitarCabinet.ClosedTwin,
+                cabinetMic = CabinetMic.Edge, pedal = GuitarDrive.Transparent, pedalDrive = 22, pedalLevelDb = -2,
+                secondPedal = GuitarPedalSettings(GuitarDrive.Fuzz, 49, 42, -2)),
+            "法兹 → 提升" to GuitarAmpSettings(AmpPreset.SolidState, gain = 38, cabinet = GuitarCabinet.Twin,
+                cabinetMic = CabinetMic.OffAxis, pedal = GuitarDrive.Fuzz, pedalDrive = 50, pedalTone = 45, pedalLevelDb = -4,
+                secondPedal = GuitarPedalSettings(GuitarDrive.Boost, 18, 59, 0),
+                effects = GuitarEffects(reverb = GuitarReverb.Plate, reverbMix = 19)),
+            "中频过载 → 失真" to GuitarAmpSettings(AmpPreset.Tight, gain = 50, gateDb = -62, mids = 1,
+                pedal = GuitarDrive.MidOverdrive, pedalDrive = 17, pedalTone = 60, pedalLevelDb = 3,
+                secondPedal = GuitarPedalSettings(GuitarDrive.Distortion, 22, 55, -1)),
+            "八度法兹 → 过载" to GuitarAmpSettings(AmpPreset.Crunch, gain = 39, cabinet = GuitarCabinet.OpenTen,
+                cabinetMic = CabinetMic.Edge, pedal = GuitarDrive.OctaveFuzz, pedalDrive = 53, pedalTone = 52,
+                secondPedal = GuitarPedalSettings(GuitarDrive.Overdrive, 16, 57, 1),
+                effects = GuitarEffects(delay = GuitarDelay.Fixed, delayMs = 280, delayMix = 14, delayFeedback = 18))
         ))
     )
 }

@@ -17,19 +17,43 @@ internal enum class AmpPreset(
     British("英式失真", 15.0, 0.16, 125.0, 0.166, GuitarCabinet.Closed),
     Modern("现代高增益", 29.0, 0.06, 175.0, 0.130, GuitarCabinet.Closed),
     Bright("明亮清音", 1.12, 0.025, 80.0, 1.12, GuitarCabinet.Twin, cleanPower = true),
-    Warm("暖调清音", 2.15, 0.07, 48.0, 0.67, GuitarCabinet.Compact, cleanPower = true)
+    Warm("暖调清音", 2.15, 0.07, 48.0, 0.67, GuitarCabinet.Compact, cleanPower = true),
+    SolidState("晶体管清音", 0.85, 0.0, 62.0, 1.36, GuitarCabinet.Twin, cleanPower = true),
+    SmallTube("小功率电子管", 4.1, 0.17, 67.0, 0.40, GuitarCabinet.OpenTen),
+    Tight("紧致高增益", 24.0, 0.035, 196.0, 0.154, GuitarCabinet.Deep)
 }
 
 internal enum class GuitarCabinet(val label: String, val resonance: Double, val presence: Double, val cutoff: Double) {
     Open("开放式 1×12", 112.0, 2350.0, 4900.0),
     Closed("封闭式 4×12", 133.0, 1800.0, 3900.0),
     Compact("小型 1×10", 150.0, 1380.0, 3600.0),
-    Twin("半开放式 2×12", 94.0, 2750.0, 5450.0)
+    Twin("半开放式 2×12", 94.0, 2750.0, 5450.0),
+    OpenTen("开放式 2×10", 134.0, 2980.0, 5550.0),
+    ClosedTwin("封闭式 2×12", 118.0, 2180.0, 4400.0),
+    Deep("加深式 4×12", 97.0, 1560.0, 3780.0)
 }
 
-internal enum class GuitarDrive(val label: String) {
-    Off("旁通"), Boost("提升"), Overdrive("过载"), Distortion("失真"), Fuzz("法兹")
+internal enum class CabinetMic(val label: String, val cutoffRatio: Double, val presenceDb: Double) {
+    Center("中心", 1.0, 3.0), Edge("边缘", 0.87, 0.9), OffAxis("离轴", 0.75, -1.7)
 }
+
+internal enum class GuitarDrive(val label: String, val gainRange: Double, val bassCut: Double, val lowPass: Double) {
+    Off("旁通", 0.0, 135.0, 6400.0),
+    Boost("提升", 2.0, 42.0, 6400.0),
+    Overdrive("过载", 8.0, 135.0, 6400.0),
+    Distortion("失真", 20.0, 135.0, 4700.0),
+    Fuzz("法兹", 30.0, 75.0, 3650.0),
+    Transparent("透明过载", 5.0, 60.0, 7200.0),
+    MidOverdrive("中频过载", 10.0, 185.0, 5400.0),
+    OctaveFuzz("八度法兹", 16.0, 104.0, 4150.0)
+}
+
+internal data class GuitarPedalSettings(
+    val model: GuitarDrive = GuitarDrive.Off,
+    val drive: Int = 35,
+    val tone: Int = 50,
+    val levelDb: Int = 0
+)
 
 internal data class GuitarAmpSettings(
     val preset: AmpPreset = AmpPreset.Clean,
@@ -49,8 +73,14 @@ internal data class GuitarAmpSettings(
     val cabinetEnabled: Boolean = true,
     val cabinetImpulse: CabinetImpulse? = null,
     val eqEnabled: Boolean = true,
-    val effects: GuitarEffects = GuitarEffects()
-)
+    val effects: GuitarEffects = GuitarEffects(),
+    val pedalTone: Int = 50,
+    val pedalLevelDb: Int = 0,
+    val secondPedal: GuitarPedalSettings = GuitarPedalSettings(),
+    val cabinetMic: CabinetMic = CabinetMic.Center
+) {
+    val firstPedal get() = GuitarPedalSettings(pedal, pedalDrive, pedalTone, pedalLevelDb)
+}
 
 /** Dynamics and distortion run in mono before the post-cabinet stereo stages. */
 internal class GuitarAmp(config: GuitarAmpSettings, private val sampleRate: Int, beats: SourceBeatMap = SourceBeatMap(sampleRate)) {
@@ -61,36 +91,19 @@ internal class GuitarAmp(config: GuitarAmpSettings, private val sampleRate: Int,
     private val compressor = config.effects.compression.takeIf { it > 0 }?.let { GuitarCompressor(it, sampleRate) }
     private val wah = config.effects.wah.takeUnless { it == GuitarWah.Off }
         ?.let { WahPedal(it, config.effects.wahPosition, sampleRate) }
-    private val pedal = config.pedal.takeUnless { it == GuitarDrive.Off }
-    private val pedalGain = 1 + config.pedalDrive / 100.0 * when (config.pedal) {
-        GuitarDrive.Off -> 0.0
-        GuitarDrive.Boost -> 2.0
-        GuitarDrive.Overdrive -> 8.0
-        GuitarDrive.Distortion -> 20.0
-        GuitarDrive.Fuzz -> 30.0
-    }
-    private val pedalInput = pedal?.let {
-        val cutoff = when (it) {
-            GuitarDrive.Boost -> 42.0
-            GuitarDrive.Fuzz -> 75.0
-            else -> 135.0
-        }
-        Biquad.highPass(sampleRate.toDouble(), cutoff)
-    }
-    private val pedalTone = pedal?.let {
-        val cutoff = when (it) {
-            GuitarDrive.Distortion -> 4700.0
-            GuitarDrive.Fuzz -> 3650.0
-            else -> 6400.0
-        }
-        Biquad.lowPass(sampleRate * 4.0, cutoff)
-    }
+    private val pedals = listOf(config.firstPedal, config.secondPedal).filter { it.model != GuitarDrive.Off }
+    private val frontPedal = pedals.firstOrNull()?.let { DrivePedal(it, sampleRate * 4.0) }
+    private val pedalInput = pedals.firstOrNull()?.let { Biquad.highPass(sampleRate.toDouble(), it.model.bassCut) }
+    private val nextPedal = pedals.getOrNull(1)?.let { DrivePedal(it, sampleRate * 4.0) }
+    private val nextPedalInput = pedals.getOrNull(1)?.let { Biquad.highPass(sampleRate * 4.0, it.model.bassCut) }
     private val ampEnabled = config.ampEnabled
     private val gain = (if (ampEnabled) preset.output else 1.0) * config.volume / 75.0
     private val angle = (config.pan + 100) * PI / 400
     private val left = gain * cos(angle) * sqrt(2.0)
     private val right = gain * sin(angle) * sqrt(2.0)
     private val inputFilter = Biquad.highPass(sampleRate.toDouble(), preset.bassCut)
+    private val stackAmpInput = if (ampEnabled && nextPedal != null) Biquad.highPass(sampleRate * 4.0, preset.bassCut) else null
+    private val ampPath = ampEnabled || frontPedal != null
     private val antiAlias = Biquad.lowPass(sampleRate * 4.0, 8200.0)
     private val trebleCut = Biquad.lowPass(sampleRate * 4.0, 9600.0)
     private val dc = Biquad.highPass(sampleRate.toDouble(), 38.0)
@@ -99,7 +112,7 @@ internal class GuitarAmp(config: GuitarAmpSettings, private val sampleRate: Int,
     private val treble = Biquad.peak(sampleRate.toDouble(), 2850.0, config.treble.toDouble(), 0.75)
     private val eqEnabled = config.eqEnabled
     private val cabinet = if (config.cabinetEnabled) CabinetConvolution(
-        config.cabinetImpulse?.atRate(sampleRate) ?: modeledCabinet(config.cabinet, sampleRate.toDouble())
+        config.cabinetImpulse?.atRate(sampleRate) ?: modeledCabinet(config.cabinet, config.cabinetMic, sampleRate.toDouble())
     ) else null
     private val beforeAmp = space(config.effects.run { copy(
         modulation = if (modulationPosition == ModulationPosition.BeforeAmp) modulation else GuitarModulation.Off,
@@ -142,8 +155,7 @@ internal class GuitarAmp(config: GuitarAmpSettings, private val sampleRate: Int,
             if (wah != null) input = wah.process(input)
             if (pre != null) input = mono(pre, input, frame)
             if (pedalInput != null) input = pedalInput.process(input)
-            if (ampEnabled) input = inputFilter.process(input)
-            val ampPath = ampEnabled || pedal != null
+            if (ampEnabled && stackAmpInput == null) input = inputFilter.process(input)
             var shaped = if (ampPath) shape(input) else input
             if (loop != null) shaped = mono(loop, shaped, frame)
             if (loopPower != null) shaped = powerAfterLoop(shaped, loopPower)
@@ -185,8 +197,11 @@ internal class GuitarAmp(config: GuitarAmpSettings, private val sampleRate: Int,
         compressor?.reset()
         wah?.reset()
         pedalInput?.reset()
-        pedalTone?.reset()
+        frontPedal?.reset()
+        nextPedalInput?.reset()
+        nextPedal?.reset()
         inputFilter.reset()
+        stackAmpInput?.reset()
         antiAlias.reset()
         trebleCut.reset()
         dc.reset()
@@ -225,23 +240,53 @@ internal class GuitarAmp(config: GuitarAmpSettings, private val sampleRate: Int,
         val step = (input - lastInput) * 0.25
         var shaped = 0.0
         for (phase in 1..4) {
-            val interpolated = lastInput + step * phase
-            val driven = when (pedal) {
-                GuitarDrive.Boost -> interpolated * pedalGain
-                GuitarDrive.Overdrive -> (saturate(interpolated * pedalGain + 0.09) - OVERDRIVE_BIAS) * 0.53
-                GuitarDrive.Distortion -> (interpolated * pedalGain).coerceIn(-0.72, 0.72) * 0.56
-                GuitarDrive.Fuzz -> (saturate((interpolated * pedalGain + 0.23) * 2.8) - FUZZ_BIAS) * 0.43
-                else -> interpolated
+            var signal = lastInput + step * phase
+            if (frontPedal != null) signal = frontPedal.process(signal)
+            if (nextPedal != null && nextPedalInput != null) {
+                signal = nextPedal.process(nextPedalInput.process(signal))
             }
-            val pedalOut = pedalTone?.process(driven) ?: driven
+            if (stackAmpInput != null) signal = stackAmpInput.process(signal)
             val power = if (ampEnabled) {
-                val preamp = saturate(pedalOut * ampGain + preset.bias) - biasOffset
+                val preamp = saturate(signal * ampGain + preset.bias) - biasOffset
                 if (preset.cleanPower || ampLoop != null) preamp else saturate(preamp * 1.22)
-            } else pedalOut
+            } else signal
             shaped = antiAlias.process(trebleCut.process(power))
         }
         lastInput = input
         return shaped
+    }
+
+    private class DrivePedal(settings: GuitarPedalSettings, rate: Double) {
+        private val model = settings.model
+        private val gain = 1 + settings.drive / 100.0 * model.gainRange
+        private val level = 10.0.pow(settings.levelDb / 20.0)
+        private val cutoff = (model.lowPass * 2.0.pow((settings.tone - 50) / 50.0)).coerceAtMost(rate * 0.45)
+        private val tone = Biquad.lowPass(rate, cutoff)
+        private val mids = if (model == GuitarDrive.MidOverdrive) Biquad.peak(rate, 790.0, 5.0, 0.83) else null
+        private val octaveDc = if (model == GuitarDrive.OctaveFuzz) Biquad.highPass(rate, 70.0) else null
+
+        fun process(input: Double): Double {
+            val driven = (mids?.process(input) ?: input) * gain
+            val clipped = when (model) {
+                GuitarDrive.Off, GuitarDrive.Boost -> driven
+                GuitarDrive.Overdrive -> (saturate(driven + 0.09) - OVERDRIVE_BIAS) * 0.53
+                GuitarDrive.Distortion -> driven.coerceIn(-0.72, 0.72) * 0.56
+                GuitarDrive.Fuzz -> (saturate((driven + 0.23) * 2.8) - FUZZ_BIAS) * 0.43
+                GuitarDrive.Transparent -> (saturate(driven * 0.65) * 0.85 + driven.coerceIn(-0.9, 0.9) * 0.16) * 0.75
+                GuitarDrive.MidOverdrive -> (saturate(driven + 0.14) - MID_DRIVE_BIAS) * 0.50
+                GuitarDrive.OctaveFuzz -> {
+                    val octave = octaveDc!!.process(abs(saturate(driven * 1.3)))
+                    saturate(octave * 2.2 + driven * 0.22) * 0.52
+                }
+            }
+            return tone.process(clipped) * level
+        }
+
+        fun reset() {
+            tone.reset()
+            mids?.reset()
+            octaveDc?.reset()
+        }
     }
 
     private class NoiseGate(thresholdDb: Int, sampleRate: Int) {
@@ -272,6 +317,7 @@ internal class GuitarAmp(config: GuitarAmpSettings, private val sampleRate: Int,
 
     private companion object {
         val OVERDRIVE_BIAS = saturate(0.09)
+        val MID_DRIVE_BIAS = saturate(0.14)
         val FUZZ_BIAS = saturate(0.23 * 2.8)
 
         fun saturate(x: Double): Double {
@@ -281,12 +327,13 @@ internal class GuitarAmp(config: GuitarAmpSettings, private val sampleRate: Int,
         }
     }
 
-    private fun modeledCabinet(cabinet: GuitarCabinet, rate: Double): DoubleArray {
+    private fun modeledCabinet(cabinet: GuitarCabinet, microphone: CabinetMic, rate: Double): DoubleArray {
         // Generate a causal IR from a speaker resonance and cabinet roll-off. It uses no recording.
         val low = Biquad.highPass(rate, cabinet.resonance, 0.91)
-        val peak = Biquad.peak(rate, cabinet.presence, 3.0, 0.85)
-        val high = Biquad.lowPass(rate, cabinet.cutoff)
-        val upper = Biquad.lowPass(rate, cabinet.cutoff * 1.32)
+        val peak = Biquad.peak(rate, cabinet.presence, microphone.presenceDb, 0.85)
+        val cutoff = cabinet.cutoff * microphone.cutoffRatio
+        val high = Biquad.lowPass(rate, minOf(cutoff, rate * 0.45))
+        val upper = Biquad.lowPass(rate, minOf(cutoff * 1.32, rate * 0.45))
         return DoubleArray(96) { i ->
             val window = if (i < 64) 1.0 else 0.5 + 0.5 * cos(PI * (i - 64) / 31)
             window * upper.process(high.process(peak.process(low.process(if (i == 0) 1.0 else 0.0))))

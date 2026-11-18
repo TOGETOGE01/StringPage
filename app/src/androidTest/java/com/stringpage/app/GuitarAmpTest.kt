@@ -23,11 +23,59 @@ import java.nio.ByteOrder
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.sin
 import kotlin.math.sqrt
 
 @RunWith(AndroidJUnit4::class)
 class GuitarAmpTest {
+    @Test fun driveSlotsAreSerialAndEitherSlotWorksOnItsOwn() {
+        val rate = 44100
+        val source = FloatArray(8192 * 2) { index ->
+            val t = (index / 2).toDouble() / rate
+            (0.14 * sin(2 * PI * 177 * t) + 0.09 * sin(2 * PI * 587 * t)).toFloat()
+        }
+        val base = bypassedAmp()
+        val boost = GuitarPedalSettings(GuitarDrive.Boost, 50, 68, 2)
+        val fuzz = GuitarPedalSettings(GuitarDrive.Fuzz, 43, 42, -4)
+        fun GuitarAmpSettings.first(pedal: GuitarPedalSettings) =
+            copy(pedal = pedal.model, pedalDrive = pedal.drive, pedalTone = pedal.tone, pedalLevelDb = pedal.levelDb)
+        fun render(settings: GuitarAmpSettings): FloatArray =
+            source.clone().also { GuitarAmp(settings, rate).process(it, it.size / 2) }
+        assertArrayEquals(render(base.first(fuzz)), render(base.copy(secondPedal = fuzz)), 0f)
+        val forward = base.first(boost).copy(secondPedal = fuzz)
+        val backward = base.first(fuzz).copy(secondPedal = boost)
+        val firstResult = render(forward)
+        val swappedResult = render(backward)
+        assertTrue(firstResult.indices.any { abs(firstResult[it] - swappedResult[it]) > 0.07f })
+        assertTrue(firstResult.all { it.isFinite() && it in -1f..1f })
+
+        val amp = GuitarAmp(forward, rate)
+        val split = 3001 * 2
+        val left = source.copyOfRange(0, split)
+        val right = source.copyOfRange(split, source.size)
+        amp.process(left, left.size / 2)
+        amp.process(right, right.size / 2)
+        assertArrayEquals(firstResult, left + right, 0f)
+        assertEquals(forward, GuitarAmpPreferences.decode(GuitarAmpPreferences.encode(forward)))
+    }
+
+    @Test fun cabinetMicChangesModeledToneAndRespectsAnImportedImpulse() {
+        val rate = 44100
+        val source = FloatArray(1800 * 2) { index ->
+            (0.25 * sin(2 * PI * 5100 * (index / 2) / rate)).toFloat()
+        }
+        fun render(settings: GuitarAmpSettings): FloatArray =
+            source.clone().also { GuitarAmp(settings, rate).process(it, it.size / 2) }
+        fun power(samples: FloatArray) = samples.drop(800).sumOf { it.toDouble() * it }
+        val center = bypassedAmp().copy(cabinetEnabled = true, cabinet = GuitarCabinet.ClosedTwin)
+        val offAxis = center.copy(cabinetMic = CabinetMic.OffAxis)
+        assertTrue(power(render(offAxis)) < 0.6 * power(render(center)))
+        val impulse = CabinetImpulse("Imported", listOf(1f, 0.2f, -0.1f))
+        assertArrayEquals(render(center.copy(cabinetImpulse = impulse)),
+            render(offAxis.copy(cabinetImpulse = impulse)), 0f)
+    }
+
     @Test fun alternatingEchoKeepsStereoEvenIfAnOlderPresetRequestsTheMonoLoop() {
         val rate = 8000
         val tap = rate / 10
@@ -81,7 +129,8 @@ class GuitarAmpTest {
             val pcm = source.clone()
             val amp = GuitarAmp(settings, rate)
             amp.process(pcm, frames)
-            assertTrue("$name should stay in range", pcm.all { it.isFinite() && it in -1f..1f })
+            val peak = pcm.maxOf { abs(it) }
+            assertTrue("$name peak is $peak", pcm.all { it.isFinite() } && peak <= 1f)
             assertTrue("$name should produce a usable signal", pcm.any { kotlin.math.abs(it) > 0.01f })
             amp.reset()
             val replay = source.clone().also { amp.process(it, frames) }
