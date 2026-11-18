@@ -64,7 +64,7 @@ class ReadingSessionIntegrationTest {
         activity=instrument.startActivitySync(Intent(instrument.targetContext,MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)) as MainActivity
         file=File.createTempFile("reading-session-",".gp",instrument.targetContext.cacheDir)
-        val raw=instrument.targetContext.assets.open("morning.gp").use { it.readBytes() }
+        val raw=instrument.practiceScoreBytes()
         val score=ScoreLoader.loadScoreFromBytes(Uint8Array(raw.asUByteArray()),Settings())
         val second=ScoreLoader.loadScoreFromBytes(Uint8Array(raw.asUByteArray()),Settings()).tracks[0]
         second.name="Second part";second.playbackInfo.primaryChannel=1.0;second.playbackInfo.secondaryChannel=2.0
@@ -146,8 +146,9 @@ class ReadingSessionIntegrationTest {
         val held=ui { nativePosition() };SystemClock.sleep(200)
         ui { assertTrue("Restoring the screen must not start the recording",kotlin.math.abs(held-nativePosition())<=20) }
     }
-    @Test fun recreatingTheBuiltInExerciseKeepsItsPositionWithoutAFileUri() {
-        ui { activity.openDemo() };ready()
+    @Test fun recreatingAnImportedSingleTrackKeepsItsPosition() {
+        val fixture = instrument.practiceScoreUri()
+        ui { activity.openUri(fixture) };ready()
         ui { activity.changeSpeed(.5);api.tickPosition=4200.0 }
         await("exercise seek") { kotlin.math.abs(api.tickPosition-4200.0)<20 }
         recreate()

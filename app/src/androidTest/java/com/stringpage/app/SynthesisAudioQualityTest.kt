@@ -109,7 +109,8 @@ class SynthesisAudioQualityTest {
     }
 
     @Test fun exportsLoudnessMatchedOriginalPhraseForListeningComparison() {
-        val score = ScoreLoader.loadScoreFromBytes(Uint8Array(context.assets.open("morning.gp").use { it.readBytes() }.asUByteArray()), Settings())
+        val score = ScoreLoader.loadScoreFromBytes(Uint8Array(
+            InstrumentationRegistry.getInstrumentation().practiceScoreBytes().asUByteArray()), Settings())
         score.backingTrack = null
         for (bar in score.masterBars) bar.syncPoints = null
         score.tracks[0].playbackInfo.program = 25.0 // steel string guitar, same notes and performance

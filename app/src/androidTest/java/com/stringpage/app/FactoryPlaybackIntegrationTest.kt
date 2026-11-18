@@ -38,7 +38,8 @@ class FactoryPlaybackIntegrationTest {
         var generated: File? = null
         var stems: AmpStems? = null
         try {
-            ui { activity.openDemo() }; await("demo ready") { button.isEnabled }
+            val fixture = instrument.practiceScoreUri()
+            ui { activity.openUri(fixture) }; await("fixture ready") { button.isEnabled }
             val score = ui { api.score!! }
             val originalAudio = score.backingTrack!!.rawAudioFile
             val syncCount = score.masterBars.sumOf { it.syncPoints?.length?.toInt() ?: 0 }

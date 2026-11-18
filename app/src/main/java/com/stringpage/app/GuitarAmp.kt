@@ -10,21 +10,25 @@ import kotlin.math.sqrt
 
 internal enum class AmpPreset(
     val label: String, val drive: Double, val bias: Double, val bassCut: Double, val output: Double,
-    val defaultCabinet: GuitarCabinet
+    val defaultCabinet: GuitarCabinet, val cleanPower: Boolean = false
 ) {
-    Clean("清音", 1.4, 0.0, 56.0, 1.05, GuitarCabinet.Open),
+    Clean("清音", 1.4, 0.0, 56.0, 1.05, GuitarCabinet.Open, cleanPower = true),
     Crunch("轻过载", 6.0, 0.10, 85.0, 0.28, GuitarCabinet.Open),
     British("英式失真", 15.0, 0.16, 125.0, 0.166, GuitarCabinet.Closed),
-    Modern("现代高增益", 29.0, 0.06, 175.0, 0.130, GuitarCabinet.Closed)
+    Modern("现代高增益", 29.0, 0.06, 175.0, 0.130, GuitarCabinet.Closed),
+    Bright("明亮清音", 1.12, 0.025, 80.0, 1.12, GuitarCabinet.Twin, cleanPower = true),
+    Warm("暖调清音", 2.15, 0.07, 48.0, 0.67, GuitarCabinet.Compact, cleanPower = true)
 }
 
 internal enum class GuitarCabinet(val label: String, val resonance: Double, val presence: Double, val cutoff: Double) {
     Open("开放式 1×12", 112.0, 2350.0, 4900.0),
-    Closed("封闭式 4×12", 133.0, 1800.0, 3900.0)
+    Closed("封闭式 4×12", 133.0, 1800.0, 3900.0),
+    Compact("小型 1×10", 150.0, 1380.0, 3600.0),
+    Twin("半开放式 2×12", 94.0, 2750.0, 5450.0)
 }
 
 internal enum class GuitarDrive(val label: String) {
-    Off("旁通"), Boost("提升"), Overdrive("过载"), Distortion("失真")
+    Off("旁通"), Boost("提升"), Overdrive("过载"), Distortion("失真"), Fuzz("法兹")
 }
 
 internal data class GuitarAmpSettings(
@@ -63,10 +67,23 @@ internal class GuitarAmp(config: GuitarAmpSettings, private val sampleRate: Int,
         GuitarDrive.Boost -> 2.0
         GuitarDrive.Overdrive -> 8.0
         GuitarDrive.Distortion -> 20.0
+        GuitarDrive.Fuzz -> 30.0
     }
-    private val pedalInput = pedal?.let { Biquad.highPass(sampleRate.toDouble(), if (it == GuitarDrive.Boost) 42.0 else 135.0) }
+    private val pedalInput = pedal?.let {
+        val cutoff = when (it) {
+            GuitarDrive.Boost -> 42.0
+            GuitarDrive.Fuzz -> 75.0
+            else -> 135.0
+        }
+        Biquad.highPass(sampleRate.toDouble(), cutoff)
+    }
     private val pedalTone = pedal?.let {
-        Biquad.lowPass(sampleRate * 4.0, if (it == GuitarDrive.Distortion) 4700.0 else 6400.0)
+        val cutoff = when (it) {
+            GuitarDrive.Distortion -> 4700.0
+            GuitarDrive.Fuzz -> 3650.0
+            else -> 6400.0
+        }
+        Biquad.lowPass(sampleRate * 4.0, cutoff)
     }
     private val ampEnabled = config.ampEnabled
     private val gain = (if (ampEnabled) preset.output else 1.0) * config.volume / 75.0
@@ -88,16 +105,20 @@ internal class GuitarAmp(config: GuitarAmpSettings, private val sampleRate: Int,
         modulation = if (modulationPosition == ModulationPosition.BeforeAmp) modulation else GuitarModulation.Off,
         delay = GuitarDelay.Off, reverb = GuitarReverb.Off
     ) }, beats)
-    private val ampLoop = space(config.effects.run { copy(modulation = GuitarModulation.Off,
-        delay = if (delayPosition == SpacePosition.AmpLoop) delay else GuitarDelay.Off,
+    private val delayInLoop = config.effects.delayPosition == SpacePosition.AmpLoop &&
+        config.effects.delayVoice != GuitarDelayVoice.PingPong
+    private val ampLoop = space(config.effects.run { copy(
+        modulation = if (modulationPosition == ModulationPosition.AmpLoop && ampEnabled) modulation else GuitarModulation.Off,
+        delay = if (delayInLoop) delay else GuitarDelay.Off,
         reverb = if (reverbPosition == SpacePosition.AmpLoop) reverb else GuitarReverb.Off
     ) }, beats)
     private val afterCabinet = space(config.effects.run { copy(
-        modulation = if (modulationPosition == ModulationPosition.AfterCabinet) modulation else GuitarModulation.Off,
-        delay = if (delayPosition == SpacePosition.AfterCabinet) delay else GuitarDelay.Off,
+        modulation = if (modulationPosition == ModulationPosition.AfterCabinet ||
+            modulationPosition == ModulationPosition.AmpLoop && !ampEnabled) modulation else GuitarModulation.Off,
+        delay = if (!delayInLoop) delay else GuitarDelay.Off,
         reverb = if (reverbPosition == SpacePosition.AfterCabinet) reverb else GuitarReverb.Off
     ) }, beats)
-    private val loopPower = if (ampLoop != null && ampEnabled && preset != AmpPreset.Clean) {
+    private val loopPower = if (ampLoop != null && ampEnabled && !preset.cleanPower) {
         Biquad.lowPass(sampleRate * 4.0, 8200.0)
     } else null
     private var previousPowerInput = 0.0
@@ -209,12 +230,13 @@ internal class GuitarAmp(config: GuitarAmpSettings, private val sampleRate: Int,
                 GuitarDrive.Boost -> interpolated * pedalGain
                 GuitarDrive.Overdrive -> (saturate(interpolated * pedalGain + 0.09) - OVERDRIVE_BIAS) * 0.53
                 GuitarDrive.Distortion -> (interpolated * pedalGain).coerceIn(-0.72, 0.72) * 0.56
+                GuitarDrive.Fuzz -> (saturate((interpolated * pedalGain + 0.23) * 2.8) - FUZZ_BIAS) * 0.43
                 else -> interpolated
             }
             val pedalOut = pedalTone?.process(driven) ?: driven
             val power = if (ampEnabled) {
                 val preamp = saturate(pedalOut * ampGain + preset.bias) - biasOffset
-                if (preset == AmpPreset.Clean || ampLoop != null) preamp else saturate(preamp * 1.22)
+                if (preset.cleanPower || ampLoop != null) preamp else saturate(preamp * 1.22)
             } else pedalOut
             shaped = antiAlias.process(trebleCut.process(power))
         }
@@ -250,6 +272,7 @@ internal class GuitarAmp(config: GuitarAmpSettings, private val sampleRate: Int,
 
     private companion object {
         val OVERDRIVE_BIAS = saturate(0.09)
+        val FUZZ_BIAS = saturate(0.23 * 2.8)
 
         fun saturate(x: Double): Double {
             val limited = x.coerceIn(-3.0, 3.0)

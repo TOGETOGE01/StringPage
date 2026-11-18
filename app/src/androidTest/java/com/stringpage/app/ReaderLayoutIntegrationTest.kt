@@ -21,7 +21,9 @@ class ReaderLayoutIntegrationTest {
         val activity=instrument.startActivitySync(Intent(instrument.targetContext,MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)) as MainActivity
         try {
-            ui { activity.openDemo() }
+            assertFalse(instrument.targetContext.assets.list("").orEmpty().contains("morning.gp"))
+            val fixture = instrument.practiceScoreUri()
+            ui { activity.openUri(fixture) }
             val deadline=SystemClock.uptimeMillis()+15000
             while(!ui { activity.findViewById<Button>(R.id.play_pause).isEnabled } && SystemClock.uptimeMillis()<deadline) SystemClock.sleep(40)
             instrument.waitForIdleSync()

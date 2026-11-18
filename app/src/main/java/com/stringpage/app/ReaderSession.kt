@@ -27,10 +27,9 @@ internal data class ReaderSession(
         }
     }
     companion object {
-        const val DEMO="asset:morning.gp"
         fun fromBundle(bundle: Bundle?): ReaderSession? {
             if(bundle==null || bundle.getInt("version")!=1) return null
-            val document=bundle.getString("document")?.takeIf { it.isNotBlank() } ?: return null
+            val document=bundle.getString("document")?.takeIf { it.isNotBlank() && !it.startsWith("asset:") } ?: return null
             fun number(key: String,default: Double,min: Double,max: Double): Double {
                 val value=bundle.getDouble(key,default)
                 return if(value.isFinite()) value.coerceIn(min,max) else default

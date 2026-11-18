@@ -5,11 +5,12 @@ internal enum class GuitarWah(val label: String) {
 }
 
 internal enum class GuitarModulation(val label: String) {
-    Off("旁通"), Chorus("立体声合唱"), Phaser("立体声移相")
+    Off("旁通"), Chorus("立体声合唱"), Phaser("立体声移相"),
+    Tremolo("立体声颤音"), Flanger("立体声镶边")
 }
 
 internal enum class ModulationPosition(val label: String) {
-    AfterCabinet("箱体之后"), BeforeAmp("音箱之前")
+    AfterCabinet("箱体之后"), BeforeAmp("音箱之前"), AmpLoop("音箱效果环路")
 }
 
 internal enum class SpacePosition(val label: String) {
@@ -22,8 +23,13 @@ internal enum class GuitarDelay(val label: String, val beats: Double = 0.0) {
     TripletEighth("八分三连音", 1.0 / 3), Sixteenth("十六分音符", 0.25)
 }
 
+internal enum class GuitarDelayVoice(val label: String) {
+    Digital("数字"), Tape("磁带风格"), PingPong("左右交替")
+}
+
 internal enum class GuitarReverb(val label: String, val size: Double = 0.0) {
-    Off("旁通"), Room("房间", 0.72), Plate("板式", 0.96), Hall("大厅", 1.24)
+    Off("旁通"), Room("房间", 0.72), Plate("板式", 0.96), Hall("大厅", 1.24),
+    Spring("弹簧风格", 0.82)
 }
 
 internal data class GuitarEffects(
@@ -35,6 +41,7 @@ internal data class GuitarEffects(
     val modulationRate: Int = 85,
     val modulationPosition: ModulationPosition = ModulationPosition.AfterCabinet,
     val delay: GuitarDelay = GuitarDelay.Off,
+    val delayVoice: GuitarDelayVoice = GuitarDelayVoice.Digital,
     val delayMs: Int = 320,
     val delayFeedback: Int = 28,
     val delayMix: Int = 22,

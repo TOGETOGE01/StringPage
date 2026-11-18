@@ -32,8 +32,7 @@ class ScoreExportTest {
     }
 
     private fun demo(): Score {
-        val bytes = InstrumentationRegistry.getInstrumentation().targetContext.assets
-            .open("morning.gp").use { it.readBytes() }
+        val bytes = InstrumentationRegistry.getInstrumentation().practiceScoreBytes()
         return ScoreLoader.loadScoreFromBytes(Uint8Array(bytes.asUByteArray()), Settings())
     }
 

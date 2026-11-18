@@ -65,6 +65,7 @@ internal object GuitarAmpPreferences {
         put("modulationRate", effects.modulationRate)
         put("modulationPosition", effects.modulationPosition.name)
         put("delay", effects.delay.name)
+        put("delayVoice", effects.delayVoice.name)
         put("delayMs", effects.delayMs)
         put("delayFeedback", effects.delayFeedback)
         put("delayMix", effects.delayMix)
@@ -91,6 +92,7 @@ internal object GuitarAmpPreferences {
             modulationRate = value("modulationRate", defaults.modulationRate, 10..500),
             modulationPosition = option("modulationPosition", ModulationPosition.entries, defaults.modulationPosition),
             delay = option("delay", GuitarDelay.entries, defaults.delay),
+            delayVoice = option("delayVoice", GuitarDelayVoice.entries, defaults.delayVoice),
             delayMs = value("delayMs", defaults.delayMs, 60..1200),
             delayFeedback = value("delayFeedback", defaults.delayFeedback, 0..75),
             delayMix = value("delayMix", defaults.delayMix),

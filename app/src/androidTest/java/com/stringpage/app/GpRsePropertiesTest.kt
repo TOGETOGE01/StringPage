@@ -170,7 +170,7 @@ class GpRsePropertiesTest {
     }
 
     @Test fun generatedGp6ContainerAgreesWithPublicScoreLoaderAndOriginalPracticeScore() {
-        val bytes=InstrumentationRegistry.getInstrumentation().targetContext.assets.open("morning.gp").use { it.readBytes() }
+        val bytes=InstrumentationRegistry.getInstrumentation().practiceScoreBytes()
         var gpif:ByteArray?=null
         ZipInputStream(ByteArrayInputStream(bytes)).use { input ->
             while(true) {

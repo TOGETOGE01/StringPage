@@ -49,8 +49,10 @@ class RecentImportIntegrationTest {
 
     @Suppress("DEPRECATION")
     @Test fun multiSelectResultImportsValidFilesWithoutReplacingOpenScore() {
-        ui { activity.openDemo() }
-        await("demo ready") { activity.findViewById<Button>(R.id.play_pause).isEnabled }
+        val fixture = instrument.practiceScoreUri()
+        ui { activity.openUri(fixture) }
+        await("fixture ready") { activity.findViewById<Button>(R.id.play_pause).isEnabled }
+        val priorCount = RecentLibrary(prefs).entries().size
         val current = ui { api.score }
         val first = gp("batch-a.gp"); val second = gp("batch-b.gp")
         val broken = File(context.cacheDir, "batch-broken.gp").apply { writeText("broken"); files.add(this) }
@@ -65,7 +67,7 @@ class RecentImportIntegrationTest {
         ui {
             assertSame(current, api.score)
             assertTrue(activity.findViewById<Button>(R.id.play_pause).isEnabled)
-            assertEquals(2, RecentLibrary(prefs).entries().size)
+            assertEquals(priorCount + 2, RecentLibrary(prefs).entries().size)
         }
     }
 

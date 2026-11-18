@@ -28,6 +28,69 @@ import kotlin.math.sqrt
 
 @RunWith(AndroidJUnit4::class)
 class GuitarAmpTest {
+    @Test fun alternatingEchoKeepsStereoEvenIfAnOlderPresetRequestsTheMonoLoop() {
+        val rate = 8000
+        val tap = rate / 10
+        val audio = impulse(tap * 3 + 10)
+        val settings = bypassedAmp().copy(effects = GuitarEffects(delay = GuitarDelay.Fixed, delayMs = 100,
+            delayVoice = GuitarDelayVoice.PingPong, delayMix = 70, delayFeedback = 50,
+            delayPosition = SpacePosition.AmpLoop))
+        GuitarAmp(settings, rate).process(audio, audio.size / 2)
+        assertEquals(0.35f, audio[tap * 2], 0.00001f)
+        assertEquals(0f, audio[tap * 2 + 1], 0.00001f)
+        assertEquals(0f, audio[tap * 4], 0.00001f)
+        assertTrue(audio[tap * 4 + 1] > 0.14f)
+        assertTrue(audio[tap * 6] > 0.07f)
+        assertEquals(0f, audio[tap * 6 + 1], 0.00001f)
+    }
+
+    @Test fun newModulatorsAndSpringHaveIndependentSignalShapes() {
+        val rate = 8000
+        fun render(source: FloatArray, effects: GuitarEffects): FloatArray =
+            source.clone().also { GuitarAmp(bypassedAmp().copy(effects = effects), rate).process(it, it.size / 2) }
+        val tremolo = render(FloatArray(rate * 2) { 0.5f },
+            GuitarEffects(modulation = GuitarModulation.Tremolo, modulationRate = 100, modulationDepth = 100))
+        assertEquals(0.275f, tremolo[0], 0.0001f)
+        assertEquals(0.05f, tremolo[1], 0.0001f)
+        assertEquals(0.5f, tremolo[rate * 3 / 2], 0.0001f)
+
+        val pulse = impulse(rate)
+        val flanger = render(pulse, GuitarEffects(modulation = GuitarModulation.Flanger, modulationDepth = 100))
+        assertTrue((20..50).any { flanger[it * 2] < -0.06f })
+        assertTrue((20..50).any { flanger[it * 2] != flanger[it * 2 + 1] })
+        assertTrue((1000 until rate).all { kotlin.math.abs(flanger[it * 2]) < 0.00001f })
+
+        val room = render(pulse, GuitarEffects(reverb = GuitarReverb.Room, reverbMix = 65))
+        val spring = render(pulse, GuitarEffects(reverb = GuitarReverb.Spring, reverbMix = 65))
+        assertTrue((50..110).any { kotlin.math.abs(spring[it * 2]) > 0.01f })
+        assertTrue((50..110).all { room[it * 2] == 0f })
+    }
+
+    @Test fun allFactoryPresetsRoundTripAndProduceDistinctFiniteAudio() {
+        val rate = 44100
+        val frames = rate / 2
+        val source = FloatArray(frames * 2) { index ->
+            val frame = index / 2
+            if (frame < rate / 4) (0.16 * sin(2 * PI * 196 * frame / rate) +
+                0.07 * sin(2 * PI * 571 * frame / rate)).toFloat() else 0f
+        }
+        val configs = BuiltInGuitarPresets.groups.flatMap { it.presets }
+        assertEquals(configs.size, configs.map { it.first }.toSet().size)
+        val outputs = configs.map { (name, settings) ->
+            assertEquals(name, settings, GuitarAmpPreferences.decode(GuitarAmpPreferences.encode(settings)))
+            val pcm = source.clone()
+            val amp = GuitarAmp(settings, rate)
+            amp.process(pcm, frames)
+            assertTrue("$name should stay in range", pcm.all { it.isFinite() && it in -1f..1f })
+            assertTrue("$name should produce a usable signal", pcm.any { kotlin.math.abs(it) > 0.01f })
+            amp.reset()
+            val replay = source.clone().also { amp.process(it, frames) }
+            assertArrayEquals(name, pcm, replay, 0f)
+            pcm.contentHashCode()
+        }
+        assertEquals(configs.size, outputs.toSet().size)
+    }
+
     @Test fun delayFollowsUnfoldedTempoAndKeepsFixedMillisecondsAtSlowPracticeSpeeds() {
         val rate = 8000
         val tempo = SourceBeatMap(rate, listOf(SourceBeatMap.Tempo(0.0, 120.0), SourceBeatMap.Tempo(250.0, 60.0)))

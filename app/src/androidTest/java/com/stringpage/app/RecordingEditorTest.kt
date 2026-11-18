@@ -54,7 +54,7 @@ class RecordingEditorTest {
     }
 
     @Test fun replacingAndRemovingAudioIsUndoableAndExportPreservesTheNewBytes() {
-        val original = context.assets.open("morning.gp").use { open(it.readBytes()) }
+        val original = open(InstrumentationRegistry.getInstrumentation().practiceScoreBytes())
         val originalBytes = bytes(original)
         val originalPoints = ScoreRecording.points(original)
         assertTrue(originalPoints.size > 1)

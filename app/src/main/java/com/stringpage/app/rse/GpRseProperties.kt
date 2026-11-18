@@ -30,10 +30,13 @@ object GpRseProperties {
         val elementIndex: Int, val articulationIndex: Int, val id: String?,
         val rawOutputRseSound: String?, val outputRseSound: List<String>, val outputMidiNumber: Int?
     )
+    data class LyricLine(val startBar: Int, val text: String)
+    data class TrackLyrics(val lines: List<LyricLine>, val dispatched: Boolean)
     data class TrackInfo(
         val id: String, val instrumentType: String?, val instrumentReference: String?,
         val rawPlayingStyle: String?, val playingStyleCore: Int?,
-        val articulations: List<ArticulationInfo>
+        val articulations: List<ArticulationInfo>,
+        val lyrics: TrackLyrics? = null
     ) {
         val hasExplicitPlayingStyle: Boolean get() = rawPlayingStyle != null
     }
@@ -410,9 +413,11 @@ object GpRseProperties {
         private val noteGraph = GpNoteSourceGraph.Builder()
         private data class Frame(val tag: String, val text: StringBuilder?)
         private data class Art(var id: String?, val element: Int, val index: Int, var sound: String? = null, var midi: Int? = null)
+        private data class Lyric(var startBar: Int = 0, var text: String = "")
         private data class Track(val id: String, var type: String? = null, var reference: String? = null,
             var style: String? = null, var styleSeen: Boolean = false, val arts: MutableList<ArticulationInfo> = ArrayList(),
-            var element: Int = -1, var articulation: Int = 0)
+            var element: Int = -1, var articulation: Int = 0, val lyrics: MutableList<LyricLine> = ArrayList(),
+            var lyricsDispatched: Boolean = false, var currentLyric: Lyric? = null)
         private val stack = ArrayList<Frame>()
         private val paths = HashMap<String, List<String>>()
         private val tracks = LinkedHashMap<String, TrackInfo>()
@@ -429,7 +434,9 @@ object GpRseProperties {
             check(++events <= 2000000 && stack.size < 128, "GPIF structure exceeds limits")
             noteGraph.start(qName, attrs)
             if (stack.isEmpty()) { check(!root && qName == "GPIF", "Expected GPIF root"); root = true }
-            val capture = qName in setOf("PlayingStyle", "OutputRSESound", "OutputMidiNumber", "Type", "Tracks")
+            val lyricText = (qName == "Text" || qName == "Offset") && track?.currentLyric != null &&
+                path("GPIF/Tracks/Track/Lyrics/Line")
+            val capture = lyricText || qName in setOf("PlayingStyle", "OutputRSESound", "OutputMidiNumber", "Type", "Tracks")
             stack.add(Frame(qName, if (capture) StringBuilder() else null))
             when {
                 path("GPIF/Tracks/Track") -> {
@@ -439,6 +446,10 @@ object GpRseProperties {
                     track = Track(id)
                 }
                 path("GPIF/Tracks/Track/Instrument") -> track?.reference = attrs.getValue("ref")
+                path("GPIF/Tracks/Track/Lyrics") -> track?.lyricsDispatched = attrs.getValue("dispatched").equals("true", ignoreCase = true)
+                path("GPIF/Tracks/Track/Lyrics/Line") -> track?.let {
+                    if (it.lyrics.size < 32) it.currentLyric = Lyric()
+                }
                 path("GPIF/Tracks/Track/InstrumentSet/Elements/Element") -> track?.let { it.element++; it.articulation = 0 }
                 path("GPIF/Tracks/Track/InstrumentSet/Elements/Element/Articulations/Articulation") -> track?.let {
                     check(++articulations <= 65536 && it.element < 1024, "Too many GPIF articulations")
@@ -448,7 +459,16 @@ object GpRseProperties {
         }
         override fun characters(chars: CharArray, start: Int, length: Int) {
             noteGraph.text(chars,start,length)
-            stack.lastOrNull()?.text?.let { check(it.length + length <= 65536, "GPIF property text exceeds limits"); it.append(chars, start, length) }
+            val frame = stack.lastOrNull() ?: return
+            frame.text?.let {
+                if (frame.tag == "Text") {
+                    val available = (65536 - it.length).coerceAtLeast(0)
+                    it.append(chars, start, minOf(available, length))
+                } else {
+                    check(it.length + length <= 65536, "GPIF property text exceeds limits")
+                    it.append(chars, start, length)
+                }
+            }
         }
         override fun comment(chars: CharArray, start: Int, length: Int) { noteGraph.boundary() }
         override fun processingInstruction(target: String?, data: String?) { noteGraph.boundary() }
@@ -468,6 +488,12 @@ object GpRseProperties {
                     check(!it.styleSeen, "Duplicate PlayingStyle"); it.styleSeen = true; it.style = text.orEmpty().trim()
                 }
                 path("GPIF/Tracks/Track/InstrumentSet/Type") -> track?.let { check(it.type == null, "Duplicate instrument type"); it.type = text.orEmpty().trim() }
+                path("GPIF/Tracks/Track/Lyrics/Line/Offset") -> track?.currentLyric?.startBar = text?.trim()?.toIntOrNull() ?: 0
+                path("GPIF/Tracks/Track/Lyrics/Line/Text") -> track?.currentLyric?.text = text.orEmpty()
+                path("GPIF/Tracks/Track/Lyrics/Line") -> track?.let { source ->
+                    source.currentLyric?.let { source.lyrics.add(LyricLine(it.startBar, it.text)) }
+                    source.currentLyric = null
+                }
                 path("GPIF/Tracks/Track/InstrumentSet/Elements/Element/Articulations/Articulation/OutputRSESound") -> art?.let {
                     check(it.sound == null, "Duplicate OutputRSESound"); it.sound = text.orEmpty()
                 }
@@ -477,7 +503,9 @@ object GpRseProperties {
                 }
                 path("GPIF/Tracks/Track") -> track?.let {
                     tracks[it.id] = TrackInfo(it.id,it.type,it.reference,it.style,
-                        if (it.styleSeen) playingStyleCore(it.style.orEmpty()) else 0,it.arts.toList())
+                        if (it.styleSeen) playingStyleCore(it.style.orEmpty()) else 0,it.arts.toList(),
+                        it.lyrics.takeIf { lines -> lines.any { line -> line.text.isNotBlank() } }
+                            ?.let { lines -> TrackLyrics(lines.toList(), it.lyricsDispatched) })
                     track = null
                 }
             }

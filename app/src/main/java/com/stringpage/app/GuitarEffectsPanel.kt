@@ -2,6 +2,7 @@ package com.stringpage.app
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.graphics.Typeface
 import android.text.InputFilter
 import android.text.InputType
 import android.text.TextUtils
@@ -92,6 +93,8 @@ internal class GuitarEffectsPanel(
     }
     private val delay = selector(delayPanel, "延迟类型", GuitarDelay.entries.map { it.label }, initial.effects.delay.ordinal)
     private val delayControls = group(delayPanel)
+    private val delayVoice = selector(delayControls, "延迟音色", GuitarDelayVoice.entries.map { it.label },
+        initial.effects.delayVoice.ordinal)
     private val delayPosition = selector(delayControls, "延迟位置", SpacePosition.entries.map { it.label },
         initial.effects.delayPosition.ordinal)
     private val fixedDelayControls = group(delayControls)
@@ -186,6 +189,7 @@ internal class GuitarEffectsPanel(
             modulationRate = modulationRate.progress + 10,
             modulationPosition = ModulationPosition.entries[modulationPosition.selectedItemPosition],
             delay = GuitarDelay.entries[delay.selectedItemPosition],
+            delayVoice = GuitarDelayVoice.entries[delayVoice.selectedItemPosition],
             delayMs = delayMs.progress + 60,
             delayMix = delayMix.progress,
             delayFeedback = delayFeedback.progress,
@@ -198,25 +202,33 @@ internal class GuitarEffectsPanel(
     )
 
     private fun choosePreset() {
-        val builtIns = AmpPreset.entries.map { it.label to GuitarAmpSettings(it, gateDb = if (it == AmpPreset.Modern) -62 else null) } +
-            listOf(
-                "过载主音" to GuitarAmpSettings(AmpPreset.British, gain = 57, mids = 2,
-                    pedal = GuitarDrive.Overdrive, pedalDrive = 29, effects = GuitarEffects(compression = 16,
-                        delay = GuitarDelay.DottedEighth, delayMix = 18, delayFeedback = 24,
-                        reverb = GuitarReverb.Room, reverbMix = 12)),
-                "合唱清音" to GuitarAmpSettings(effects = GuitarEffects(compression = 24,
-                    modulation = GuitarModulation.Chorus, modulationDepth = 54,
-                    reverb = GuitarReverb.Plate, reverbDecay = 36, reverbMix = 16))
-            )
         val names = presets.names()
-        AlertDialog.Builder(activity).setTitle("吉他效果预设")
-            .setItems((builtIns.map { it.first } + names.map { "自定义 · $it" }).toTypedArray()) { _, index ->
-                val preset = builtIns.getOrNull(index)?.second ?: presets.load(names[index - builtIns.size])
-                preset?.let(::applyPreset)
+        val rows = buildList<Pair<String, (() -> GuitarAmpSettings?)?>> {
+            for (group in BuiltInGuitarPresets.groups) {
+                add(group.label to null)
+                for ((name, settings) in group.presets) add(name to { settings })
             }
+            if (names.isNotEmpty()) add("自定义" to null)
+            for (name in names) add(name to { presets.load(name) })
+        }
+        val adapter = object : ArrayAdapter<String>(activity, android.R.layout.simple_list_item_1, rows.map { it.first }) {
+            override fun areAllItemsEnabled() = false
+            override fun isEnabled(position: Int) = rows[position].second != null
+
+            override fun getView(position: Int, convertView: View?, parent: android.view.ViewGroup): View {
+                val text = super.getView(position, convertView, parent) as TextView
+                val selectable = isEnabled(position)
+                text.typeface = if (selectable) Typeface.DEFAULT else AppUi.medium
+                text.setTextColor(if (selectable) AppUi.ink else AppUi.muted)
+                text.textSize = if (selectable) 16f else 12f
+                return text
+            }
+        }
+        AlertDialog.Builder(activity).setTitle("吉他效果预设")
+            .setAdapter(adapter) { _, index -> rows[index].second?.invoke()?.let(::applyPreset) }
             .setNeutralButton("保存当前预设") { _, _ -> savePreset() }
             .apply { if (names.isNotEmpty()) setNegativeButton("管理预设") { _, _ -> managePresets() } }
-            .show()
+            .setPositiveButton("关闭", null).show()
     }
 
     private fun applyPreset(preset: GuitarAmpSettings) {
@@ -294,6 +306,7 @@ internal class GuitarEffectsPanel(
         modulationRate.progress = effects.modulationRate - 10
         modulationPosition.setSelection(effects.modulationPosition.ordinal)
         delay.setSelection(effects.delay.ordinal)
+        delayVoice.setSelection(effects.delayVoice.ordinal)
         delayMs.progress = effects.delayMs - 60
         delayMix.progress = effects.delayMix
         delayFeedback.progress = effects.delayFeedback
@@ -335,6 +348,11 @@ internal class GuitarEffectsPanel(
         wahControls.visibility = visibility(wah.selectedItemPosition == GuitarWah.Manual.ordinal)
         modulationControls.visibility = visibility(modulation.selectedItemPosition != GuitarModulation.Off.ordinal)
         delayControls.visibility = visibility(delay.selectedItemPosition != GuitarDelay.Off.ordinal)
+        val alternating = delayVoice.selectedItemPosition == GuitarDelayVoice.PingPong.ordinal
+        if (alternating && delayPosition.selectedItemPosition != SpacePosition.AfterCabinet.ordinal) {
+            delayPosition.setSelection(SpacePosition.AfterCabinet.ordinal)
+        }
+        delayPosition.isEnabled = !alternating
         fixedDelayControls.visibility = visibility(delay.selectedItemPosition == GuitarDelay.Fixed.ordinal)
         reverbControls.visibility = visibility(reverb.selectedItemPosition != GuitarReverb.Off.ordinal)
     }

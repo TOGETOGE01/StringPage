@@ -19,7 +19,8 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class BasicScoreEditorTest {
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
-    private fun demo() = ScoreLoader.loadScoreFromBytes(Uint8Array(context.assets.open("morning.gp").use { it.readBytes() }.asUByteArray()), Settings())
+    private fun demo() = ScoreLoader.loadScoreFromBytes(Uint8Array(
+        InstrumentationRegistry.getInstrumentation().practiceScoreBytes().asUByteArray()), Settings())
     private val address = BasicScoreEditor.NoteAddress(0, 0, 0, 0, 0, 0)
     private fun first(score: Score) = score.tracks[0].staves[0].bars[0].voices[0].beats[0].notes[0]
 
@@ -103,7 +104,7 @@ class BasicScoreEditorTest {
     }
 
     @Test fun insertingAndDeletingBarsKeepsAuthoredNotesAndRecordingAnchors() {
-        val bytes = context.assets.open("morning.gp").use { it.readBytes() }
+        val bytes = InstrumentationRegistry.getInstrumentation().practiceScoreBytes()
         var score = ScoreLoader.loadScoreFromBytes(Uint8Array(bytes.asUByteArray()), Settings())
         GpRseProperties.bind(score, GpRseProperties.read(bytes))
         val audio = score.backingTrack!!.rawAudioFile

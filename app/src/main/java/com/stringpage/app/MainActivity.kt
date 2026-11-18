@@ -157,6 +157,7 @@ open class MainActivity : AppCompatActivity() {
     private data class BarPosition(val bar: Int, val occurrence: Int, val offset: Double)
     private var restoreBarPosition: BarPosition? = null
     private var documentKey: String? = null
+    private var lyricTracks = emptySet<Int>()
     private var pendingReaderSession: ReaderSession? = null
     private var restoreRequestedTick: Double? = null
     private var resumeAfterToneReload: Boolean? = null
@@ -254,7 +255,6 @@ open class MainActivity : AppCompatActivity() {
                 if(pendingReaderSession?.document!=intent.data.toString()) pendingReaderSession=null
                 openIncoming(intent)
             }
-            else if(pendingReaderSession?.document==ReaderSession.DEMO) openDemo()
             else if(pendingReaderSession!=null) openUri(Uri.parse(pendingReaderSession!!.document))
             else if (savedInstanceState?.getString("uri") != null) openUri(Uri.parse(savedInstanceState.getString("uri")))
         }
@@ -346,11 +346,6 @@ open class MainActivity : AppCompatActivity() {
         val library = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(17), dp(14), dp(17), dp(20)) }
         library.addView(divider(AppUi.railLine), LinearLayout.LayoutParams(-1, dp(1)))
         library.addView(text("曲库", 18f, AppUi.railInk).apply { typeface = AppUi.medium }, LinearLayout.LayoutParams(-1, dp(50)))
-        library.addView(button("内置练习曲") { openDemo() }.apply {
-            gravity = Gravity.CENTER_VERTICAL; AppUi.iconButton(this, "score", AppUi.railAccent, 17)
-            setTextColor(AppUi.railInk)
-            background = AppUi.ripple(this@MainActivity, AppUi.railSurface, 10, AppUi.railLine)
-        }, LinearLayout.LayoutParams(-1, dp(44)))
         library.addView(recentUi.section)
         voicesPanel = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         voicesPanel.addView(divider(AppUi.railLine), LinearLayout.LayoutParams(-1, dp(1)).apply { topMargin = dp(16) })
@@ -428,12 +423,8 @@ open class MainActivity : AppCompatActivity() {
         welcome.addView(text("GP3、GP4、GP5、GPX、GP", 13f, muted).apply {
             gravity = Gravity.CENTER; setPadding(0, dp(8), 0, dp(23))
         })
-        val welcomeActions = row()
-        welcomeActions.addWeighted(button("导入 GP 文件", true) { pickFile() }, 1f, 46)
-        welcomeActions.addWeighted(button("内置练习曲") { openDemo() }.apply {
-            background = AppUi.ripple(this@MainActivity, AppUi.panel, 10, AppUi.line)
-        }, 1f, 46)
-        welcome.addView(welcomeActions, LinearLayout.LayoutParams(dp(284), dp(46)))
+        welcome.addView(button("导入 GP 文件", true) { pickFile() },
+            LinearLayout.LayoutParams(dp(284), dp(46)))
         if (!pdfPreview) welcome.addView(button("新建乐谱") { showNewScore() },
             LinearLayout.LayoutParams(dp(284), dp(46)).apply { topMargin = dp(8) })
         empty.addView(ScrollView(this).apply { isFillViewport = true; addView(welcome) }, LinearLayout.LayoutParams(-1, -1))
@@ -704,7 +695,7 @@ open class MainActivity : AppCompatActivity() {
         recentUi.refresh(); voiceList.removeAllViews()
         val loaded = score
         if (loaded != null) for ((index, voice) in loaded.tracks.withIndex()) {
-            val label = voice.name.ifBlank { "声部 ${index + 1}" }
+            val label = trackChoiceLabel(voice.name, index)
             val selected = index == activeTrack
             val choice = button(label) { selectTrack(index) }.apply {
                 isSelected = selected
@@ -1121,11 +1112,6 @@ open class MainActivity : AppCompatActivity() {
         setControlsReady(score != null && sheet.api.isReadyForPlayback && (!audioMode || embeddedReady))
     }
 
-    fun openDemo() {
-        if (importing) { Toast.makeText(this, "请先完成或取消批量导入。", Toast.LENGTH_SHORT).show(); return }
-        guardDocumentChange { loadFile({ "晨光练习曲.gp" to assets.open("morning.gp").use { it.readBytes() } }, null) }
-    }
-
     private fun showNewScore() {
         if (loading || importing || pdfPreview) return
         val instruments = ScoreStructure.Instrument.entries
@@ -1210,10 +1196,12 @@ open class MainActivity : AppCompatActivity() {
                     val properties = com.stringpage.app.rse.GpRseProperties.read(bytes)
                     require(!properties.hasGpif || properties.tracks.size == parsed.tracks.length.toInt())
                     com.stringpage.app.rse.GpRseProperties.bind(parsed, properties)
+                    ScoreLyrics.restore(parsed, properties)
                 } catch (error: Exception) {
                     com.stringpage.app.rse.GpRseProperties.bindFailure(parsed, error.message ?: "无法读取原谱的音源设置。")
                 }
                 val rawAudio = parsed.backingTrack?.rawAudioFile
+                val lyrics = ScoreLyrics.trackIndexes(parsed)
                 val audioFile = rawAudio?.takeIf { it.length > 0 }?.let { RecordingAudio.materialize(it, cacheDir) }
                 runOnUiThread {
                     if (token != generation || isDestroyed) {
@@ -1221,12 +1209,13 @@ open class MainActivity : AppCompatActivity() {
                         return@runOnUiThread
                     }
                     loading = false; loadingIndicator.visibility = View.GONE
-                    val key=uri?.toString() ?: if(!recovered && !pdfPreview && !newDocument) ReaderSession.DEMO else null
+                    val key = uri?.toString()
                     val resume=pendingReaderSession?.takeIf { it.document==key }
                     if(resume==null) pendingReaderSession=null
                     restoreRequestedTick=null
                     restoreBarPosition=null
                     score = parsed; fileLabel = label; documentKey=key
+                    lyricTracks = lyrics
                     activeTrack=(resume?.track ?: 0).coerceIn(0,parsed.tracks.length.toInt()-1)
                     modified = recovered || newDocument; restoreTick = null; trainer.stop()
                     editor.reset(parsed); practice.reset(parsed)
@@ -1607,6 +1596,7 @@ open class MainActivity : AppCompatActivity() {
         restoreRequestedTick = null
         restoreTick = if (checkpoint == null) at else null
         score = next; modified = true; midiReady = false
+        lyricTracks = ScoreLyrics.trackIndexes(next)
         activeTrack = selectedTrack
         tracks?.let(scoreEntry::applyTrackEdit)
         practice.reset(next, true)
@@ -1735,8 +1725,13 @@ open class MainActivity : AppCompatActivity() {
 
     private fun updateDocumentSubtitle() {
         val current = score ?: return
+        val lyrics = when {
+            activeTrack in lyricTracks -> "含歌词"
+            lyricTracks.isNotEmpty() -> "歌词见声部列表"
+            else -> ""
+        }
         subtitle.text = listOf(current.artist, "${current.masterBars.length.toInt()} 小节",
-            "${current.tracks.length.toInt()} 个声部", if (modified) "未导出修改" else "")
+            "${current.tracks.length.toInt()} 个声部", lyrics, if (modified) "未导出修改" else "")
             .filter { it.isNotBlank() }.joinToString(" · ")
     }
 
@@ -1968,7 +1963,7 @@ open class MainActivity : AppCompatActivity() {
 
     private fun chooseTrack() {
         val loaded = score ?: return
-        val names = loaded.tracks.toList().map { it.name.ifBlank { "声部 ${(it.index + 1).toInt()}" } }.toTypedArray()
+        val names = loaded.tracks.toList().mapIndexed { index, track -> trackChoiceLabel(track.name, index) }.toTypedArray()
         AlertDialog.Builder(this).setTitle("显示哪个声部？")
             .setSingleChoiceItems(names, activeTrack) { dialog, index ->
                 selectTrack(index)
@@ -1976,11 +1971,15 @@ open class MainActivity : AppCompatActivity() {
             }.setNegativeButton("关闭", null).show()
     }
 
+    private fun trackChoiceLabel(name: String, index: Int): String =
+        name.ifBlank { "声部 ${index + 1}" } + if (index in lyricTracks) " · 歌词" else ""
+
     private fun selectTrack(index: Int) {
         val loaded = score ?: return
         if (scoreEntry.isOpen) scoreEntry.resetSelection()
         activeTrack = index; sheet.tracks = listOf(loaded.tracks[index])
         track.text = loaded.tracks[index].name.ifBlank { "声部 ${index + 1}" }
+        updateDocumentSubtitle()
         refreshPanels()
     }
 
@@ -2173,7 +2172,7 @@ open class MainActivity : AppCompatActivity() {
         captureReaderSession()?.let { outState.putBundle("readerSession",it.toBundle()) }
         exportFile?.let { outState.putString("exportPath", it.absolutePath) }
         exportFormat?.let { outState.putString("exportFormat", it.name) }
-        documentKey?.takeIf { it!=ReaderSession.DEMO }?.let { outState.putString("uri", it) }
+        documentKey?.let { outState.putString("uri", it) }
         super.onSaveInstanceState(outState)
     }
 

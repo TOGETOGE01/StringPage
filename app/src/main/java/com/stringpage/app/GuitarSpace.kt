@@ -9,14 +9,17 @@ import kotlin.math.ln
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
-/** Stereo processing after the cabinet and EQ. Each instance belongs to one track. */
+/** Modulation and ambience for one stage of a single track's signal chain. */
 internal class GuitarSpace(effects: GuitarEffects, private val sampleRate: Int, beats: SourceBeatMap) {
-    private val chorus = if (effects.modulation == GuitarModulation.Chorus && effects.modulationDepth > 0) {
+    private val modulation = if (effects.modulationDepth > 0) effects.modulation else GuitarModulation.Off
+    private val chorus = if (modulation == GuitarModulation.Chorus) {
         Chorus(effects.modulationDepth, sampleRate)
     } else null
-    private val phaser = if (effects.modulation == GuitarModulation.Phaser && effects.modulationDepth > 0) {
+    private val phaser = if (modulation == GuitarModulation.Phaser) {
         Phaser(effects.modulationDepth)
     } else null
+    private val flanger = if (modulation == GuitarModulation.Flanger) Flanger(effects.modulationDepth, sampleRate) else null
+    private val tremoloDepth = effects.modulationDepth * 0.0045
     private val delay = if (effects.delay != GuitarDelay.Off) Echo(effects, sampleRate, beats) else null
     private val reverb = if (effects.reverb != GuitarReverb.Off) Reverb(effects, sampleRate) else null
     private val phaseStep = 2 * PI * effects.modulationRate / (100.0 * sampleRate)
@@ -38,15 +41,28 @@ internal class GuitarSpace(effects: GuitarEffects, private val sampleRate: Int, 
         if (abs(sample) >= 0.0001) lastInputFrame = frame
         left = sample
         right = sample
-        if (chorus != null) {
-            chorus.process(sample, sin(phase), cos(phase))
-            left = chorus.left
-            right = chorus.right
-        } else if (phaser != null) {
-            left = phaser.process(sample, sin(phase), 0)
-            right = phaser.process(sample, cos(phase), 1)
-        }
-        if (chorus != null || phaser != null) {
+        if (modulation != GuitarModulation.Off) {
+            val sine = sin(phase)
+            val cosine = cos(phase)
+            when {
+                chorus != null -> {
+                    chorus.process(sample, sine, cosine)
+                    left = chorus.left
+                    right = chorus.right
+                }
+                phaser != null -> {
+                    left = phaser.process(sample, sine, 0)
+                    right = phaser.process(sample, cosine, 1)
+                }
+                flanger != null -> {
+                    left = flanger.process(sample, sine, 0)
+                    right = flanger.process(sample, cosine, 1)
+                }
+                modulation == GuitarModulation.Tremolo -> {
+                    left = sample * (1 - tremoloDepth * (1 + sine))
+                    right = sample * (1 - tremoloDepth * (1 + cosine))
+                }
+            }
             phase += phaseStep
             if (phase >= 2 * PI) phase -= 2 * PI
         }
@@ -64,7 +80,8 @@ internal class GuitarSpace(effects: GuitarEffects, private val sampleRate: Int, 
 
     fun remainingFrames(frame: Long, speed: Double): Int {
         if (lastInputFrame == Long.MIN_VALUE) return 0
-        val budget = (chorus?.tailFrames ?: 0) + (delay?.tailFrames ?: 0) + (reverb?.tailFrames ?: 0)
+        val budget = (chorus?.tailFrames ?: 0) + (flanger?.tailFrames ?: 0) +
+            (delay?.tailFrames ?: 0) + (reverb?.tailFrames ?: 0)
         return (budget - (frame - lastInputFrame)).coerceIn(0L, (sampleRate * speed * 4.0).toLong()).toInt()
     }
 
@@ -73,6 +90,7 @@ internal class GuitarSpace(effects: GuitarEffects, private val sampleRate: Int, 
         lastInputFrame = Long.MIN_VALUE
         chorus?.reset()
         phaser?.reset()
+        flanger?.reset()
         delay?.reset()
         reverb?.reset()
     }
@@ -142,15 +160,36 @@ internal class GuitarSpace(effects: GuitarEffects, private val sampleRate: Int, 
         }
     }
 
+    private class Flanger(depth: Int, rate: Int) {
+        val tailFrames = rate * 55 / 1000
+        private val strength = depth / 100.0
+        private val center = rate * 0.0032
+        private val width = rate * 0.0024 * strength
+        private val lines = Array(2) { DelayLine(ceil(rate * 0.0056).toInt() + 2) }
+
+        fun process(input: Double, oscillator: Double, channel: Int): Double {
+            val line = lines[channel]
+            val delayed = line.read((center + width * oscillator).coerceAtLeast(1.0))
+            line.write(input + delayed * (0.12 + 0.31 * strength))
+            return input * (1 - 0.37 * strength) - delayed * (0.36 * strength)
+        }
+
+        fun reset() { lines.forEach { it.reset() } }
+    }
+
     private class Echo(effects: GuitarEffects, private val rate: Int, private val beats: SourceBeatMap) {
         private val note = effects.delay.beats
+        private val voice = effects.delayVoice
+        private val tape = voice == GuitarDelayVoice.Tape
         private var fixedMs = effects.delayMs
         private var feedback = effects.delayFeedback / 100.0
         private var feedbackTarget = feedback
         private var mix = effects.delayMix / 100.0
         private var mixTarget = mix
         private val ramp = 1 - exp(-1.0 / (0.008 * rate))
-        private val damping = 1 - exp(-2 * PI * 4600 / rate)
+        private val damping = 1 - exp(-2 * PI * (if (tape) 2800 else 4600) / rate)
+        private val tapePhaseStep = 2 * PI * 0.73 / rate
+        private var tapePhase = 0.0
         private val maxDelay = if (note == 0.0) rate * 1.8
             else minOf(rate * 6.0, beats.maxFramesPerBeat * note)
         private val leftLine = DelayLine(ceil(maxDelay).toInt() + 2)
@@ -187,9 +226,18 @@ internal class GuitarSpace(effects: GuitarEffects, private val sampleRate: Int, 
         }
 
         fun process(inputLeft: Double, inputRight: Double, frame: Long) {
-            lastDelay = if (note > 0) beats.delayFramesAt(frame, note).coerceIn(1.0, maxOf(maxDelay, 1.0)) else fixedDelay
-            var echoLeft = leftLine.read(lastDelay)
-            var echoRight = rightLine.read(lastDelay)
+            if (note == 0.0 && fixedDelay < 0.0) setSpeed(1.0)
+            val limit = maxOf(maxDelay, 1.0)
+            val nominal = (if (note > 0) beats.delayFramesAt(frame, note) else fixedDelay).coerceIn(1.0, limit)
+            val flutter = if (tape) sin(tapePhase) * rate * 0.0007 else 0.0
+            if (tape) {
+                tapePhase += tapePhaseStep
+                if (tapePhase >= 2 * PI) tapePhase -= 2 * PI
+            }
+            val tap = (nominal + flutter).coerceIn(1.0, limit)
+            lastDelay = maxOf(tap, nominal, if (transition < 1.0) previousDelay else 0.0)
+            var echoLeft = leftLine.read(tap)
+            var echoRight = rightLine.read(tap)
             if (transition < 1.0) {
                 echoLeft = previous(leftLine, echoLeft)
                 echoRight = previous(rightLine, echoRight)
@@ -199,8 +247,22 @@ internal class GuitarSpace(effects: GuitarEffects, private val sampleRate: Int, 
             filteredRight += (echoRight - filteredRight) * damping
             mix += (mixTarget - mix) * ramp
             feedback += (feedbackTarget - feedback) * ramp
-            leftLine.write(inputLeft + filteredLeft * feedback)
-            rightLine.write(inputRight + filteredRight * feedback)
+            when (voice) {
+                GuitarDelayVoice.Digital -> {
+                    leftLine.write(inputLeft + filteredLeft * feedback)
+                    rightLine.write(inputRight + filteredRight * feedback)
+                }
+                GuitarDelayVoice.Tape -> {
+                    leftLine.write(inputLeft + softened(filteredLeft * feedback))
+                    rightLine.write(inputRight + softened(filteredRight * feedback))
+                    echoLeft = filteredLeft
+                    echoRight = filteredRight
+                }
+                GuitarDelayVoice.PingPong -> {
+                    leftLine.write((inputLeft + inputRight) * 0.5 + filteredRight * feedback)
+                    rightLine.write(filteredLeft * feedback)
+                }
+            }
             left = inputLeft + echoLeft * mix
             right = inputRight + echoRight * mix
         }
@@ -214,6 +276,7 @@ internal class GuitarSpace(effects: GuitarEffects, private val sampleRate: Int, 
             filteredLeft = 0.0
             filteredRight = 0.0
             lastDelay = 0.0
+            tapePhase = 0.0
             mix = mixTarget
             feedback = feedbackTarget
         }
@@ -224,6 +287,7 @@ internal class GuitarSpace(effects: GuitarEffects, private val sampleRate: Int, 
         }
 
         private fun repeatCount(amount: Double) = if (amount == 0.0) 1 else 1 + ceil(ln(0.003) / ln(amount)).toInt()
+        private fun softened(sample: Double) = sample / (1 + abs(sample) * 0.35)
     }
 
     private class Reverb(effects: GuitarEffects, sampleRate: Int) {
@@ -235,6 +299,7 @@ internal class GuitarSpace(effects: GuitarEffects, private val sampleRate: Int, 
         private var mixTarget = mix
         private val ramp = 1 - exp(-1.0 / (0.008 * sampleRate))
         private val diffusion = Array(2) { index -> AllPass(sampleRate, (5.3 + index * 2.8) * size) }
+        private val spring = if (effects.reverb == GuitarReverb.Spring) Array(2) { SpringReflections(sampleRate, it) } else null
         private val lines = doubleArrayOf(29.7, 37.1, 41.1, 43.7).map { ms ->
             val frames = (ms * size * sampleRate / 1000.0).roundToInt().coerceAtLeast(1)
             ReverbLine(frames, exp(-6.9078 * frames / (sampleRate * decaySeconds)), effects.reverb)
@@ -257,15 +322,32 @@ internal class GuitarSpace(effects: GuitarEffects, private val sampleRate: Int, 
             lines[2].write(-wetLeft + sum - c)
             lines[3].write(-wetRight + sum - d)
             mix += (mixTarget - mix) * ramp
-            left = inputLeft + mix * (a + b - c - d) * 0.63
-            right = inputRight + mix * (a - b - c + d) * 0.63
+            val earlyLeft = spring?.get(0)?.process(wetLeft) ?: 0.0
+            val earlyRight = spring?.get(1)?.process(wetRight) ?: 0.0
+            left = inputLeft + mix * ((a + b - c - d) * 0.63 + earlyLeft)
+            right = inputRight + mix * ((a - b - c + d) * 0.63 + earlyRight)
         }
 
         fun reset() {
             diffusion.forEach { it.reset() }
             lines.forEach { it.reset() }
+            spring?.forEach { it.reset() }
             mix = mixTarget
         }
+    }
+
+    private class SpringReflections(rate: Int, channel: Int) {
+        private val short = maxOf(1.0, rate * (0.0087 + channel * 0.0013))
+        private val long = maxOf(1.0, rate * (0.0154 + channel * 0.0017))
+        private val line = DelayLine(ceil(long).toInt() + 2)
+
+        fun process(input: Double): Double {
+            val taps = line.read(short) * 0.58 - line.read(long) * 0.41
+            line.write(input)
+            return taps
+        }
+
+        fun reset() = line.reset()
     }
 
     private class AllPass(rate: Int, ms: Double) {
@@ -287,6 +369,7 @@ internal class GuitarSpace(effects: GuitarEffects, private val sampleRate: Int, 
         private val damp = when (type) {
             GuitarReverb.Room -> 0.30
             GuitarReverb.Plate -> 0.54
+            GuitarReverb.Spring -> 0.44
             else -> 0.38
         }
         private var filter = 0.0

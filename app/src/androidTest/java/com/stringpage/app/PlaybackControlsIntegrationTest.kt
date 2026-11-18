@@ -46,7 +46,8 @@ class PlaybackControlsIntegrationTest {
     @Before fun launch() {
         activity = instrument.startActivitySync(Intent(instrument.targetContext, MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)) as MainActivity
-        ui { activity.openDemo() }; awaitReady()
+        val fixture = instrument.practiceScoreUri()
+        ui { activity.openUri(fixture) }; awaitReady()
         ui {
             controls = PlaybackControls(activity, { api },
                 { api.player?.output !is IExternalMediaSynthOutput },
@@ -142,7 +143,7 @@ class PlaybackControlsIntegrationTest {
             assertTrue(api.score!!.tracks[0].playbackInfo.isMute)
             assertEquals(9.6, api.score!!.tracks[0].playbackInfo.volume, 0.001)
             // A new imported score resets practice options but keeps its imported mix defaults.
-            val next = ScoreLoader.loadScoreFromBytes(Uint8Array(activity.assets.open("morning.gp").use { it.readBytes() }.asUByteArray()), api.settings)
+            val next = ScoreLoader.loadScoreFromBytes(Uint8Array(instrument.practiceScoreBytes().asUByteArray()), api.settings)
             next.tracks[0].playbackInfo.isSolo = true
             controls.reset(next)
             assertEquals(0, controls.snapshot().transposition)

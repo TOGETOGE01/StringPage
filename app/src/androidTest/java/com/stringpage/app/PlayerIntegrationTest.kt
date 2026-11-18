@@ -44,7 +44,11 @@ class PlayerIntegrationTest {
     private fun awaitReady() = await("audio and score ready") {
         activity.findViewById<Button>(R.id.play_pause).isEnabled
     }
-    private fun demo() { ui { activity.openDemo() }; awaitReady() }
+    private fun demo() {
+        val fixture = instrument.practiceScoreUri()
+        ui { activity.openUri(fixture) }
+        awaitReady()
+    }
     private fun playPause() = ui { activity.findViewById<Button>(R.id.play_pause).performClick() }
 
     @Before fun launch() {
