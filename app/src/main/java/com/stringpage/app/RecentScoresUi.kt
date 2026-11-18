@@ -21,17 +21,17 @@ class RecentScoresUi(
 ) {
     private fun dp(value: Int) = AppUi.dp(context, value)
     private val preview = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL; id = R.id.recent_list }
-    private val toggle = action("最近打开") { library.collapsed = !library.collapsed; refresh() }.apply {
+    private val toggle = action("最近打开", onRail = true) { library.collapsed = !library.collapsed; refresh() }.apply {
         id = R.id.recent_toggle; gravity = Gravity.CENTER_VERTICAL; textSize = 12f
-        setPadding(dp(4), 0, dp(4), 0); setTextColor(AppUi.muted)
+        setPadding(dp(3), 0, dp(3), 0); setTextColor(AppUi.railMuted)
     }
     val section = LinearLayout(context).apply {
         orientation = LinearLayout.VERTICAL
         val heading = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
         heading.addView(toggle, LinearLayout.LayoutParams(0, dp(48), 1f))
-        heading.addView(action("") { show() }.apply {
+        heading.addView(action("", onRail = true) { show() }.apply {
             contentDescription = "管理最近打开"; tooltipText = "管理最近打开"; id = R.id.manage_recents
-            AppUi.iconButton(this, "more", AppUi.muted); compoundDrawablePadding = 0; setPadding(dp(12), 0, dp(12), 0)
+            AppUi.iconButton(this, "more", AppUi.railMuted); compoundDrawablePadding = 0; setPadding(dp(12), 0, dp(12), 0)
         }, LinearLayout.LayoutParams(dp(44), dp(48)))
         addView(heading, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12) })
         addView(preview)
@@ -40,11 +40,13 @@ class RecentScoresUi(
     private var refreshManager: (() -> Unit)? = null
 
     private fun label(text: String) = TextView(context).apply { this.text = text; textSize = 12f; setTextColor(AppUi.muted) }
-    private fun action(text: String, onClick: () -> Unit) = Button(context).apply {
+    private fun action(text: String, onRail: Boolean = false, onClick: () -> Unit) = Button(context).apply {
         this.text = text; textSize = 13f; isAllCaps = false
         minWidth = 0; minimumWidth = 0; minimumHeight = dp(44); minHeight = dp(44)
         setPadding(dp(10), 0, dp(10), 0); maxLines = 1; ellipsize = TextUtils.TruncateAt.END
-        setTextColor(AppUi.ink); background = AppUi.ripple(context, Color.WHITE, 8)
+        typeface = AppUi.medium
+        setTextColor(if (onRail) AppUi.railInk else AppUi.ink)
+        background = AppUi.ripple(context, if (onRail) Color.TRANSPARENT else AppUi.control, 9)
         stateListAnimator = null; setOnClickListener { onClick() }
     }
 
@@ -52,31 +54,37 @@ class RecentScoresUi(
         val entries = library.entries()
         toggle.text = "最近打开 · ${entries.size}"
         toggle.contentDescription = if (library.collapsed) "展开最近打开" else "折叠最近打开"
-        toggle.setCompoundDrawables(null, null, AppUi.icon(context, if (library.collapsed) "chevron" else "down", AppUi.muted, 14), null)
+        toggle.setCompoundDrawables(null, null, AppUi.icon(context, if (library.collapsed) "chevron" else "down", AppUi.railMuted, 14), null)
         toggle.compoundDrawablePadding = dp(4)
         preview.visibility = if (library.collapsed) View.GONE else View.VISIBLE
         preview.removeAllViews()
-        if (entries.isEmpty()) preview.addView(label("暂无记录").apply { setPadding(dp(4), dp(6), 0, dp(6)) })
+        if (entries.isEmpty()) preview.addView(label("暂无记录").apply {
+            setTextColor(AppUi.railMuted); setPadding(dp(4), dp(6), 0, dp(6))
+        })
         entries.take(PREVIEW_COUNT).forEach { entry -> preview.addView(entryRow(entry, false)) }
-        if (entries.size > PREVIEW_COUNT) preview.addView(action("查看全部（${entries.size}）") { show() }.apply {
-            setTextColor(AppUi.accent)
+        if (entries.size > PREVIEW_COUNT) preview.addView(action("查看全部（${entries.size}）", onRail = true) { show() }.apply {
+            setTextColor(AppUi.railAccent)
         }, LinearLayout.LayoutParams(-1, dp(44)))
         refreshManager?.invoke()
     }
 
     private fun entryRow(entry: RecentLibrary.Entry, detail: Boolean): LinearLayout = LinearLayout(context).apply {
         gravity = Gravity.CENTER_VERTICAL
-        val open = action(entry.name) { manager?.dismiss(); onOpen(Uri.parse(entry.uri)) }.apply {
-            gravity = Gravity.CENTER_VERTICAL; textSize = if (detail) 14f else 12f
+        val open = action(entry.name, onRail = !detail) { manager?.dismiss(); onOpen(Uri.parse(entry.uri)) }.apply {
+            gravity = Gravity.CENTER_VERTICAL; textSize = if (detail) 14f else 13f
+            background = AppUi.ripple(context, Color.TRANSPARENT, 8)
+            AppUi.iconButton(this, "file", if (detail) AppUi.muted else AppUi.railMuted, 15)
             tooltipText = listOf(entry.name, entry.fileName).filter { it.isNotBlank() }.joinToString("\n")
             contentDescription = "打开 ${entry.name} ${entry.fileName}"
             if (detail && entry.fileName.isNotBlank()) { text = "${entry.name}\n${entry.fileName}"; maxLines = 2 }
         }
-        addView(open, LinearLayout.LayoutParams(0, dp(if (detail) 64 else 48), 1f))
-        addView(action("") { remove(setOf(entry.uri)) }.apply {
+        addView(open, LinearLayout.LayoutParams(0, dp(if (detail) 64 else 44), 1f))
+        addView(action("", onRail = !detail) { remove(setOf(entry.uri)) }.apply {
             contentDescription = "移除记录 ${entry.name} ${entry.fileName}"; tooltipText = "移除记录"
-            AppUi.iconButton(this, "trash", AppUi.muted, 17); compoundDrawablePadding = 0; setPadding(dp(12), 0, dp(12), 0)
-        }, LinearLayout.LayoutParams(dp(44), dp(48)))
+            background = AppUi.ripple(context, Color.TRANSPARENT, 8)
+            AppUi.iconButton(this, "trash", if (detail) AppUi.muted else AppUi.railMuted, 16)
+            compoundDrawablePadding = 0; setPadding(dp(12), 0, dp(12), 0)
+        }, LinearLayout.LayoutParams(dp(44), dp(44)))
     }
 
     private fun remove(uris: Set<String>) {
@@ -96,10 +104,9 @@ class RecentScoresUi(
         val search = EditText(context).apply {
             hint = "搜索曲名或文件名"; contentDescription = "搜索最近打开"; setSingleLine(); textSize = 14f
             id = R.id.recent_search; setPadding(dp(12), 0, dp(12), 0)
-            background = AppUi.surface(context, AppUi.canvas, 10)
+            background = AppUi.surface(context, AppUi.control, 10, AppUi.line)
         }
         content.addView(search, LinearLayout.LayoutParams(-1, dp(44)))
-        content.addView(label("点按打开；垃圾桶仅移除记录，保留原文件。").apply { setPadding(dp(4), dp(10), 0, dp(6)) })
         val actions = LinearLayout(context)
         val select = action("批量移除") { selectToRemove(search.text.toString()) }
         val clear = action("清空记录") {
@@ -109,9 +116,9 @@ class RecentScoresUi(
                 .setPositiveButton("清空记录") { _, _ -> remove(entries.mapTo(HashSet()) { it.uri }) }
                 .setNegativeButton("取消", null).show()
         }
-        actions.addView(select, LinearLayout.LayoutParams(0, dp(44), 1f))
+        actions.addView(select, LinearLayout.LayoutParams(0, dp(44), 1f).apply { marginEnd = dp(6) })
         actions.addView(clear, LinearLayout.LayoutParams(0, dp(44), 1f))
-        content.addView(actions)
+        content.addView(actions, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8); bottomMargin = dp(6) })
         var visible = emptyList<RecentLibrary.Entry>()
         val adapter = object : BaseAdapter() {
             override fun getCount() = visible.size

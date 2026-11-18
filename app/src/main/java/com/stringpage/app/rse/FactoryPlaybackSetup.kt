@@ -90,7 +90,9 @@ internal class FactoryPlaybackSetup(
         val form = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL; setPadding(padding, padding/2, padding, padding/2) }
         fun label(text: String) = TextView(activity).apply { this.text = text; textSize = 14f; setPadding(0,16,0,8); form.addView(this) }
         label("为参与播放的声部选择音色库。鼓组按击打音分别分配。完整连奏、拾音器与效果链仍在还原。")
-        if (ampsFor(score).keys.any { it !in muted }) label("已保存的吉他音箱设置将在播放时应用。")
+        if (ampsFor(score).any { (track, settings) -> settings.enabled && track !in muted }) {
+            label("已保存的吉他效果器设置将在播放时应用。")
+        }
         val choices = arrayOf("请选择音色库") + banks.map { "${it.bank.name} · ${it.bank.id}" }
         val widgets = LinkedHashMap<FactoryScoreRenderer.Route, Spinner>()
         fun key(route: FactoryScoreRenderer.Route) = "bank.${score.tracks[route.track].playbackInfo.program.toInt()}.${route.percussionMidi ?: -1}"

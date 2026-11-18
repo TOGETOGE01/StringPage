@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-feature android:name="android.software.midi" android:required="false" />
     <application android:theme="@style/AppTheme" android:label="弦页" android:icon="@drawable/ic_app" android:allowBackup="false" android:supportsRtl="true">
         <activity android:name=".pdf.PdfConvertActivity" android:exported="false" android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden" />
         <activity android:name=".pdf.PdfPreviewActivity" android:exported="false" android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden" />

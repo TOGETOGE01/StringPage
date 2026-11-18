@@ -19,6 +19,7 @@
     <item name="import_file" type="id" />
     <item name="library_panel" type="id" />
     <item name="practice_panel" type="id" />
+    <item name="reader_bar_number" type="id" />
     <item name="notation_select" type="id" />
     <item name="master_volume" type="id" />
     <item name="app_brand" type="id" />

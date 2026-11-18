@@ -30,6 +30,8 @@ internal class PreparedScoreTime(file: MidiFile) {
 
     fun timeAt(tick: Double) = at(tick).ms
 
+    fun beatMap(sampleRate: Int) = SourceBeatMap(sampleRate, tempos.map { SourceBeatMap.Tempo(it.ms, it.bpm) })
+
     fun syncPoints(offset: Double, duration: Double): AlphaList<BackingTrackSyncPoint> {
         // Adding the tempo boundaries prevents interpolation across tempo changes.
         // Reserve a frame at the end for alphaTab's final interpolation segment.

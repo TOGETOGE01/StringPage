@@ -1,0 +1,6 @@
+<devices>
+    <device manufacturer="StringPage QA" product="Step Input Loopback">
+        <input-port name="Input" />
+        <output-port name="Output" />
+    </device>
+</devices>

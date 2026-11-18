@@ -88,7 +88,10 @@ class PlayerIntegrationTest {
             val at = ui { api.tickPosition }
             val stream = ui { (api.player!!.output as IExternalMediaSynthOutput).handler as StemAudio }
             ui {
-                assertTrue(activity.applyLiveAmps(mapOf(0 to GuitarAmpSettings(AmpPreset.Crunch))))
+                assertTrue(activity.applyLiveAmps(mapOf(0 to GuitarAmpSettings(AmpPreset.Crunch,
+                    inputDb = 3, gateDb = -62, pedal = GuitarDrive.Overdrive, effects = GuitarEffects(
+                        compression = 20, modulation = GuitarModulation.Chorus, delay = GuitarDelay.Eighth,
+                        reverb = GuitarReverb.Room)))))
                 assertSame(stream, (api.player!!.output as IExternalMediaSynthOutput).handler)
                 assertEquals(PlayerState.Playing, api.playerState)
             }
@@ -96,7 +99,7 @@ class PlayerIntegrationTest {
             ui {
                 assertTrue(api.isLooping)
                 assertEquals(0.5, api.playbackSpeed, 0.001)
-                assertTrue(activity.applyLiveAmps(emptyMap()))
+                assertTrue(activity.applyLiveAmps(mapOf(0 to preset.getValue(0).copy(enabled = false))))
                 activity.changeSpeed(0.1)
             }
             val slowAt = ui { stream.currentPositionMs }
@@ -109,11 +112,19 @@ class PlayerIntegrationTest {
                 activity.changeSpeed(0.5)
                 api.playbackRange!!.also { api.tickPosition = it.endTick - 120.0 }
             }
-            ui { assertTrue(activity.applyLiveAmps(mapOf(0 to GuitarAmpSettings(AmpPreset.British)))) }
-            await("switch at the loop boundary stays on one audio stream", timeout = 5000) {
-                stream.completedLoops > 0 && api.playerState == PlayerState.Playing &&
-                    api.tickPosition in range.startTick..(range.startTick + 550.0) &&
-                    (api.player!!.output as IExternalMediaSynthOutput).handler === stream
+            ui { assertTrue(activity.applyLiveAmps(mapOf(0 to GuitarAmpSettings(AmpPreset.British,
+                effects = GuitarEffects(delay = GuitarDelay.Fixed, reverb = GuitarReverb.Plate))))) }
+            var last = ""
+            try {
+                await("switch at the loop boundary stays on one audio stream", timeout = 5000) {
+                    val sameOutput = (api.player!!.output as IExternalMediaSynthOutput).handler === stream
+                    last = "tick=${api.tickPosition}, range=${range.startTick}..${range.endTick}, " +
+                        "media=${stream.currentPositionMs}, wraps=${stream.completedLoops}, state=${api.playerState}, sameOutput=$sameOutput"
+                    stream.completedLoops > 0 && api.playerState == PlayerState.Playing &&
+                        api.tickPosition in range.startTick..(range.startTick + 550.0) && sameOutput
+                }
+            } catch (failure: AssertionError) {
+                throw AssertionError("${failure.message} ($last)", failure)
             }
         } finally { ui { api.pause(); activity.switchSource(false) }; result.close() }
     }

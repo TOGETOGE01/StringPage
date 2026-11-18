@@ -76,6 +76,67 @@ object GpRseProperties {
     @Synchronized fun failure(score: Score): String? = failures[score]
     @Synchronized fun note(note: Note): GpNoteSourceGraph.NoteInfo? = noteProperties[note]
     @Synchronized fun original(note: Note): Note = originalNotes[note]?.get() ?: note
+
+    internal data class EditBindings(
+        val properties: Properties?, val failure: String?,
+        val notes: Map<Int, GpNoteSourceGraph.NoteInfo>, val originals: Map<Int, Int>
+    )
+
+    @Synchronized internal fun captureEditBindings(score: Score): EditBindings? {
+        val properties = registered[score]
+        val failure = failures[score]
+        if (properties == null && failure == null) return null
+        val notes = orderedNotes(score)
+        val indices = IdentityHashMap<Note, Int>()
+        notes.forEachIndexed { index, note -> indices[note] = index }
+        val bindings = mutableMapOf<Int, GpNoteSourceGraph.NoteInfo>()
+        val originals = mutableMapOf<Int, Int>()
+        notes.forEachIndexed { index, note ->
+            noteProperties[note]?.let { bindings[index] = it }
+            originalNotes[note]?.get()?.let(indices::get)?.let { originals[index] = it }
+        }
+        return EditBindings(properties, failure, bindings, originals)
+    }
+
+    @Synchronized internal fun restoreEditBindings(score: Score, bindings: EditBindings) {
+        val notes = orderedNotes(score)
+        bindings.properties?.let { registered[score] = it }
+        bindings.failure?.let { failures[score] = it }
+        for ((index, source) in bindings.notes) noteProperties[notes[index]] = source
+        for ((index, original) in bindings.originals) originalNotes[notes[index]] = WeakReference(notes[original])
+    }
+
+    @Synchronized internal fun appendAuthoredTrack(score: Score, slot: Int) {
+        val properties = registered[score]?.takeIf { it.hasGpif } ?: return
+        val index = score.tracks.length.toInt() - 1
+        require(properties.tracks.size == index) { "原谱音源设置与当前轨道不一致。" }
+        val entry = TrackInfo("stringpage-new${-slot}", null, null, null, null, emptyList())
+        registered[score] = properties.copy(tracks = properties.tracks + entry)
+    }
+
+    @Synchronized internal fun removeAuthoredTrack(score: Score, index: Int) {
+        val properties = registered[score]?.takeIf { it.hasGpif } ?: return
+        require(properties.tracks.size == score.tracks.length.toInt()) { "原谱音源设置与当前轨道不一致。" }
+        registered[score] = properties.copy(tracks = properties.tracks.filterIndexed { position, _ -> position != index })
+    }
+
+    @Synchronized internal fun updateEditedBend(note: Note, end: Double?) {
+        val old = noteProperties[note] ?: return
+        noteProperties[note] = old.copy(bend = if (end == null) GpBendData()
+            else GpBendData(enabled = true, destination = end.toFloat() * 25f))
+    }
+
+    @Synchronized internal fun updateEditedConnection(
+        note: Note, change: (GpNoteSourceGraph.NoteInfo) -> GpNoteSourceGraph.NoteInfo
+    ) {
+        noteProperties[note]?.let { noteProperties[note] = change(it) }
+    }
+
+    private fun orderedNotes(score: Score): List<Note> = buildList {
+        for (track in score.tracks) for (staff in track.staves) for (bar in staff.bars)
+            for (voice in bar.voices) for (beat in voice.beats) for (note in beat.notes) add(note)
+    }
+
     @Synchronized fun transfer(from: Score, to: Score) {
         // Only used by our own model snapshot/restore path. Map the copied
         // graph directly; source fret checks would reject an intentional edit.

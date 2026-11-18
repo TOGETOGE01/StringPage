@@ -39,7 +39,8 @@ class PlaybackControls(
     private val documentKey: () -> String? = { null },
     private val reloadTone: () -> Boolean = { false },
     private val liveGuitarTracks: () -> Set<Int> = { emptySet() },
-    private val openAmp: (Int) -> Unit = {}
+    private val openAmp: (Int) -> Unit = {},
+    private val trackSlot: (Int) -> Int = { it }
 ) {
     data class TrackMix(val volume: Double, val muted: Boolean, val solo: Boolean)
     data class Snapshot(
@@ -55,6 +56,7 @@ class PlaybackControls(
     private val tonePrefs by lazy { context.getSharedPreferences("practice-guitar-tones", Context.MODE_PRIVATE) }
     private var toneDocument: String? = null
     private val tones = mutableListOf<GuitarTone>()
+    private val sessionTones = mutableMapOf<Int, GuitarTone>()
     private val tracks = mutableListOf<TrackMix>()
     private var transposition = 0
     private var metronomeEnabled = false
@@ -70,7 +72,7 @@ class PlaybackControls(
     fun reset(newScore: Score, preservePractice: Boolean = false) {
         close()
         score = newScore
-        val previousTones = if (preservePractice) tones.toList() else emptyList()
+        if (!preservePractice) sessionTones.clear()
         toneMidi = PracticeToneMidi(newScore)
         toneDocument = documentKey()?.let { key ->
             MessageDigest.getInstance("SHA-256").digest(key.toByteArray()).joinToString("") { "%02x".format(it) }
@@ -82,7 +84,7 @@ class PlaybackControls(
                 track.playbackInfo.isMute && !track.playbackInfo.isSolo, track.playbackInfo.isSolo))
             val saved = preferenceKey(index)?.let { tonePrefs.getString(it, null) }
             tones.add(if (toneMidi?.canChooseTone(index) == true)
-                GuitarTone.entries.firstOrNull { it.name == saved } ?: previousTones.getOrNull(index) ?: GuitarTone.Original
+                GuitarTone.entries.firstOrNull { it.name == saved } ?: sessionTones[trackSlot(index)] ?: GuitarTone.Original
             else GuitarTone.Original)
         }
         if (!preservePractice) {
@@ -96,7 +98,11 @@ class PlaybackControls(
     fun snapshot() = Snapshot(tracks.toList(), transposition, metronomeEnabled, metronomeVolume, countInEnabled)
     internal fun snapshotTones() = tones.toList()
 
-    private fun preferenceKey(index: Int) = toneDocument?.let { "$it/$index" }
+    private fun preferenceKey(index: Int): String? {
+        val document = toneDocument ?: return null
+        val slot = trackSlot(index)
+        return if (slot >= 0) "$document/$slot" else null
+    }
 
     internal fun canChooseTone(index: Int) = toneMidi?.canChooseTone(index) == true
 
@@ -136,6 +142,7 @@ class PlaybackControls(
             tones[index] = previous
             return false
         }
+        sessionTones[trackSlot(index)] = next
         preferenceKey(index)?.let { key ->
             tonePrefs.edit().apply {
                 if (next == GuitarTone.Original) remove(key) else putString(key, next.name)
@@ -264,7 +271,7 @@ class PlaybackControls(
             val builder = AlertDialog.Builder(context).setTitle("混音与练习设置")
             if (live.isEmpty()) builder.setMessage(externalPlaybackDescription())
             else builder.setItems(live.map { index ->
-                loaded.tracks[index].name.ifBlank { "声部 ${index + 1}" } + " · 音箱"
+                loaded.tracks[index].name.ifBlank { "声部 ${index + 1}" } + " · 效果器"
             }.toTypedArray()) { _, row -> openAmp(live[row]) }
             dialog = builder
                 .setPositiveButton("切换到合成音源") { _, _ -> openWhenReady = true; switchToSynthesizer() }
@@ -313,20 +320,24 @@ class PlaybackControls(
             val name = track.name.ifBlank { "声部 ${index + 1}" }
             val card = LinearLayout(context).apply {
                 orientation = LinearLayout.VERTICAL
-                setPadding(dp(12), dp(10), dp(12), dp(8))
-                background = AppUi.surface(context, AppUi.canvas, 12, AppUi.line)
+                setPadding(dp(12), dp(8), dp(12), dp(8))
+                background = AppUi.surface(context, AppUi.panel, 12, AppUi.line)
             }
             val titleRow = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
-            titleRow.addView(label(name).apply { maxLines = 1; ellipsize = TextUtils.TruncateAt.END }, LinearLayout.LayoutParams(0, -2, 1f))
-            val tone = if (canChooseTone(index)) Button(context).apply {
-                text = tones[index].label
-                isAllCaps = false
+            titleRow.addView(label(name).apply {
+                setTextColor(AppUi.ink); typeface = AppUi.medium
+                maxLines = 1; ellipsize = TextUtils.TruncateAt.END
+            }, LinearLayout.LayoutParams(0, -2, 1f))
+            val tone = if (canChooseTone(index)) mixButton(tones[index].label) { showTone(index) }.apply {
                 contentDescription = "$name 音色"
-                setOnClickListener { showTone(index) }
             } else null
             tone?.let { titleRow.addView(it) }
-            val volumeLabel = label("${(tracks[index].volume * 100).toInt()}%")
-            titleRow.addView(volumeLabel)
+            val volumeLabel = label("${(tracks[index].volume * 100).toInt()}%").apply {
+                setTextColor(AppUi.accent); typeface = AppUi.medium; fontFeatureSettings = "'tnum'"
+                setPadding(dp(8), dp(5), dp(8), dp(5))
+                background = AppUi.surface(context, AppUi.selected, 7)
+            }
+            titleRow.addView(volumeLabel, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(7) })
             card.addView(titleRow)
             val volumeSlider = slider(100, (tracks[index].volume * 100).toInt(), "$name 音量") { value ->
                 if (!updatingWidgets) setTrackVolume(index, value / 100.0)
@@ -343,12 +354,10 @@ class PlaybackControls(
             }
             switches.addView(mute, LinearLayout.LayoutParams(0, dp(48), 1f))
             switches.addView(solo, LinearLayout.LayoutParams(0, dp(48), 1f))
-            if (canChooseTone(index)) switches.addView(Button(context).apply {
-                text = "音箱"
-                contentDescription = "$name 音箱"
-                isAllCaps = false
-                setOnClickListener { dialog?.dismiss(); openAmp(index) }
-            })
+            if (canChooseTone(index)) switches.addView(mixButton("效果器") { dialog?.dismiss(); openAmp(index) }.apply {
+                contentDescription = "$name 效果器"
+                AppUi.iconButton(this, "audio", AppUi.accent, 15)
+            }, LinearLayout.LayoutParams(-2, dp(44)).apply { gravity = Gravity.CENTER_VERTICAL })
             card.addView(switches)
             widgets[index] = TrackWidgets(volumeSlider, volumeLabel, mute, solo, tone)
             content.addView(card, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
@@ -384,6 +393,14 @@ class PlaybackControls(
     private fun label(value: String, heading: Boolean = false, size: Float = 14f) = TextView(context).apply {
         text = value; textSize = size; setTextColor(if (heading) AppUi.ink else AppUi.muted)
         if (heading) { setTypeface(typeface, Typeface.BOLD); setPadding(0, dp(16), 0, dp(8)) }
+    }
+    private fun mixButton(value: String, action: () -> Unit) = Button(context).apply {
+        text = value; textSize = 12f; typeface = AppUi.medium; isAllCaps = false
+        minWidth = 0; minimumWidth = 0; minHeight = dp(44); minimumHeight = dp(44)
+        setTextColor(AppUi.accent); setPadding(dp(10), 0, dp(10), 0)
+        background = AppUi.ripple(context, AppUi.control, 9)
+        stateListAnimator = null
+        setOnClickListener { action() }
     }
     private fun slider(maximum: Int, value: Int, description: String, changed: (Int) -> Unit) = SeekBar(context).apply {
         max = maximum; progress = value; contentDescription = description

@@ -57,7 +57,8 @@ internal data class PcmStem(val file: File, val frames: Long) {
 /** Owns private, time-aligned stereo PCM. A null track denotes fixed accompaniment. */
 internal class AmpStems(
     val parts: List<Part>, val sampleRate: Int, val syncOffsetMs: Double,
-    val firstCueMs: Double = 0.0, val headroom: Double = 0.86
+    val firstCueMs: Double = 0.0, val headroom: Double = 0.86,
+    val beats: SourceBeatMap = SourceBeatMap(sampleRate)
 ) : Closeable {
     data class Part(val track: Int?, val original: PcmStem, val dry: PcmStem = original)
 
@@ -71,7 +72,7 @@ internal class AmpStems(
 
 /** All mutable DSP and file readers are confined to the transport worker. */
 internal class LiveAmpMixer(private val stems: AmpStems, private val block: Int) : Closeable {
-    private val warmup = stems.sampleRate * 45 / 1000
+    private val warmup = stems.sampleRate * 60 / 1000
     private val transitionFrames = stems.sampleRate * 12 / 1000
     private val input = FloatArray(block * 2)
     private val outgoing = FloatArray(block * 2)
@@ -95,27 +96,41 @@ internal class LiveAmpMixer(private val stems: AmpStems, private val block: Int)
         var nextAmp: GuitarAmp? = null
         var transition = transitionFrames
 
-        fun processor(settings: GuitarAmpSettings?): GuitarAmp? {
+        fun processor(settings: GuitarAmpSettings?, previous: GuitarAmp? = null): GuitarAmp? {
             if (settings == null) return null
-            val processor = GuitarAmp(settings, stems.sampleRate)
+            val processor = previous?.also(GuitarAmp::reset) ?: GuitarAmp(settings, stems.sampleRate, stems.beats)
             var cursor = (position - warmup).coerceAtLeast(0)
             while (cursor < position) {
                 val count = minOf(block.toLong(), position - cursor).toInt()
                 dry.read(cursor, input, count)
-                processor.process(input, count)
+                // Prime the amp and cabinet only. Echoes and reverb start fresh after a seek or loop wrap.
+                processor.process(input, count, cursor, warmup = true)
                 cursor += count
             }
             return processor
         }
 
         fun reset(settings: GuitarAmpSettings?) {
-            config = settings; amp = processor(settings)
+            val reusable = when (settings) {
+                config -> amp
+                nextConfig -> nextAmp
+                else -> null
+            }
+            config = settings
+            amp = processor(settings, reusable)
             nextConfig = null; nextAmp = null; transition = transitionFrames
         }
 
-        fun add(target: FloatArray, frames: Int, settings: GuitarAmpSettings?) {
+        fun add(target: FloatArray, frames: Int, settings: GuitarAmpSettings?, speed: Double) {
             if (transition == transitionFrames && settings != config) {
-                nextConfig = settings; nextAmp = processor(settings); transition = 0
+                val previous = config
+                if (previous != null && settings != null && amp?.updateSpaceControls(previous, settings) == true) {
+                    config = settings
+                } else {
+                    nextConfig = settings
+                    nextAmp = processor(settings)
+                    transition = 0
+                }
             }
             val changing = transition < transitionFrames
             if (amp != null || (changing && nextAmp != null)) dry.read(position, input, frames)
@@ -123,7 +138,7 @@ internal class LiveAmpMixer(private val stems: AmpStems, private val block: Int)
                 if (active == null) original.read(position, buffer, frames)
                 else {
                     input.copyInto(buffer, endIndex = frames * 2)
-                    active.process(buffer, frames)
+                    active.process(buffer, frames, position, speed)
                 }
             }
             render(amp, outgoing)
@@ -149,12 +164,12 @@ internal class LiveAmpMixer(private val stems: AmpStems, private val block: Int)
 
     fun seek(frame: Long, settings: Map<Int, GuitarAmpSettings>) {
         position = frame
-        tracks.forEach { it.reset(it.index?.let(settings::get)) }
+        tracks.forEach { it.reset(it.index?.let(settings::get)?.takeIf(GuitarAmpSettings::enabled)) }
     }
 
-    fun read(target: FloatArray, count: Int, settings: Map<Int, GuitarAmpSettings>) {
+    fun read(target: FloatArray, count: Int, settings: Map<Int, GuitarAmpSettings>, speed: Double = 1.0) {
         target.fill(0f, toIndex = count * 2)
-        for (track in tracks) track.add(target, count, track.index?.let(settings::get))
+        for (track in tracks) track.add(target, count, track.index?.let(settings::get)?.takeIf(GuitarAmpSettings::enabled), speed)
         for (i in 0 until count * 2) {
             val sample = target[i] * stems.headroom
             check(sample.isFinite()) { "音箱混音产生了无效音频。" }
@@ -164,6 +179,10 @@ internal class LiveAmpMixer(private val stems: AmpStems, private val block: Int)
         }
         position += count
     }
+
+    fun tailFrames(frame: Long, speed: Double): Int = tracks.maxOfOrNull {
+        maxOf(it.amp?.tailFrames(frame, speed) ?: 0, it.nextAmp?.tailFrames(frame, speed) ?: 0)
+    } ?: 0
 
     override fun close() { tracks.forEach { it.close() } }
 }

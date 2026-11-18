@@ -5,6 +5,7 @@ import com.stringpage.app.GuitarAmp
 import com.stringpage.app.GuitarAmpSettings
 import com.stringpage.app.AmpStems
 import com.stringpage.app.PcmStem
+import com.stringpage.app.SourceBeatMap
 import java.io.File
 import java.io.RandomAccessFile
 import kotlin.math.roundToInt
@@ -107,13 +108,17 @@ object FactoryScoreRenderer {
             }
             val parts = writers.map { (slot, writer) -> AmpStems.Part(slot, writer.stem()) }
             while (writers.isNotEmpty()) writers.remove(writers.keys.first())?.close()
-            val stems = AmpStems(parts, SAMPLE_RATE, performance.rseSyncOffsetMs, performance.rseFirstCueMs, headroom = 1.0)
+            val stems = AmpStems(parts, SAMPLE_RATE, performance.rseSyncOffsetMs, performance.rseFirstCueMs, headroom = 1.0,
+                beats = beatMap(performance))
             return StemResult(stems, stats.noteCount, stats.substitutions).also { success = true }
         } finally {
             writers.values.forEach { runCatching { it.close() } }
             if (!success) paths.forEach { it.delete() }
         }
     }
+
+    private fun beatMap(performance: ScorePerformance) = SourceBeatMap(SAMPLE_RATE,
+        performance.tempos.map { SourceBeatMap.Tempo(it.timeMs, it.bpm) })
 
     private fun renderBlocks(
         performance: ScorePerformance, bindings: Map<Route, BankLibrary.Item>,
@@ -169,7 +174,9 @@ object FactoryScoreRenderer {
         val mixed = FloatArray(1024); val voiceBuffer = FloatArray(1024)
         val channelBuffer = FloatArray(1024); val silence = FloatArray(0)
         val audibleTracks = notes.mapTo(mutableSetOf()) { it.track }
-        val amps = ampSettings.filterKeys { it in audibleTracks }.mapValues { GuitarAmp(it.value, SAMPLE_RATE) }
+        val tempo by lazy { beatMap(performance) }
+        val amps = ampSettings.filter { (track, settings) -> settings.enabled && track in audibleTracks }
+            .mapValues { GuitarAmp(it.value, SAMPLE_RATE, tempo) }
         val dryBuffers = (amps.keys + separateTracks).associateWith { FloatArray(1024) }
         var position = 0L; var actionIndex = 0; var lastProgress = -1
         try {

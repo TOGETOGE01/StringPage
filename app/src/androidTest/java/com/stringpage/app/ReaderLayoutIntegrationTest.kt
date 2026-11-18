@@ -44,7 +44,12 @@ class ReaderLayoutIntegrationTest {
                     if(id==R.id.play_pause || id==R.id.speed_select || id==R.id.loop_select)
                         assertEquals("Essential playback label is truncated: ${control.text}",0,control.layout?.getEllipsisCount(0) ?: 0)
                 }
+                assertTrue(activity.applyLoopRange(2, 3))
             }
+            val seekDeadline = SystemClock.uptimeMillis() + 5000
+            fun currentBar() = ui { activity.findViewById<TextView>(R.id.reader_bar_number).text.toString() }
+            while (!currentBar().startsWith("小节 2 / ") && SystemClock.uptimeMillis() < seekDeadline) SystemClock.sleep(40)
+            assertTrue("Paused seeks must update the bar counter: ${currentBar()}", currentBar().startsWith("小节 2 / "))
         } finally { ui { activity.finish() };instrument.waitForIdleSync() }
     }
 }

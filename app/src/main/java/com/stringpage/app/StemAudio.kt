@@ -45,8 +45,10 @@ internal class StemAudio(
     private var desiredLoop: Loop? = null
     private var queuedLoop: Loop? = null
     private var reportedWrap = 0L
-    private var reportingWrap = false
+    private var reportingLoopPosition = false
     private var nextSourceFrame = 0L
+    private var renderSpeed = 1.0
+    private var endingTail: Int? = null
 
     private data class Position(val epoch: Int, val frame: Long, val wraps: Long = 0)
     private data class Loop(val start: Long, val end: Long) {
@@ -112,6 +114,7 @@ internal class StemAudio(
         val device = track ?: return
         device.playbackParams = PlaybackParams().setSpeed(speed.toFloat()).setPitch(1f)
             .setAudioFallbackMode(PlaybackParams.AUDIO_FALLBACK_MODE_FAIL)
+        renderSpeed = speed
         // A full native buffer delays new guitar settings longer in wall time
         // at slower practice speeds. Keep its capacity available for recovery.
         val preferred = BLOCK * if (speed < 0.5) 3 else 4
@@ -131,7 +134,7 @@ internal class StemAudio(
         val frame = cueFrame(time)
         // alphaTab acknowledges the loop by requesting a seek at the start.
         // The new loop is already queued against the same AudioTrack clock.
-        if (reportingWrap && desiredLoop?.let { abs(it.start - frame) < sampleRate / 100 } == true) return
+        if (reportingLoopPosition && desiredLoop?.let { abs(it.start - frame) < sampleRate / 100 } == true) return
         seek(frame)
     }
 
@@ -169,6 +172,7 @@ internal class StemAudio(
             played = 0L
             blockSamples = 0
             blockOffset = 0
+            endingTail = null
             mixer?.seek(frame, settings)
             if (workerPlaying) startDevice(device)
             ui.post { if (!closed && epoch == seekEpoch) output?.updatePosition(ms(frame)) }
@@ -209,8 +213,14 @@ internal class StemAudio(
         played = maxOf(played, head.coerceAtMost(written))
         val unwrapped = sourceStart + played
         val loop = queuedLoop
-        val frame = loop?.wrap(unwrapped) ?: minOf(unwrapped, stems.frames)
         val current = clock.get()
+        val tail = endingTail ?: 0
+        val draining = loop == null && tail > 0 && unwrapped < stems.frames + tail
+        // Delay the end event while the device drains the effects, with the cursor on the last beat.
+        val displayEnd = if (draining) {
+            maxOf(current.frame, (stems.frames - maxOf(1, sampleRate / 1000)).coerceAtLeast(0))
+        } else stems.frames
+        val frame = loop?.wrap(unwrapped) ?: minOf(unwrapped, displayEnd)
         val wraps = loop?.wraps(unwrapped) ?: 0
         if (current.epoch == workerEpoch && (current.frame != frame || current.wraps != wraps)) {
             clock.compareAndSet(current, Position(workerEpoch, frame, wraps))
@@ -227,18 +237,33 @@ internal class StemAudio(
                 val unwrapped = sourceStart + written
                 val frame = loop?.wrap(unwrapped) ?: unwrapped
                 val end = loop?.end ?: stems.frames
-                if (frame >= end + TAIL) return
                 val count = if (frame < end) {
                     val count = minOf(BLOCK.toLong(), end - frame).toInt()
                     val controls = settings
                     if (frame != nextSourceFrame) mixer?.seek(frame, controls)
-                    mixer?.read(samples, count, controls)
+                    mixer?.read(samples, count, controls, renderSpeed)
                     if (loop != null) fadeLoopEdges(frame, count, loop)
                     nextSourceFrame = frame + count
+                    if (loop == null && nextSourceFrame == end) endingTail = mixer?.tailFrames(end, renderSpeed) ?: 0
                     count
                 } else {
-                    samples.fill(0f)
-                    minOf(BLOCK.toLong(), end + TAIL - frame).toInt()
+                    if (endingTail == null) endingTail = if (sourceStart < end) mixer?.tailFrames(end, renderSpeed) ?: 0 else 0
+                    val tailEnd = end + (endingTail ?: 0)
+                    if (frame < tailEnd) {
+                        val tailCount = minOf(BLOCK.toLong(), tailEnd - frame).toInt()
+                        mixer?.read(samples, tailCount, settings, renderSpeed)
+                        val fadeFrames = (sampleRate * renderSpeed * 0.02).toInt().coerceAtLeast(1)
+                        for (offset in 0 until tailCount) {
+                            val gain = ((tailEnd - frame - offset - 1).toDouble() / fadeFrames).coerceAtMost(1.0).toFloat()
+                            samples[offset * 2] *= gain
+                            samples[offset * 2 + 1] *= gain
+                        }
+                        tailCount
+                    } else {
+                        if (frame >= tailEnd + TAIL) return
+                        samples.fill(0f)
+                        minOf(BLOCK.toLong(), tailEnd + TAIL - frame).toInt()
+                    }
                 }
                 blockOffset = 0
                 blockSamples = count * 2
@@ -283,13 +308,22 @@ internal class StemAudio(
             val current = clock.get()
             if (current.epoch == epoch) {
                 val loop = desiredLoop
-                if (loop != null && current.wraps > reportedWrap) {
-                    reportedWrap = current.wraps
-                    reportingWrap = true
-                    try { output?.updatePosition(ms(loop.end) + 0.1) }
-                    finally { reportingWrap = false }
+                if (loop == null) output?.updatePosition(ms(current.frame))
+                else {
+                    reportingLoopPosition = true
+                    try {
+                        if (current.wraps > reportedWrap) {
+                            reportedWrap = current.wraps
+                            output?.updatePosition(ms(loop.end) + 0.1)
+                        }
+                        if (current.epoch == epoch) {
+                            // The media-to-tick conversion can round up near the boundary.
+                            // Send the exact end event only once the playback head actually wraps.
+                            val margin = minOf((loop.end - loop.start) / 2, sampleRate / 500L).coerceAtLeast(1)
+                            output?.updatePosition(ms(minOf(current.frame, loop.end - margin)))
+                        }
+                    } finally { reportingLoopPosition = false }
                 }
-                if (current.epoch == epoch) output?.updatePosition(ms(current.frame))
             }
             if (playing && !closed && (clock.get().epoch != current.epoch || current.frame < stems.frames)) ui.postDelayed(this, 25)
         }

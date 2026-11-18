@@ -27,6 +27,11 @@ internal class SynthAmpMix(private val directory: File, soundFont: () -> ByteArr
     fun prepare(
         score: Score, settings: Settings, tones: List<GuitarTone>, transpose: Int,
         cancelled: () -> Boolean, progress: (Int) -> Unit
+    ): AmpStems = prepare(score, settings, tones, transpose, cancelled, null, progress)
+
+    fun prepare(
+        score: Score, settings: Settings, tones: List<GuitarTone>, transpose: Int,
+        cancelled: () -> Boolean, effectTracks: Set<Int>?, progress: (Int) -> Unit
     ): AmpStems {
         val tracks = score.tracks.toList()
         val solo = tracks.any { it.playbackInfo.isSolo }
@@ -36,7 +41,7 @@ internal class SynthAmpMix(private val directory: File, soundFont: () -> ByteArr
         }.toSet()
         require(audible.isNotEmpty()) { "请至少保留一个可播放声部。" }
         val router = PracticeToneMidi(score)
-        val guitars = audible.filter(router::canChooseTone)
+        val guitars = audible.filter { router.canChooseTone(it) && (effectTracks == null || it in effectTracks) }
         val accompaniment = audible - guitars.toSet()
         val pitches = DoubleDoubleMap()
         val configured = settings.notation.transpositionPitches
@@ -53,7 +58,8 @@ internal class SynthAmpMix(private val directory: File, soundFont: () -> ByteArr
         val handler = AlphaSynthMidiFileHandler(midi)
         MidiFileGenerator(copy, settings, handler).apply { applyTranspositionPitches = false; generate() }
         router.apply(midi, settings, tones)
-        val firstCue = PreparedScoreTime(midi).timeAt(midi.tickShift)
+        val timing = PreparedScoreTime(midi)
+        val firstCue = timing.timeAt(midi.tickShift)
         val stemCount = guitars.size * 2 + if (accompaniment.isEmpty()) 0 else 1
         val files = ArrayList<File>()
         var totalFrames = 0L
@@ -77,7 +83,8 @@ internal class SynthAmpMix(private val directory: File, soundFont: () -> ByteArr
             }.toMutableList()
             if (accompaniment.isNotEmpty()) parts += AmpStems.Part(null, render(accompaniment, false))
             // The audio exporter and alphaTab's reader use the same shifted MIDI.
-            return AmpStems(parts, SAMPLE_RATE, syncOffsetMs = 0.0, firstCueMs = firstCue).also { success = true }
+            return AmpStems(parts, SAMPLE_RATE, syncOffsetMs = 0.0, firstCueMs = firstCue,
+                beats = timing.beatMap(SAMPLE_RATE)).also { success = true }
         } finally { if (!success) files.forEach { it.delete() } }
     }
 

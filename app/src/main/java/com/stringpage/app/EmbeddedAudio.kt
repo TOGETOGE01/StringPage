@@ -35,6 +35,7 @@ class EmbeddedAudio(private val failed: (Throwable) -> Unit) : IExternalMediaHan
     }
     internal val currentPositionMs: Double?
         get() = if (ready) (queuedSeek ?: pendingSeek ?: media!!.currentPosition.toLong()).toDouble() else null
+    internal var onSeekSettled: (() -> Unit)? = null
 
     /** Preserve the recording clock when the notation engine snaps a pause to a beat. */
     internal fun restorePausedPosition(time: Double) = requestSeek(time)
@@ -119,6 +120,7 @@ class EmbeddedAudio(private val failed: (Throwable) -> Unit) : IExternalMediaHan
     }
     private fun publishSeek(current: MediaPlayer) {
         output?.updatePosition(current.currentPosition.toDouble())
+        if (media === current && ready && pendingSeek == null && queuedSeek == null) onSeekSettled?.invoke()
         // The controller loops by seeking without a separate play command.
         if (media === current && ready && playRequested) startPlayback(current)
     }

@@ -31,13 +31,15 @@ class NativeSlideScoreGraph(score: Score) {
         }
     }
     companion object {
-        fun flags(note: Note): Int = GpRseProperties.note(note)?.slideFlags ?: run {
+        fun flags(note: Note): Int = GpRseProperties.note(note)?.slideFlags ?: modelFlags(note)
+
+        internal fun modelFlags(note: Note): Int {
             var flags=when(note.slideOutType) {
                 SlideOutType.Shift -> 1;SlideOutType.Legato -> 2;SlideOutType.OutDown -> 4;SlideOutType.OutUp -> 8
                 SlideOutType.PickSlideDown -> 64;SlideOutType.PickSlideUp -> 128;else -> 0
             }
             flags = flags or when(note.slideInType) { SlideInType.IntoFromBelow -> 16;SlideInType.IntoFromAbove -> 32;else -> 0 }
-            flags
+            return flags
         }
         fun length(beat: Beat): Length {
             val value=beat.duration.value
