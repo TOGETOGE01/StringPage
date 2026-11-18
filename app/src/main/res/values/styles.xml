@@ -11,11 +11,56 @@
         <item name="android:alertDialogTheme">@style/AppDialogTheme</item>
     </style>
     <style name="AppTheme" parent="BaseAppTheme" />
+    <style name="AppThemeForest" parent="BaseAppTheme">
+        <item name="colorAccent">#246449</item>
+        <item name="android:colorAccent">#246449</item>
+        <item name="android:windowBackground">#F4F9F4</item>
+        <item name="android:alertDialogTheme">@style/AppDialogForest</item>
+    </style>
+    <style name="AppThemeOcean" parent="BaseAppTheme">
+        <item name="colorAccent">#285B9D</item>
+        <item name="android:colorAccent">#285B9D</item>
+        <item name="android:windowBackground">#F6F9FD</item>
+        <item name="android:alertDialogTheme">@style/AppDialogOcean</item>
+    </style>
+    <style name="AppThemeNight" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:statusBarColor">#111820</item>
+        <item name="android:navigationBarColor">#202B35</item>
+        <item name="colorAccent">#8CE0CD</item>
+        <item name="android:colorAccent">#8CE0CD</item>
+        <item name="android:windowBackground">#202B35</item>
+        <item name="android:alertDialogTheme">@style/AppDialogNight</item>
+    </style>
     <style name="AppDialogTheme" parent="android:style/Theme.Material.Light.Dialog.Alert">
         <item name="android:fontFamily">sans</item>
         <item name="android:colorAccent">#A13C2B</item>
         <item name="android:textColorPrimary">#272029</item>
         <item name="android:textColorSecondary">#6C6066</item>
+        <item name="android:colorBackgroundFloating">#FFFBF6</item>
+        <item name="android:windowBackground">@drawable/dialog_surface</item>
+        <item name="android:windowElevation">12dp</item>
+    </style>
+    <style name="AppDialogForest" parent="AppDialogTheme">
+        <item name="android:colorAccent">#246449</item>
+        <item name="android:textColorPrimary">#1B332C</item>
+        <item name="android:textColorSecondary">#4F655D</item>
+        <item name="android:colorBackgroundFloating">#F4F9F4</item>
+    </style>
+    <style name="AppDialogOcean" parent="AppDialogTheme">
+        <item name="android:colorAccent">#285B9D</item>
+        <item name="android:textColorPrimary">#1E3147</item>
+        <item name="android:textColorSecondary">#52657A</item>
+        <item name="android:colorBackgroundFloating">#F6F9FD</item>
+    </style>
+    <style name="AppDialogNight" parent="android:style/Theme.Material.Dialog.Alert">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:colorAccent">#8CE0CD</item>
+        <item name="android:textColorPrimary">#E6EDF1</item>
+        <item name="android:textColorSecondary">#ACBBC5</item>
+        <item name="android:colorBackgroundFloating">#202B35</item>
         <item name="android:windowBackground">@drawable/dialog_surface</item>
         <item name="android:windowElevation">12dp</item>
     </style>

@@ -36,6 +36,13 @@ internal class GuitarAmpSetup(
     private val transient = mutableMapOf<Int, GuitarAmpSettings>()
     private var closed = false
 
+    internal fun snapshotTransientSettings() = transient.toMap()
+
+    internal fun restoreTransientSettings(settings: Map<Int, GuitarAmpSettings>) {
+        transient.clear()
+        transient.putAll(settings)
+    }
+
     fun settingsFor(score: Score, document: String?): Map<Int, GuitarAmpSettings> {
         val prefix = document?.let(::preferenceKey)
         return score.tracks.toList().mapIndexedNotNull { index, track ->

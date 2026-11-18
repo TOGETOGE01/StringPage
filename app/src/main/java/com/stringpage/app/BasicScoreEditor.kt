@@ -76,14 +76,18 @@ internal class BasicScoreEditor(
 
     // The JSON object contains all serializable document data. Audio is deliberately
     // held by reference once: alphaTab's BackingTrackSerializer omits its raw bytes.
-    private data class Snapshot(
+    internal data class Snapshot(
         val json: alphaTab.collections.Map<String, Any?>?,
         val hadBackingTrack: Boolean,
         val audio: Uint8Array?,
         val bindings: GpRseProperties.EditBindings?
     )
-    private data class Change(val before: Snapshot, val description: String, val edit: ScoreStructure.Edit? = null)
-    private data class Clipboard(val score: Snapshot, val from: BeatAddress, val count: Int, val trackSlot: Int)
+    internal data class Change(val before: Snapshot, val description: String, val edit: ScoreStructure.Edit? = null)
+    internal data class Clipboard(val score: Snapshot, val from: BeatAddress, val count: Int, val trackSlot: Int)
+    internal data class Session(
+        val undo: List<Change>, val redo: List<Change>, val clipboard: Clipboard?,
+        val trackSlots: List<Int>, val nextTrackSlot: Int
+    )
     private data class ElementIds(var beat: Double, var note: Double)
     private val undoHistory = ArrayDeque<Change>()
     private val redoHistory = ArrayDeque<Change>()
@@ -125,6 +129,21 @@ internal class BasicScoreEditor(
     }
 
     internal fun trackSlot(index: Int): Int = trackSlots[index]
+
+    internal fun session(): Session {
+        synchronizeSession()
+        return Session(undoHistory.toList(), redoHistory.toList(), clipboard, trackSlots.toList(), nextTrackSlot)
+    }
+
+    internal fun restoreSession(score: Score, session: Session) {
+        reset(score)
+        undoHistory.addAll(session.undo)
+        redoHistory.addAll(session.redo)
+        clipboard = session.clipboard
+        trackSlots.clear()
+        trackSlots.addAll(session.trackSlots)
+        nextTrackSlot = session.nextTrackSlot
+    }
 
     private fun synchronizeSession() {
         val current = scoreProvider()

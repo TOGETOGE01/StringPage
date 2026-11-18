@@ -10,6 +10,7 @@ import alphaTab.importer.ScoreLoader
 import alphaTab.synth.IExternalMediaSynthOutput
 import alphaTab.synth.PlayerState
 import android.content.Intent
+import android.graphics.drawable.ColorDrawable
 import android.net.Uri
 import android.media.MediaPlayer
 import android.os.SystemClock
@@ -45,9 +46,9 @@ class ReadingSessionIntegrationTest {
     private fun selectSecondTrack() {
         MainActivity::class.java.getDeclaredMethod("selectTrack",Int::class.javaPrimitiveType).apply { isAccessible=true }.invoke(activity,1)
     }
-    private fun recreate() {
+    private fun recreate(action: () -> Unit = { activity.recreate() }) {
         val previous=activity
-        ui { previous.recreate() }
+        ui(action)
         await("replacement activity") {
             val next=ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(Stage.RESUMED)
                 .filterIsInstance<MainActivity>().firstOrNull { it!==previous }
@@ -78,6 +79,57 @@ class ReadingSessionIntegrationTest {
     @After fun close() {
         ui { activity.finish() };instrument.waitForIdleSync();file.delete()
     }
+    @Test fun changingThemeRetainsTheOpenDraftUndoAndPracticePosition() {
+        val context = instrument.targetContext
+        val originalTheme = ReaderTheme.read(context)
+        val next = if (originalTheme == ReaderTheme.Night) ReaderTheme.Forest else ReaderTheme.Night
+        val drafts = DraftStore(context)
+        val previousDraft = if (drafts.exists()) drafts.read() else null
+        val editorAccessor = MainActivity::class.java.getDeclaredMethod("getEditor").apply { isAccessible = true }
+        fun editor() = editorAccessor.invoke(activity) as BasicScoreEditor
+        try {
+            val originalTitle = ui { api.score!!.title }
+            ui { assertTrue(editor().updateMetadata("主题切换测试", api.score!!.artist)) }
+            ready()
+            await("draft written") { drafts.exists() }
+            ui {
+                selectSecondTrack()
+                activity.changeSpeed(0.73)
+                api.masterVolume = 0.42
+                assertTrue(activity.applyLoopRange(4, 6))
+                api.tickPosition = 12800.0
+            }
+            await("initial theme seek") { kotlin.math.abs(api.tickPosition - 12800) < 20 }
+            val originalScore = ui { api.score }
+            val loop = ui { api.playbackRange!!.let { it.startTick to it.endTick } }
+            recreate { activity.changeTheme(next) }
+            await("theme seek restored") { kotlin.math.abs(api.tickPosition - 12800) < 20 }
+            ui {
+                assertEquals(next, ReaderTheme.read(activity))
+                val sheet = activity.findViewById<AlphaTabView>(R.id.score_view)
+                assertEquals(ThemePalette.opaque(next.palette.score), (sheet.background as ColorDrawable).color)
+                assertSame(originalScore, api.score)
+                assertEquals("主题切换测试", api.score!!.title)
+                assertEquals(1, api.tracks[0].index.toInt())
+                assertEquals(0.73, api.playbackSpeed, 0.0)
+                assertEquals(0.42, api.masterVolume, 0.001)
+                assertTrue(api.isLooping)
+                assertEquals(loop, api.playbackRange!!.let { it.startTick to it.endTick })
+                assertEquals(PlayerState.Paused, api.playerState)
+                assertTrue(editor().undo())
+            }
+            ready()
+            ui { assertEquals(originalTitle, api.score!!.title) }
+            // Drain the activity's draft writer before restoring the original test file.
+            val io = MainActivity::class.java.getDeclaredField("io").apply { isAccessible = true }
+                .get(activity) as java.util.concurrent.ExecutorService
+            io.submit {}.get(10, java.util.concurrent.TimeUnit.SECONDS)
+        } finally {
+            originalTheme.save(context)
+            if (previousDraft != null) drafts.write(previousDraft) else drafts.delete()
+        }
+    }
+
     @Test fun switchingAudioSourcesPreservesTheSelectedPassPositionAndLoop() {
         ui {
             activity.changeSpeed(.73);api.masterVolume=.35;selectSecondTrack()

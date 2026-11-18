@@ -12,6 +12,13 @@ class ProgressivePractice {
     var current = 100; private set
     var remaining = 0; private set
     val enabled get() = configuration != null
+    internal data class Session(val configuration: Configuration?, val current: Int, val remaining: Int)
+    internal fun session() = Session(configuration, current, remaining)
+    internal fun restore(session: Session) {
+        configuration = session.configuration
+        current = session.current
+        remaining = session.remaining
+    }
     fun start(value: Configuration): Double {
         configuration = value; current = value.start; remaining = value.repeats
         return current / 100.0

@@ -16,21 +16,25 @@ import android.widget.Button
 
 /** Shared native surfaces and vector icons. No external font or image assets are required. */
 object AppUi {
-    val ink = Color.rgb(39, 32, 41)
-    val muted = Color.rgb(108, 96, 102)
-    val canvas = Color.rgb(241, 235, 229)
-    val panel = Color.rgb(255, 251, 246)
-    val control = Color.rgb(245, 237, 231)
-    val line = Color.rgb(225, 214, 208)
-    val accent = Color.rgb(161, 60, 43)
-    val selected = Color.rgb(248, 227, 219)
-    val rail = Color.rgb(39, 32, 41)
-    val railActive = Color.rgb(77, 47, 49)
-    val railSurface = Color.rgb(53, 43, 53)
-    val railLine = Color.rgb(75, 61, 73)
-    val railInk = Color.rgb(255, 245, 239)
-    val railMuted = Color.rgb(204, 185, 190)
-    val railAccent = Color.rgb(255, 175, 151)
+    internal var theme = ReaderTheme.Clay
+    private val colors get() = theme.palette
+    val ink get() = ThemePalette.opaque(colors.ink)
+    val muted get() = ThemePalette.opaque(colors.muted)
+    val canvas get() = ThemePalette.opaque(colors.canvas)
+    val panel get() = ThemePalette.opaque(colors.panel)
+    val control get() = ThemePalette.opaque(colors.control)
+    val line get() = ThemePalette.opaque(colors.line)
+    val accent get() = ThemePalette.opaque(colors.accent)
+    val onAccent get() = ThemePalette.opaque(colors.onAccent)
+    val selected get() = ThemePalette.opaque(colors.selected)
+    val score get() = ThemePalette.opaque(colors.score)
+    val rail get() = ThemePalette.opaque(colors.rail)
+    val railActive get() = ThemePalette.opaque(colors.railActive)
+    val railSurface get() = ThemePalette.opaque(colors.railSurface)
+    val railLine get() = ThemePalette.opaque(colors.railLine)
+    val railInk get() = ThemePalette.opaque(colors.railInk)
+    val railMuted get() = ThemePalette.opaque(colors.railMuted)
+    val railAccent get() = ThemePalette.opaque(colors.railAccent)
 
     val medium = Typeface.create("sans-serif-medium", Typeface.NORMAL)
     val display = Typeface.create("serif", Typeface.BOLD)
@@ -41,7 +45,7 @@ object AppUi {
         border?.let { setStroke(dp(context, 1), it) }
     }
     fun ripple(context: Context, color: Int, radius: Int = 12, border: Int? = null) = RippleDrawable(
-        ColorStateList.valueOf(Color.argb(39, 193, 108, 82)), surface(context, color, radius, border),
+        ColorStateList.valueOf(colors.accent or 0x27000000), surface(context, color, radius, border),
         surface(context, Color.WHITE, radius)
     )
     fun icon(context: Context, name: String, color: Int = ink, size: Int = 18): Drawable = LineIcon(name, color).apply {
@@ -96,6 +100,10 @@ object AppUi {
                 "audio" -> { line(4f, 10f, 4f, 14f); line(8f, 6f, 8f, 18f); line(12f, 3f, 12f, 21f); line(16f, 7f, 16f, 17f); line(20f, 10f, 20f, 14f) }
                 "track" -> { for (y in listOf(6f, 12f, 18f)) { canvas.drawCircle(4f, y, 1f, paint); line(9f, y, 21f, y) } }
                 "mix" -> { for ((x, y) in listOf(5f to 8f, 12f to 16f, 19f to 10f)) { line(x, 3f, x, y - 3f); line(x, y + 3f, x, 21f); canvas.drawCircle(x, y, 2.5f, paint) } }
+                "theme" -> {
+                    canvas.drawRoundRect(3f, 4f, 21f, 20f, 3f, 3f, paint)
+                    line(10f, 4f, 10f, 20f); line(14f, 9f, 17f, 9f); line(14f, 14f, 18f, 14f)
+                }
                 "loop" -> { path(4f, 10f, 4f, 6f, 20f, 6f); path(17f, 3f, 20f, 6f, 17f, 9f); path(20f, 14f, 20f, 18f, 4f, 18f); path(7f, 15f, 4f, 18f, 7f, 21f) }
                 "zoom" -> { canvas.drawCircle(10f, 10f, 6f, paint); line(14.5f, 14.5f, 21f, 21f); line(7f, 10f, 13f, 10f); line(10f, 7f, 10f, 13f) }
                 "location" -> {

@@ -98,6 +98,21 @@ class PlaybackControls(
     fun snapshot() = Snapshot(tracks.toList(), transposition, metronomeEnabled, metronomeVolume, countInEnabled)
     internal fun snapshotTones() = tones.toList()
 
+    internal fun restoreSession(snapshot: Snapshot, savedTones: List<GuitarTone>) {
+        transposition = snapshot.transposition
+        metronomeEnabled = snapshot.metronomeEnabled
+        metronomeVolume = snapshot.metronomeVolume
+        countInEnabled = snapshot.countInEnabled
+        if (snapshot.tracks.size == tracks.size) {
+            tracks.clear()
+            tracks.addAll(snapshot.tracks)
+        }
+        for ((index, tone) in savedTones.withIndex()) if (index in tones.indices && canChooseTone(index)) {
+            tones[index] = tone
+            sessionTones[trackSlot(index)] = tone
+        }
+    }
+
     private fun preferenceKey(index: Int): String? {
         val document = toneDocument ?: return null
         val slot = trackSlot(index)

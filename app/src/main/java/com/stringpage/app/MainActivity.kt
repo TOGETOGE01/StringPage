@@ -38,6 +38,8 @@ import android.text.TextUtils
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.OnBackPressedCallback
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -53,10 +55,23 @@ import kotlin.math.roundToInt
 /** Offline GP reader. Embedded audio and the GP8 sync map stay inside alphaTab's data model. */
 open class MainActivity : AppCompatActivity() {
     private val pdfPreview get() = this is com.stringpage.app.pdf.PdfPreviewActivity
-    private val ink = AppUi.ink
-    private val paper = AppUi.canvas
-    private val accent = AppUi.accent
-    private val muted = AppUi.muted
+    private val ink get() = AppUi.ink
+    private val paper get() = AppUi.canvas
+    private val accent get() = AppUi.accent
+    private val muted get() = AppUi.muted
+    private var theme = ReaderTheme.Clay
+    internal data class ThemeDocument(
+        val score: Score, val label: String, val document: String?, val modified: Boolean, val reader: ReaderSession,
+        val editSession: BasicScoreEditor.Session, val editing: Boolean, val selection: ScoreEntryPanel.Selection?,
+        val practice: PlaybackControls.Snapshot, val tones: List<GuitarTone>,
+        val transientAmps: Map<Int, GuitarAmpSettings>, val trainer: ProgressivePractice.Session
+    )
+    internal data class ThemeRestart(val document: ThemeDocument?)
+    internal class ThemeChangeModel : ViewModel() {
+        var pending: ThemeRestart? = null
+        fun consume(): ThemeRestart? = pending.also { pending = null }
+    }
+    private val themeChange by lazy { ViewModelProvider(this)[ThemeChangeModel::class.java] }
     private val io = Executors.newSingleThreadExecutor()
     private var generation = 0
     private var loading = false
@@ -213,8 +228,12 @@ open class MainActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        theme = ReaderTheme.read(this)
+        theme.applyTo(this)
         super.onCreate(savedInstanceState)
-        pendingReaderSession=ReaderSession.fromBundle(savedInstanceState?.getBundle("readerSession"))
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        val themeRestart = themeChange.consume()
+        pendingReaderSession=themeRestart?.document?.reader ?: ReaderSession.fromBundle(savedInstanceState?.getBundle("readerSession"))
         fullSheet=pendingReaderSession?.fullScreen ?: false
         if (!factoryCacheSwept) {
             factoryCacheSwept = true
@@ -238,6 +257,12 @@ open class MainActivity : AppCompatActivity() {
                 if (scoreEntry.isOpen) setScoreEditing(false) else guardDocumentChange { finish() }
             }
         })
+        if (themeRestart != null) {
+            themeRestart.document?.let { retained ->
+                loadScore(retained.document?.let(Uri::parse), retained = retained) { retained.label to retained.score }
+            }
+            return
+        }
         if (pdfPreview) {
             val file = com.stringpage.app.pdf.PdfConvertActivity.privatePreviewFile(cacheDir,
                 intent.getStringExtra(com.stringpage.app.pdf.PdfConvertActivity.PREVIEW_EXTRA))
@@ -267,13 +292,18 @@ open class MainActivity : AppCompatActivity() {
     }
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
+
+    private fun Int.withAlpha(alpha: Int) = (this and 0xffffff) or (alpha shl 24)
+
+    private fun Int.notationColor() = alphaTab.model.Color(
+        Color.red(this).toDouble(), Color.green(this).toDouble(), Color.blue(this).toDouble(), 255.0)
     private fun text(value: String, size: Float = 14f, color: Int = ink) = TextView(this).apply {
         text = value; textSize = size; setTextColor(color)
         gravity = Gravity.CENTER_VERTICAL
     }
     private fun button(value: String, dark: Boolean = false, action: () -> Unit) = Button(this).apply {
         text = value; textSize = 13f; isAllCaps = false; typeface = AppUi.medium
-        setTextColor(if (dark) Color.WHITE else ink)
+        setTextColor(if (dark) AppUi.onAccent else ink)
         background = AppUi.ripple(this@MainActivity, if (dark) accent else AppUi.control, 10)
         elevation = 0f; stateListAnimator = null
         minWidth = 0; minimumWidth = 0; minHeight = dp(44); minimumHeight = dp(44)
@@ -294,7 +324,7 @@ open class MainActivity : AppCompatActivity() {
         val statusInset = View(this).apply { setBackgroundColor(AppUi.rail) }
         root.addView(statusInset, LinearLayout.LayoutParams(-1, 0))
         ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
-            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
             v.setPadding(bars.left, 0, bars.right, bars.bottom)
             if (statusInset.layoutParams.height != bars.top) {
                 statusInset.layoutParams.height = bars.top
@@ -388,13 +418,22 @@ open class MainActivity : AppCompatActivity() {
 
         scoreHost = FrameLayout(this)
         scoreFrame = FrameLayout(this).apply {
-            background = AppUi.surface(this@MainActivity, Color.WHITE, 10, AppUi.line); clipToOutline = true
+            background = AppUi.surface(this@MainActivity, AppUi.score, 10, AppUi.line); clipToOutline = true
         }
         sheet = AlphaTabView(this, null).apply {
             id = R.id.score_view
-            barCursorFillColor = Color.argb(26, 161, 60, 43)
-            beatCursorFillColor = Color.argb(214, 161, 60, 43)
-            selectionFillColor = Color.argb(52, 161, 60, 43)
+            setBackgroundColor(AppUi.score)
+            barCursorFillColor = accent.withAlpha(26)
+            beatCursorFillColor = accent.withAlpha(214)
+            selectionFillColor = accent.withAlpha(52)
+            if (theme != ReaderTheme.Clay) settings.display.resources.apply {
+                mainGlyphColor = ink.notationColor()
+                secondaryGlyphColor = muted.notationColor()
+                scoreInfoColor = ink.notationColor()
+                barNumberColor = accent.notationColor()
+                staffLineColor = muted.notationColor()
+                barSeparatorColor = muted.notationColor()
+            }
             settings.display.scale = 0.85
             settings.display.barsPerRow = -1.0
             settings.display.padding = alphaTab.collections.DoubleList().apply { push(20.0); push(24.0); push(20.0); push(24.0) }
@@ -558,7 +597,7 @@ open class MainActivity : AppCompatActivity() {
         controls.addView(restart, LinearLayout.LayoutParams(dp(44), dp(44)).apply { marginEnd = dp(6) })
         play = button("播放", true) { togglePlayback() }.apply {
             id = R.id.play_pause; background = AppUi.ripple(this@MainActivity, accent, 12)
-            textSize = 14f; AppUi.iconButton(this, "play", Color.WHITE)
+            textSize = 14f; AppUi.iconButton(this, "play", AppUi.onAccent)
         }
         controls.addWeighted(play, 1.25f, 44)
         speed = transportButton(button("1.0×") { chooseSpeed() }).apply {
@@ -570,9 +609,15 @@ open class MainActivity : AppCompatActivity() {
         bottomContent.addView(controls); transport.addView(bottomContent)
         root.addView(transport)
         setContentView(root)
-        WindowCompat.getInsetsController(window, root).isAppearanceLightStatusBars = false
+        WindowCompat.getInsetsController(window, root).apply {
+            isAppearanceLightStatusBars = false
+            isAppearanceLightNavigationBars = !theme.dark
+        }
         @Suppress("DEPRECATION")
-        if (Build.VERSION.SDK_INT < 35) window.statusBarColor = AppUi.rail
+        if (Build.VERSION.SDK_INT < 35) {
+            window.statusBarColor = AppUi.rail
+            window.navigationBarColor = AppUi.panel
+        }
         root.addOnLayoutChangeListener { view, left, top, right, bottom, _, _, _, _ ->
             val density=resources.displayMetrics.density
             val width=((right-left-view.paddingLeft-view.paddingRight)/density).toInt()
@@ -656,7 +701,7 @@ open class MainActivity : AppCompatActivity() {
         }
         listOf(source,track,zoom).forEach { it.setPadding(dp(if(width<380) 8 else 12),0,dp(if(width<380) 8 else 12),0) }
         val gutter = if (fullSheet) 0 else if (wide) 18 else 8
-        scoreFrame.background = AppUi.surface(this, Color.WHITE, if (wide && !fullSheet) 10 else 0, if (gutter == 0) null else AppUi.line)
+        scoreFrame.background = AppUi.surface(this, AppUi.score, if (wide && !fullSheet) 10 else 0, if (gutter == 0) null else AppUi.line)
         scoreFrame.elevation = if (wide && !fullSheet) dp(1).toFloat() else 0f
         transport.setPadding(dp(if (wide) 22 else 12), dp(if(compact) 1 else 3), dp(if (wide) 22 else 12), dp(if(compact) 4 else 8))
         status.layoutParams.height=dp(if(compact) 19 else 23);status.requestLayout()
@@ -678,7 +723,7 @@ open class MainActivity : AppCompatActivity() {
 
     private fun updatePlayIcon() {
         if(currentWidth<380 || (currentHeight in 1..420 && currentWidth<840)) play.setCompoundDrawables(null,null,null,null)
-        else AppUi.iconButton(play,if(playing) "pause" else "play",Color.WHITE,17)
+        else AppUi.iconButton(play,if(playing) "pause" else "play",AppUi.onAccent,17)
     }
 
     private fun updateLoopStyle() {
@@ -1175,6 +1220,27 @@ open class MainActivity : AppCompatActivity() {
     }
 
     private fun loadFile(read: () -> Pair<String, ByteArray>, uri: Uri?, recovered: Boolean = false, newDocument: Boolean = false) {
+        loadScore(uri, recovered, newDocument) {
+            val (label, bytes) = read()
+            require(bytes.size <= MAX_FILE) { "文件超过 128 MB，请先减小内嵌音频大小。" }
+            val parsed = ScoreLoader.loadScoreFromBytes(Uint8Array(bytes.asUByteArray()), sheet.settings)
+            require(parsed.tracks.length > 0) { "这份文件中没有可显示的声部。" }
+            try {
+                val properties = com.stringpage.app.rse.GpRseProperties.read(bytes)
+                require(!properties.hasGpif || properties.tracks.size == parsed.tracks.length.toInt())
+                com.stringpage.app.rse.GpRseProperties.bind(parsed, properties)
+                ScoreLyrics.restore(parsed, properties)
+            } catch (error: Exception) {
+                com.stringpage.app.rse.GpRseProperties.bindFailure(parsed, error.message ?: "无法读取原谱的音源设置。")
+            }
+            label to parsed
+        }
+    }
+
+    private fun loadScore(
+        uri: Uri?, recovered: Boolean = false, newDocument: Boolean = false, retained: ThemeDocument? = null,
+        read: () -> Pair<String, Score>
+    ) {
         recordingDialog?.dismiss()
         recordingDialog = null
         if (scoreEntry.isOpen) setScoreEditing(false)
@@ -1188,18 +1254,7 @@ open class MainActivity : AppCompatActivity() {
         loadingIndicator.visibility = View.VISIBLE
         io.execute {
             try {
-                val (label, bytes) = read()
-                require(bytes.size <= MAX_FILE) { "文件超过 128 MB，请先减小内嵌音频大小。" }
-                val parsed = ScoreLoader.loadScoreFromBytes(Uint8Array(bytes.asUByteArray()), sheet.settings)
-                require(parsed.tracks.length > 0) { "这份文件中没有可显示的声部。" }
-                try {
-                    val properties = com.stringpage.app.rse.GpRseProperties.read(bytes)
-                    require(!properties.hasGpif || properties.tracks.size == parsed.tracks.length.toInt())
-                    com.stringpage.app.rse.GpRseProperties.bind(parsed, properties)
-                    ScoreLyrics.restore(parsed, properties)
-                } catch (error: Exception) {
-                    com.stringpage.app.rse.GpRseProperties.bindFailure(parsed, error.message ?: "无法读取原谱的音源设置。")
-                }
+                val (label, parsed) = read()
                 val rawAudio = parsed.backingTrack?.rawAudioFile
                 val lyrics = ScoreLyrics.trackIndexes(parsed)
                 val audioFile = rawAudio?.takeIf { it.length > 0 }?.let { RecordingAudio.materialize(it, cacheDir) }
@@ -1210,16 +1265,25 @@ open class MainActivity : AppCompatActivity() {
                     }
                     loading = false; loadingIndicator.visibility = View.GONE
                     val key = uri?.toString()
-                    val resume=pendingReaderSession?.takeIf { it.document==key }
-                    if(resume==null) pendingReaderSession=null
+                    val resume = retained?.reader?.copy(document = key ?: transientPlaybackKey)
+                        ?: pendingReaderSession?.takeIf { it.document == key }
+                    pendingReaderSession = resume
                     restoreRequestedTick=null
                     restoreBarPosition=null
                     score = parsed; fileLabel = label; documentKey=key
                     lyricTracks = lyrics
                     activeTrack=(resume?.track ?: 0).coerceIn(0,parsed.tracks.length.toInt()-1)
-                    modified = recovered || newDocument; restoreTick = null; trainer.stop()
-                    editor.reset(parsed); practice.reset(parsed)
-                    if (!modified && !pdfPreview) io.execute { drafts.delete() }
+                    modified = retained?.modified ?: (recovered || newDocument)
+                    restoreTick = null
+                    trainer.stop()
+                    if (retained == null) editor.reset(parsed) else editor.restoreSession(parsed, retained.editSession)
+                    practice.reset(parsed)
+                    if (retained != null) {
+                        practice.restoreSession(retained.practice, retained.tones)
+                        trainer.restore(retained.trainer)
+                        if (retained.transientAmps.isNotEmpty()) ampSetup.restoreTransientSettings(retained.transientAmps)
+                    }
+                    if (!modified && !pdfPreview && retained == null) io.execute { drafts.delete() }
                     hasAudio = (parsed.backingTrack?.rawAudioFile?.length ?: 0.0) > 0.0
                     audioMode = hasAudio && (resume==null || resume.source=="embedded"); factoryMode = false
                     restoreAmpSource = resume?.source == "amp"
@@ -1264,12 +1328,18 @@ open class MainActivity : AppCompatActivity() {
                     displayedBar = 1
                     barCounter.text = "小节 1 / ${parsed.masterBars.length.toInt()}"
                     sheet.tracks = listOf(parsed.tracks[activeTrack])
-                    if (uri != null) { saveRecent(uri, title.text.toString()); prefs.edit().putString("lastUri", uri.toString()).apply() }
-                    else if (!pdfPreview) prefs.edit().remove("lastUri").apply()
+                    if (retained == null) {
+                        if (uri != null) { saveRecent(uri, title.text.toString()); prefs.edit().putString("lastUri", uri.toString()).apply() }
+                        else if (!pdfPreview) prefs.edit().remove("lastUri").apply()
+                    }
                     refreshPanels()
                     if (newDocument) {
                         saveDraft()
                         setScoreEditing(true)
+                    }
+                    if (retained?.editing == true) {
+                        setScoreEditing(true, keepSource = true)
+                        scoreEntry.restoreSelection(retained.selection)
                     }
                 }
             } catch (e: Throwable) {
@@ -1495,6 +1565,20 @@ open class MainActivity : AppCompatActivity() {
     private val bankLibraryDelegate = lazy { com.stringpage.app.rse.BankLibraryUi(this) { pausePlayback(); embedded.pause() } }
     private val bankLibrary by bankLibraryDelegate
 
+    internal fun changeTheme(next: ReaderTheme) {
+        if (theme == next || loading || preparingExport != null || themeChange.pending != null) return
+        val retained = score?.let { current ->
+            val reader = checkNotNull(captureReaderSession(allowTransient = true))
+            ThemeDocument(current, fileLabel, documentKey, modified, reader, editor.session(), scoreEntry.isOpen,
+                scoreEntry.saveSelection(), practice.snapshot(), practice.snapshotTones(),
+                if (ampSetupDelegate.isInitialized()) ampSetup.snapshotTransientSettings() else emptyMap(),
+                trainer.session())
+        }
+        themeChange.pending = ThemeRestart(retained)
+        next.save(this)
+        recreate()
+    }
+
     private fun showMore() {
         if (loading) return
         val available = score != null
@@ -1521,6 +1605,9 @@ open class MainActivity : AppCompatActivity() {
                 )))
             }
             val other = buildList {
+                add(ReaderMenu.Action("界面主题", "theme", theme.label, enabled = preparingExport == null) {
+                    showReaderThemes(this@MainActivity, theme, ::changeTheme)
+                })
                 if (!importing && !pdfPreview) add(ReaderMenu.Action("新建乐谱", "edit") { showNewScore() })
                 if (available) {
                     if (!pdfPreview) {
@@ -1664,12 +1751,12 @@ open class MainActivity : AppCompatActivity() {
         dialog.show()
     }
 
-    private fun setScoreEditing(enabled: Boolean) {
+    private fun setScoreEditing(enabled: Boolean, keepSource: Boolean = false) {
         if (enabled && (loading || score == null)) return
         if (enabled) {
             pausePlayback()
             scoreEntry.open()
-            if (audioMode) switchSource(false)
+            if (audioMode && !keepSource) switchSource(false)
         } else scoreEntry.close()
         editScoreButton.text = if (enabled) "完成" else "编辑"
         editScoreButton.isSelected = enabled

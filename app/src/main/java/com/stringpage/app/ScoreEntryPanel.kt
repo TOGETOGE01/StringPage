@@ -8,7 +8,6 @@ import alphaTab.model.Note
 import alphaTab.model.Score
 import android.app.Activity
 import android.app.AlertDialog
-import android.graphics.Color
 import android.text.InputType
 import android.view.Gravity
 import android.view.KeyEvent
@@ -33,7 +32,7 @@ internal class ScoreEntryPanel(
     private val clearMidiGesture: () -> Unit,
     private val exit: () -> Unit
 ) {
-    private data class Selection(val beat: BasicScoreEditor.BeatAddress, val string: Int, val note: Int? = null)
+    internal data class Selection(val beat: BasicScoreEditor.BeatAddress, val string: Int, val note: Int? = null)
     private var selected: Selection? = null
     private var ready = false
     private var midiPort: String? = null
@@ -75,6 +74,13 @@ internal class ScoreEntryPanel(
     val isOpen get() = view.visibility == View.VISIBLE
 
     fun open() { view.visibility = View.VISIBLE; refresh() }
+
+    internal fun saveSelection() = selected
+
+    internal fun restoreSelection(selection: Selection?) {
+        selected = selection
+        refresh()
+    }
 
     fun close() {
         view.visibility = View.GONE
@@ -627,7 +633,7 @@ internal class ScoreEntryPanel(
         text = value; textSize = 13f; isAllCaps = false; typeface = AppUi.medium
         minimumHeight = dp(44); minHeight = dp(44); minimumWidth = 0; minWidth = 0
         setPadding(dp(10), 0, dp(10), 0)
-        setTextColor(if (primary) Color.WHITE else AppUi.ink)
+        setTextColor(if (primary) AppUi.onAccent else AppUi.ink)
         background = AppUi.ripple(activity, if (primary) AppUi.accent else AppUi.control, 9)
         stateListAnimator = null
         setOnClickListener { action() }

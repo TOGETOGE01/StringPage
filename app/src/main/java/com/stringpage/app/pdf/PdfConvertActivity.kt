@@ -28,6 +28,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.stringpage.app.AppUi
+import com.stringpage.app.ReaderTheme
 import com.stringpage.app.GpDocumentReader
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -75,6 +76,7 @@ class PdfConvertActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        ReaderTheme.read(this).applyTo(this)
         super.onCreate(savedInstanceState)
         selectedTracks = savedInstanceState?.getIntArray("tracks")?.toSet()
         val restoredMeter = savedInstanceState?.getIntArray("scannedMeter")
@@ -133,7 +135,7 @@ class PdfConvertActivity : AppCompatActivity() {
             view.setPadding(safe.left, safe.top, safe.right, safe.bottom)
             insets
         }
-        val toolbar = row().apply { setPadding(dp(12), dp(4), dp(12), dp(4)); setBackgroundColor(Color.WHITE) }
+        val toolbar = row().apply { setPadding(dp(12), dp(4), dp(12), dp(4)); setBackgroundColor(AppUi.panel) }
         toolbar.addView(button("返回") { finish() })
         toolbar.addView(label("PDF 转 GP", 20f, bold = true), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
         picker = button("选择 PDF", true) { openDocument.launch(arrayOf("application/pdf")) }
@@ -608,8 +610,8 @@ class PdfConvertActivity : AppCompatActivity() {
     }
     private fun button(value: String, primary: Boolean = false, clicked: () -> Unit) = Button(this).apply {
         text = value; textSize = 14f; isAllCaps = false
-        setTextColor(if (primary) Color.WHITE else AppUi.ink)
-        background = AppUi.ripple(context, if (primary) AppUi.accent else Color.WHITE, border = if (primary) null else AppUi.line)
+        setTextColor(if (primary) AppUi.onAccent else AppUi.ink)
+        background = AppUi.ripple(context, if (primary) AppUi.accent else AppUi.panel, border = if (primary) null else AppUi.line)
         setPadding(dp(8), 0, dp(8), 0); minimumHeight = dp(44); minHeight = dp(44)
         layoutParams = LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { setMargins(dp(3), dp(3), dp(3), dp(3)) }
         setOnClickListener { clicked() }
