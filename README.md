@@ -20,7 +20,7 @@ SHA-256 为 `3780549f781a8283dfcb25fd43fc99bc9741ceef4f32151bd4939aba30aba05f`�
 
 **[下载 Strat-Guitar 电吉他音色库（.gp7bank，52.8 MiB）](https://github.com/TOGETOGE01/StringPage/releases/download/v1.35.0/Strat-Guitar.gp7bank)** · [音色库获取与导入指南](docs/USER_GUIDE.md#音色库管理与单音试听)
 
-音色库版权归 Arobas Music 所有，经授权提供下载。下载后在弦页选择「更多 → 原厂音色库 · 采样预览 → 导入音色库」。默认的 GeneralUser GS 合成音源随 APK 安装。
+音色库版权归 Arobas Music 所有。下载后在弦页选择「更多 → 原厂音色库 · 采样预览 → 导入音色库」。默认的 GeneralUser GS 合成音源随 APK 安装。
 
 ## 功能
 
