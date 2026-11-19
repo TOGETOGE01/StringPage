@@ -18,6 +18,8 @@ An Android Guitar Pro score reader, practice player, and touch editor for phones
 
 SHA-256 为 `3780549f781a8283dfcb25fd43fc99bc9741ceef4f32151bd4939aba30aba05f`。可下载 [SHA-256 校验文件](https://github.com/TOGETOGE01/StringPage/releases/download/v1.35.0/SHA256-1.35.0.txt)。
 
+使用原厂采样播放前，请按[音色库获取与导入指南](docs/USER_GUIDE.md#音色库管理与单音试听)准备 `.gp7bank` 文件。默认的 GeneralUser GS 合成音源随 APK 安装。
+
 ## 功能
 
 - **本地读谱**：读取 `.gp3`、`.gp4`、`.gp5`、`.gpx`、`.gp`，提供五线谱、六线谱、组合显示、声部切换、缩放和全屏。

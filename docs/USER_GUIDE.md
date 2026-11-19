@@ -84,6 +84,10 @@ Eastern钢琴40个高音区采样按照原厂AudioStream规则关闭循环，按
 
 ## 音色库管理与单音试听
 
+1. 从 Guitar Pro 官方下载安装 Guitar Pro 8，安装时勾选 **Install Soundbanks**。[Guitar Pro 8 官方安装指南](https://www.guitar-pro.com/docs/gp8/basics/installation/install)
+2. 在 Windows 上，按 `Win + R` 打开 `%ProgramData%\Arobas Music\Soundbanks\com.arobas-music.soundbank.standard\banks`。如果安装时使用了其他目录，在电脑上搜索 `*.gp7bank`。选择所需音色库，把文件复制到安卓设备的「下载」目录。电吉他可以先试 `Strat-Guitar.gp7bank`。
+3. 在弦页打开「更多 → 原厂音色库 · 采样预览 → 导入音色库」，选择一个或多个 `.gp7bank`。导入后可试听，或在「音源 → 原厂采样 · 按谱播放」中把音色库分配给声部。
+
 “更多 → 原厂音色库 · 采样预览”支持导入一个或多个 `.gp7bank`，自动去重，选择实际录音采样和拾音位置，移调试听，并读取原库的延音循环。试听保持原有单声道或立体声；切到后台、关闭弹窗、失去音频焦点或拔掉耳机时停止。移除操作只删除应用内副本。单库上限128 MB，已导入总量上限2 GB。APK不内置原厂商业采样，需要自行提供音色库文件。
 
 默认合成模式仍为GeneralUser GS；原厂采样播放需要主动选择并准备。选样树与音色库解析已接入真正RSE规则；全部上层演奏状态、过渡与声音等价仍需验证。
