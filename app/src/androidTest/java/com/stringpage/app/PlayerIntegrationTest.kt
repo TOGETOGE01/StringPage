@@ -77,7 +77,11 @@ class PlayerIntegrationTest {
         val result = SynthAmpMix(context.cacheDir) { context.assets.open("sonivox.sf2").use { it.readBytes() } }
             .prepare(score, api.settings, listOf(GuitarTone.Original), 0, { false }, {})
         try {
-            ui { activity.acceptAmpAudio(score, result, preset) }
+            ui {
+                assertTrue(activity.practice.setMetronomeEnabled(true))
+                assertTrue(activity.practice.setMetronomeRhythm(MetronomeRhythm.Triplet))
+                activity.acceptAmpAudio(score, result, preset)
+            }
             awaitReady()
             ui {
                 assertEquals("音箱混音", activity.findViewById<Button>(R.id.audio_source).text.toString())
@@ -86,6 +90,8 @@ class PlayerIntegrationTest {
                 assertEquals(PlayerState.Paused, api.playerState)
                 assertEquals(original, score.tracks[0].playbackInfo.program, 0.0)
                 assertTrue(api.isLooping)
+                assertEquals(MetronomeRhythm.Triplet, activity.practice.snapshot().metronomeRhythm)
+                assertEquals(0.7, activity.practice.mediaMetronomeVolume(), 0.001)
             }
             playPause()
             await("prepared amp audio advances along the score") { api.tickPosition > target + 60 }
@@ -291,6 +297,18 @@ class PlayerIntegrationTest {
         if (width >= 1200) ui {
             assertEquals(View.VISIBLE, activity.findViewById<View>(R.id.library_panel).visibility)
             assertEquals(View.VISIBLE, activity.findViewById<View>(R.id.practice_panel).visibility)
+            val source = api.player
+            val libraryToggle = activity.findViewById<Button>(R.id.reader_library_toggle)
+            val practiceToggle = activity.findViewById<Button>(R.id.reader_practice_toggle)
+            libraryToggle.performClick()
+            assertEquals(View.GONE, activity.findViewById<View>(R.id.library_panel).visibility)
+            assertEquals(View.VISIBLE, activity.findViewById<View>(R.id.practice_panel).visibility)
+            libraryToggle.performClick()
+            practiceToggle.performClick()
+            assertEquals(View.VISIBLE, activity.findViewById<View>(R.id.library_panel).visibility)
+            assertEquals(View.GONE, activity.findViewById<View>(R.id.practice_panel).visibility)
+            practiceToggle.performClick()
+            assertSame(source, api.player)
         }
         val original = ui { api }
         ui { activity.findViewById<Button>(R.id.full_screen).performClick() }

@@ -175,7 +175,7 @@ class ReadingSessionIntegrationTest {
             assertTrue(api.isLooping);assertNotNull(api.playbackRange)
             assertEquals("Screen recreation lost the practice position",9000.0,api.tickPosition,20.0)
             assertEquals(View.GONE,activity.findViewById<View>(R.id.library_panel).visibility)
-            assertEquals("退出全屏",activity.findViewById<Button>(R.id.full_screen).text.toString())
+            assertEquals("退出全屏",activity.findViewById<Button>(R.id.full_screen).contentDescription.toString())
             assertEquals("The screen must reopen paused",PlayerState.Paused,api.playerState)
         }
     }

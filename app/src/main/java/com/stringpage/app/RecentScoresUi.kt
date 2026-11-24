@@ -78,13 +78,13 @@ class RecentScoresUi(
             contentDescription = "打开 ${entry.name} ${entry.fileName}"
             if (detail && entry.fileName.isNotBlank()) { text = "${entry.name}\n${entry.fileName}"; maxLines = 2 }
         }
-        addView(open, LinearLayout.LayoutParams(0, dp(if (detail) 64 else 44), 1f))
-        addView(action("", onRail = !detail) { remove(setOf(entry.uri)) }.apply {
+        addView(open, LinearLayout.LayoutParams(0, dp(if (detail) 64 else 48), 1f))
+        if (detail) addView(action("") { remove(setOf(entry.uri)) }.apply {
             contentDescription = "移除记录 ${entry.name} ${entry.fileName}"; tooltipText = "移除记录"
             background = AppUi.ripple(context, Color.TRANSPARENT, 8)
-            AppUi.iconButton(this, "trash", if (detail) AppUi.muted else AppUi.railMuted, 16)
+            AppUi.iconButton(this, "trash", AppUi.muted, 16)
             compoundDrawablePadding = 0; setPadding(dp(12), 0, dp(12), 0)
-        }, LinearLayout.LayoutParams(dp(44), dp(44)))
+        }, LinearLayout.LayoutParams(dp(48), dp(48)))
     }
 
     private fun remove(uris: Set<String>) {

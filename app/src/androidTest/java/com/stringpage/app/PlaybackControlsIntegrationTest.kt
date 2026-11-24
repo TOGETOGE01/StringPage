@@ -3,11 +3,17 @@
 package com.stringpage.app
 
 import alphaTab.AlphaTabView
+import alphaTab.Settings
 import alphaTab.core.ecmaScript.Uint8Array
 import alphaTab.exporter.Gp7Exporter
+import alphaTab.importer.AlphaTexImporter
 import alphaTab.importer.ScoreLoader
+import alphaTab.midi.AlphaTabMetronomeEvent
+import alphaTab.midi.MidiEventType
+import alphaTab.model.Automation
 import alphaTab.synth.IExternalMediaSynthOutput
 import android.content.Intent
+import android.net.Uri
 import android.os.SystemClock
 import android.widget.Button
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -15,12 +21,18 @@ import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TestName
 import org.junit.runner.RunWith
+import java.io.File
+import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
 @RunWith(AndroidJUnit4::class)
 class PlaybackControlsIntegrationTest {
+    @get:Rule val testName = TestName()
     private val instrument = InstrumentationRegistry.getInstrumentation()
     private lateinit var activity: MainActivity
     private lateinit var controls: PlaybackControls
@@ -46,7 +58,9 @@ class PlaybackControlsIntegrationTest {
     @Before fun launch() {
         activity = instrument.startActivitySync(Intent(instrument.targetContext, MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)) as MainActivity
-        val fixture = instrument.practiceScoreUri()
+        val fixture = if (testName.methodName == "automaticMetronomeChangesTempoAndGroupsCompoundMeter") {
+            mixedMeterFixture()
+        } else instrument.practiceScoreUri()
         ui { activity.openUri(fixture) }; awaitReady()
         ui {
             controls = PlaybackControls(activity, { api },
@@ -56,20 +70,26 @@ class PlaybackControlsIntegrationTest {
         }
     }
     @After fun close() {
-        ui { controls.close(); activity.finish() }
+        ui { if (::controls.isInitialized) controls.close(); activity.finish() }
         instrument.waitForIdleSync()
     }
 
-    @Test fun recordingModeRejectsFakeStemAndMetronomeControls() {
+    @Test fun recordingModeSupportsMetronomeWithoutEnablingStemControls() {
         ui {
             val original = controls.snapshot()
             assertFalse(controls.setTrackMute(0, true))
             assertFalse(controls.setTrackSolo(0, true))
             assertFalse(controls.setTrackVolume(0, 0.0))
             assertFalse(controls.setTransposition(7))
-            assertFalse(controls.setMetronomeEnabled(true))
             assertFalse(controls.setCountInEnabled(true))
             assertEquals(original, controls.snapshot())
+            assertTrue(controls.setMetronomeEnabled(true))
+            assertTrue(controls.setMetronomeVolume(0.35))
+            assertTrue(controls.setMetronomeBpm(126))
+            assertTrue(controls.setMetronomeRhythm(MetronomeRhythm.Triplet))
+            assertEquals(0.35, controls.mediaMetronomeVolume(), 0.001)
+            assertEquals(126, controls.snapshot().customMetronomeBpm)
+            assertEquals(MetronomeRhythm.Triplet, controls.snapshot().metronomeRhythm)
             assertFalse(controls.reapply())
         }
     }
@@ -150,6 +170,69 @@ class PlaybackControlsIntegrationTest {
             assertFalse(controls.snapshot().metronomeEnabled)
             assertFalse(controls.snapshot().countInEnabled)
             assertTrue(controls.snapshot().tracks[0].solo)
+        }
+    }
+
+    @Test fun scoreMetronomePlaysTripletsInTheSynthesizer() {
+        val events = metronomeClicks(bpm = null, rhythm = MetronomeRhythm.Triplet, speed = 0.6)
+        for ((first, second) in events.zipWithNext()) assertEquals(320.0, second.tick - first.tick, 0.01)
+        for (event in events) assertEquals(200.0, event.metronomeDurationInMilliseconds, 0.01)
+    }
+
+    @Test fun customMetronomeBpmUsesActualPlaybackTimeAtReducedScoreSpeed() {
+        val events = metronomeClicks(bpm = 150, rhythm = MetronomeRhythm.Eighth, speed = 0.5)
+        assertEquals(0.0, events[0].metronomeNumerator, 0.0)
+        for (event in events) assertEquals(200.0, event.metronomeDurationInMilliseconds / 0.5, 0.01)
+        // The first beat keeps the same MIDI tempo, so consecutive click ticks are evenly spaced.
+        val firstGap = events[1].tick - events[0].tick
+        assertTrue(firstGap > 0.0 && firstGap < 480.0)
+        assertEquals(firstGap, events[2].tick - events[1].tick, 0.01)
+    }
+
+    @Test fun automaticMetronomeChangesTempoAndGroupsCompoundMeter() {
+        val clicks = metronomeClicks(null, MetronomeRhythm.Meter, 1.0, count = 5)
+        val compound = clicks.first { it.metronomeDurationInTicks == 1440.0 }
+        assertEquals(0.0, compound.metronomeNumerator, 0.0)
+        assertEquals(1000.0, compound.metronomeDurationInMilliseconds, 0.01)
+        assertTrue(clicks.any { it.metronomeDurationInTicks == 960.0 && it.metronomeDurationInMilliseconds == 500.0 })
+    }
+
+    private fun mixedMeterFixture(): Uri {
+        val score = AlphaTexImporter().run {
+            initFromString("""\tempo 120 . 0.1.4 2.1.4 3.1.4 5.1.4 | 7.1.8 5.1.8 3.1.8 2.1.8 3.1.8 5.1.8""", Settings())
+            readScore()
+        }
+        score.masterBars[1].apply {
+            timeSignatureNumerator = 6.0
+            timeSignatureDenominator = 8.0
+            tempoAutomations.push(Automation.buildTempoAutomation(false, 0.0, 90.0, 2.0))
+        }
+        val file = File(instrument.targetContext.cacheDir, "metronome-meter-test.gp").apply {
+            val bytes = Gp7Exporter().export(score)
+            outputStream().use { it.write(bytes.buffer.asByteArray(), bytes.byteOffset.toInt(), bytes.length.toInt()) }
+        }
+        return Uri.fromFile(file)
+    }
+
+    private fun metronomeClicks(bpm: Int?, rhythm: MetronomeRhythm, speed: Double, count: Int = 3): List<AlphaTabMetronomeEvent> {
+        ui { activity.switchSource(false) }
+        awaitReady()
+        val events = LinkedBlockingQueue<AlphaTabMetronomeEvent>()
+        val stop = ui {
+            assertFalse(activity.practice.setMetronomeBpm(19))
+            assertTrue(activity.practice.setMetronomeBpm(bpm))
+            assertTrue(activity.practice.setMetronomeRhythm(rhythm))
+            assertTrue(activity.practice.setMetronomeEnabled(true))
+            activity.changeSpeed(speed)
+            api.midiEventsPlayedFilter = alphaTab.collections.List<MidiEventType>().apply { push(MidiEventType.AlphaTabMetronome) }
+            api.midiEventsPlayed.on { args ->
+                for (event in args.events) if (event is AlphaTabMetronomeEvent) events.add(event)
+            }.also { activity.findViewById<Button>(R.id.play_pause).performClick() }
+        }
+        return try {
+            List(count) { events.poll(5, TimeUnit.SECONDS) ?: error("Synth did not render click ${it + 1}") }
+        } finally {
+            ui { stop(); api.pause() }
         }
     }
 }

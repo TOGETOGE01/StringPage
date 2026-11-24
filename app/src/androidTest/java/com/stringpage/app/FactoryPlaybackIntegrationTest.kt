@@ -58,13 +58,19 @@ class FactoryPlaybackIntegrationTest {
             val prepared = FactoryScoreRenderer.prepareStems(performance, routes, context.cacheDir, emptySet(), 0, setOf(0))
             stems = prepared.stems
             assertEquals(dry.noteCount, prepared.noteCount)
-            ui { activity.acceptFactoryAudio(score, prepared) }
+            ui {
+                assertTrue(activity.practice.setMetronomeEnabled(true))
+                assertTrue(activity.practice.setMetronomeBpm(132))
+                activity.acceptFactoryAudio(score, prepared)
+            }
             await("factory score ready") { button.isEnabled && activity.findViewById<Button>(R.id.audio_source).text == "原厂采样" }
             val stream = ui {
                 assertSame(originalAudio, api.score!!.backingTrack!!.rawAudioFile)
                 assertEquals(syncCount, score.masterBars.sumOf { it.syncPoints?.length?.toInt() ?: 0 })
                 val handler = (api.player!!.output as IExternalMediaSynthOutput).handler as StemAudio
                 assertEquals(result.durationMs, handler.backingTrackDuration, 30.0)
+                assertEquals(132, activity.practice.snapshot().customMetronomeBpm)
+                assertEquals(0.7, activity.practice.mediaMetronomeVolume(), 0.001)
                 button.performClick()
                 handler
             }

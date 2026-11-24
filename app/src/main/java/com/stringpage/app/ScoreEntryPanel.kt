@@ -30,7 +30,8 @@ internal class ScoreEntryPanel(
     private val currentBar: () -> Int,
     private val chooseMidi: () -> Unit,
     private val clearMidiGesture: () -> Unit,
-    private val exit: () -> Unit
+    private val exit: () -> Unit,
+    private val selectionChanged: () -> Unit = {}
 ) {
     internal data class Selection(val beat: BasicScoreEditor.BeatAddress, val string: Int, val note: Int? = null)
     private var selected: Selection? = null
@@ -77,6 +78,10 @@ internal class ScoreEntryPanel(
 
     internal fun saveSelection() = selected
 
+    internal fun resolvedSelection(): Pair<Beat, Note?>? = selected?.let { current ->
+        resolve(current.beat)?.let { it to selectedNote(current) }
+    }
+
     internal fun restoreSelection(selection: Selection?) {
         selected = selection
         refresh()
@@ -86,6 +91,7 @@ internal class ScoreEntryPanel(
         view.visibility = View.GONE
         selected = null
         cancelMidiInput()
+        selectionChanged()
     }
 
     fun resetSelection() { selected = null; cancelMidiInput(); refresh() }
@@ -219,6 +225,7 @@ internal class ScoreEntryPanel(
         enable(copy, ready && beat != null)
         enable(paste, ready && beat != null && editor.hasClipboard)
         enable(voice, ready && currentStaff()?.isPercussion == false)
+        selectionChanged()
     }
 
     private fun currentStaff(): alphaTab.model.Staff? {

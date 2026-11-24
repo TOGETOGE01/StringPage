@@ -4,7 +4,9 @@
 
 An Android Guitar Pro score reader, practice player, and touch editor for phones and tablets.
 
-当前源码版本：**1.35.0** · 最低系统：**Android 8.0 / API 26** · 项目代码：[MIT](LICENSE)
+当前源码版本：**1.36.0** · 最低系统：**Android 8.0 / API 26** · 项目代码：[MIT](LICENSE)
+
+1.36.0 更新了手机和平板阅读界面，加入谱面 A/B 选段，为所有播放音源提供可调节拍器。[查看更新说明](docs/RELEASE_1.36.0.md)
 
 当前优先改进读谱、声音与谱面同步、手机和平板体验。1.17.0 修复原曲暂停回退、音源切换和界面重建后练习位置丢失，以及手机横屏谱面被挤没的问题；详细范围见 [1.17.0 说明](docs/PRACTICE_1.17.0.md)。
 
@@ -12,11 +14,11 @@ An Android Guitar Pro score reader, practice player, and touch editor for phones
 
 ## 下载与安装
 
-**[直接下载 StringPage 1.35.0 APK](https://github.com/TOGETOGE01/StringPage/releases/download/v1.35.0/StringPage-1.35.0.apk)** · [版本说明与附件](https://github.com/TOGETOGE01/StringPage/releases/tag/v1.35.0) · [所有版本](https://github.com/TOGETOGE01/StringPage/releases)
+**[直接下载 StringPage 1.36.0 APK](https://github.com/TOGETOGE01/StringPage/releases/download/v1.36.0/StringPage-1.36.0.apk)** · [版本说明与附件](https://github.com/TOGETOGE01/StringPage/releases/tag/v1.36.0) · [所有版本](https://github.com/TOGETOGE01/StringPage/releases)
 
 下载 `.apk` 文件到安卓设备安装，最低 Android 8.0。该安装包包含 ARM64、ARMv7、x86 和 x86_64，沿用项目发布签名。Release 页面中的 `Source code` 是源码压缩包，直接安装请选 APK 附件。
 
-SHA-256 为 `3780549f781a8283dfcb25fd43fc99bc9741ceef4f32151bd4939aba30aba05f`。可下载 [SHA-256 校验文件](https://github.com/TOGETOGE01/StringPage/releases/download/v1.35.0/SHA256-1.35.0.txt)。
+SHA-256 为 `39a0290e61da660417c9c38e7e7bb1ff9b64a46141ab7ee59502d8868af8e8ba`。可下载 [SHA-256 校验文件](https://github.com/TOGETOGE01/StringPage/releases/download/v1.36.0/SHA256-1.36.0.txt)。
 
 **[下载 Strat-Guitar 电吉他音色库（.gp7bank，52.8 MiB）](https://github.com/TOGETOGE01/StringPage/releases/download/v1.35.0/Strat-Guitar.gp7bank)** · [音色库获取与导入指南](docs/USER_GUIDE.md#音色库管理与单音试听)
 
@@ -33,7 +35,7 @@ SHA-256 为 `3780549f781a8283dfcb25fd43fc99bc9741ceef4f32151bd4939aba30aba05f`�
 - **内嵌录音**：播放 GP8 文件内已有的 Audio Track，支持暂停、跳转、保持音高的变速、小节循环与同步跟谱。
 - **按谱合成**：内置 GeneralUser GS SoftSynth 1.44 音色。吉他声部可选跟随原谱、清音、过载和失真，选择随本地乐谱保存。支持声部音量、静音、独奏、节拍器与预备拍。
 - **吉他效果器**：从「更多 → 吉他效果器」选择 34 套内置预设，也可搭配两块可交换顺序的踏板、音箱、箱体、调制、延迟、混响和均衡。首次使用时准备对应声部的干声，此后可在播放中试听。「应用」按谱保存设置，「取消」恢复打开时的设置。
-- **跟练**：循环区间、10%–100% 自定义播放速度、逐轮加速练习，以及手机、横竖屏和平板分屏布局。
+- **跟练**：点谱设置 A/B 循环、10%–100% 自定义播放速度、逐轮加速练习，以及手机、横竖屏和平板分屏布局。所有播放音源支持跟谱或自定义 BPM，可选节奏细分。
 - **PDF 转 GP**：从“更多 → PDF 转 GP”选择电子吉他谱或清晰的单声部六线谱扫描件。可转换整份 PDF 或指定连续小节，选择声部，校对调弦、时值、指法和技法，试听并保存 `.gp`。电子谱支持传统索引、Flate 压缩索引和对象流、增量保存、原方向缩放及矩形裁切后的嵌套绘图。支持部分五线谱与 TAB 并排的布局、换拍、揉弦、滑音、击弦、勾弦和带指法的装饰音。可识别自然、人工、拨片、点弦、半泛音与反馈泛音，以及标出的触弦位置。推弦支持预推、继续推高、保持、完全或部分释放及延音衔接，时机按谱面估算。可识别带节奏六线谱上的快速拨弦，以及 Guitar Pro 电子谱上可确认的颤音杆降音、抬音、保持和回弹曲线。跨拍颤音杆可能需要对照原谱校对。扫描件支持部分基础指法与节奏，拍号、速度、调弦及复杂技法请对照原谱。
 - **阅读状态**：音源切换保留位置、循环、速度和音量；系统重建界面后恢复声部、谱表、缩放及练习位置，保持暂停。已准备的采样音频需重新准备。
 - **采样播放**：导入用户自行提供的 `.gp7bank`，为乐器声部或鼓组击打音分配采样库。准备完成后支持实时音箱、保持音高的变速与小节循环。

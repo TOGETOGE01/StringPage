@@ -11,6 +11,7 @@ import alphaTab.synth.BackingTrackSyncPoint
 internal class PreparedScoreTime(file: MidiFile) {
     private data class Tempo(val tick: Double, val ms: Double, val bpm: Double)
     private val division = file.division
+    private val tickShift = file.tickShift
     private val endTick = file.events.lastOrNull()?.tick ?: 0.0
     private val tempos = ArrayList<Tempo>().apply {
         add(Tempo(0.0, 0.0, 120.0))
@@ -24,11 +25,20 @@ internal class PreparedScoreTime(file: MidiFile) {
     }
 
     private fun at(tick: Double): Tempo {
-        val point = tempos.lastOrNull { it.tick <= tick } ?: tempos.first()
+        val index = tempos.binarySearchBy(tick) { it.tick }
+        val point = tempos[if (index >= 0) index else (-index - 2).coerceAtLeast(0)]
         return Tempo(tick, point.ms + (tick - point.tick) * 60_000.0 / (point.bpm * division), point.bpm)
     }
 
     fun timeAt(tick: Double) = at(tick).ms
+    fun scoreTimeAt(tick: Double) = timeAt(tick + tickShift)
+    fun scoreTempoAt(tick: Double) = at(tick + tickShift).bpm
+
+    fun tickAt(ms: Double): Double {
+        val index = tempos.binarySearchBy(ms) { it.ms }
+        val point = tempos[if (index >= 0) index else (-index - 2).coerceAtLeast(0)]
+        return point.tick + (ms - point.ms) * point.bpm * division / 60_000.0
+    }
 
     fun beatMap(sampleRate: Int) = SourceBeatMap(sampleRate, tempos.map { SourceBeatMap.Tempo(it.ms, it.bpm) })
 

@@ -93,6 +93,7 @@ open class MainActivity : AppCompatActivity() {
     private var embeddedReady = false
     private var midiReady = false
     private var preparedScoreTime: PreparedScoreTime? = null
+    private var recordingMetronomeMap: MetronomeTimeMap? = null
     private var restoreAmpSource = false
     private val embedded by lazy { EmbeddedAudio { error ->
         pausePlayback(); embeddedReady = false; setControlsReady(false)
@@ -107,6 +108,7 @@ open class MainActivity : AppCompatActivity() {
     private lateinit var sheet: AlphaTabView
     private lateinit var title: TextView
     private lateinit var subtitle: TextView
+    private lateinit var draftIndicator: TextView
     private lateinit var source: Button
     private lateinit var status: TextView
     private lateinit var empty: LinearLayout
@@ -115,15 +117,42 @@ open class MainActivity : AppCompatActivity() {
     private lateinit var loop: Button
     private lateinit var speed: Button
     private lateinit var zoom: Button
-    private lateinit var progress: SeekBar
+    private lateinit var progress: ReaderTimeline
     private lateinit var position: TextView
     private lateinit var loadingIndicator: ProgressBar
     private lateinit var sidebar: ScrollView
     private lateinit var inspector: ScrollView
+    private lateinit var readerBody: LinearLayout
+    private lateinit var readerWorkspace: LinearLayout
+    private lateinit var practiceTabs: LinearLayout
+    private lateinit var practiceClose: Button
+    private lateinit var metronomePanel: ReaderMetronomePanel
+    private lateinit var metronomeButton: Button
+    private lateinit var libraryToggle: Button
+    private lateinit var practiceToggle: Button
+    private lateinit var headerLogo: ImageView
+    private lateinit var importHeader: Button
+    private lateinit var statusInset: View
+    private lateinit var restart: Button
+    private lateinit var loopHint: LinearLayout
+    private lateinit var loopHintText: TextView
+    private lateinit var followButton: Button
+    private lateinit var speedSlider: SeekBar
+    private lateinit var speedInput: EditText
+    private enum class PracticeTab(val label: String) { Speed("速度"), Loop("循环"), Metronome("节拍") }
+    private val practiceSections = linkedMapOf<PracticeTab, LinearLayout>()
+    private val practiceTabButtons = linkedMapOf<PracticeTab, Button>()
+    private var selectedPracticeTab = PracticeTab.Speed
+    private var practiceInline = false
+    private var loopPicking = false
+    private var loopPickStart: Int? = null
+    private var followScore = true
+    private var previewedVisit = Double.NaN
+    private var showStatus = false
+    private lateinit var scoreOverlay: ReaderScoreOverlay
     private lateinit var infoPanel: LinearLayout
     private lateinit var documentHeading: LinearLayout
     private lateinit var scoreTools: LinearLayout
-    private lateinit var practiceShortcut: Button
     private lateinit var scoreHost: FrameLayout
     private lateinit var scoreEntry: ScoreEntryPanel
     private val midiInputDelegate = lazy {
@@ -142,6 +171,7 @@ open class MainActivity : AppCompatActivity() {
     }
     private val midiInput by midiInputDelegate
     private var scoreTap: PointF? = null
+    private var panningScore = false
     private lateinit var scoreFrame: FrameLayout
     private lateinit var headerToolbar: LinearLayout
     private lateinit var brand: TextView
@@ -153,12 +183,10 @@ open class MainActivity : AppCompatActivity() {
     private lateinit var voicesPanel: LinearLayout
     private lateinit var voiceList: LinearLayout
     private lateinit var audioDetails: TextView
-    private lateinit var sourceNotice: TextView
     private lateinit var barCounter: TextView
     private var displayedBar = 0
     private lateinit var masterVolume: SeekBar
     private lateinit var fullScreen: Button
-    private lateinit var notation: Button
     private lateinit var inlineFrom: EditText
     private lateinit var inlineTo: EditText
     private lateinit var applyLoop: Button
@@ -199,12 +227,18 @@ open class MainActivity : AppCompatActivity() {
     internal val practice by lazy { PlaybackControls(this, { sheet.api }, { !audioMode }, { switchSource(false) },
         { editor.beginExternalChange() }, { modified = true; mixChanged = true; updateDocumentSubtitle() },
         { if (mixChanged) { editor.commitExternalChange("修改声部混音"); mixChanged = false; saveDraft() } },
-        { if (liveAmp != null) "可在播放中调整各声部的吉他效果器。"
-          else "内嵌录音是整首混音。切换到合成音源后可调整吉他音色、混音、节拍器、预备拍和播放移调。" },
+        { "内嵌录音是整首混音。切换到合成音源后可调整声部混音、预备拍和播放移调。" },
         { documentKey }, this::reloadTonePlayback, { liveAmp?.guitarTracks.orEmpty() }, this::chooseAmpSettings,
-        { editor.trackSlot(it) }) }
+        { editor.trackSlot(it) }, { if (audioMode && !preparedMode) embedded.refreshMetronome() }, ::refreshMetronomeChrome) }
     private val editor by lazy { BasicScoreEditor(this, { score }, this::applyEditedScore, { sheet.settings }) }
     private val prefs by lazy { getSharedPreferences("library", MODE_PRIVATE) }
+    private val readerPanels by lazy { getSharedPreferences("reader-panels", MODE_PRIVATE) }
+    private var libraryPinned: Boolean
+        get() = readerPanels.getBoolean("library", true)
+        set(value) { readerPanels.edit().putBoolean("library", value).apply() }
+    private var practicePinned: Boolean
+        get() = readerPanels.getBoolean("practice", true)
+        set(value) { readerPanels.edit().putBoolean("practice", value).apply() }
     private val library by lazy { RecentLibrary(prefs) }
     private val recentUi by lazy { RecentScoresUi(this, library, this::openUri, this::pickFile) }
     private val readerMenu by lazy { ReaderMenu(this) }
@@ -233,6 +267,7 @@ open class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         val themeRestart = themeChange.consume()
+        selectedPracticeTab = PracticeTab.entries.firstOrNull { it.name == readerPanels.getString("practice-tab", null) } ?: PracticeTab.Speed
         pendingReaderSession=themeRestart?.document?.reader ?: ReaderSession.fromBundle(savedInstanceState?.getBundle("readerSession"))
         fullSheet=pendingReaderSession?.fullScreen ?: false
         if (!factoryCacheSwept) {
@@ -254,7 +289,13 @@ open class MainActivity : AppCompatActivity() {
         else @Suppress("DEPRECATION") registerReceiver(unplugged, filter)
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                if (scoreEntry.isOpen) setScoreEditing(false) else guardDocumentChange { finish() }
+                when {
+                    loopPicking -> cancelLoopPick()
+                    practiceInline -> closePractice()
+                    scoreEntry.isOpen -> setScoreEditing(false)
+                    fullSheet -> { fullSheet = false; applyAdaptiveLayout(currentWidth) }
+                    else -> guardDocumentChange { finish() }
+                }
             }
         })
         if (themeRestart != null) {
@@ -321,7 +362,7 @@ open class MainActivity : AppCompatActivity() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; setBackgroundColor(AppUi.panel)
         }
-        val statusInset = View(this).apply { setBackgroundColor(AppUi.rail) }
+        statusInset = View(this).apply { setBackgroundColor(AppUi.rail) }
         root.addView(statusInset, LinearLayout.LayoutParams(-1, 0))
         ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
@@ -333,60 +374,78 @@ open class MainActivity : AppCompatActivity() {
             insets
         }
         headerToolbar = row().apply { setBackgroundColor(AppUi.rail); setPadding(dp(22), dp(4), dp(18), dp(4)) }
-        val logo = ImageView(this).apply {
+        headerLogo = ImageView(this).apply {
             setImageDrawable(AppUi.icon(this@MainActivity, "strings", AppUi.railAccent, 22))
             background = AppUi.surface(this@MainActivity, AppUi.railSurface, 10, AppUi.railLine)
             scaleType = ImageView.ScaleType.CENTER_INSIDE
             setPadding(dp(6), dp(6), dp(6), dp(6))
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         }
-        headerToolbar.addView(logo, LinearLayout.LayoutParams(dp(34), dp(34)).apply { marginEnd = dp(10) })
         brand = text("弦页", 21f, AppUi.railInk).apply {
             id=R.id.app_brand;maxLines=1;ellipsize=TextUtils.TruncateAt.END
             typeface = AppUi.display; setOnClickListener { showAbout() }
         }
-        headerToolbar.addWeighted(brand, 1f, 48)
+        title = text("未打开乐谱", 22f).apply {
+            id = R.id.score_title; typeface = AppUi.display; maxLines = 1; ellipsize = TextUtils.TruncateAt.END
+            visibility = View.GONE
+        }
         fun headerAction(label: String, icon: String, action: () -> Unit) = button(label, action = action).apply {
             background = AppUi.ripple(this@MainActivity, Color.TRANSPARENT, 10)
             setTextColor(AppUi.railInk)
             AppUi.iconButton(this, icon, AppUi.railMuted)
         }
-        recentHeader = headerAction("最近", "clock") { showRecents() }
+        recentHeader = headerAction("曲库", "library") { showRecents() }
         headerToolbar.addView(recentHeader)
+        libraryToggle = headerAction("", "library") { libraryPinned = !libraryPinned; applyAdaptiveLayout(currentWidth) }.apply {
+            id = R.id.reader_library_toggle
+        }
+        headerToolbar.addView(libraryToggle, LinearLayout.LayoutParams(dp(48), dp(48)))
+        headerToolbar.addView(headerLogo, LinearLayout.LayoutParams(dp(34), dp(34)).apply { marginEnd = dp(10) })
+        headerToolbar.addWeighted(brand, 1f, 48)
+        headerToolbar.addWeighted(title, 1f, 48)
+        draftIndicator = text("未导出", 11f, accent).apply {
+            maxLines = 1
+            setPadding(dp(5), 0, dp(5), 0)
+            visibility = View.GONE
+        }
+        headerToolbar.addView(draftIndicator, LinearLayout.LayoutParams(-2, dp(48)))
         editScoreButton = headerAction("编辑", "edit") { setScoreEditing(!scoreEntry.isOpen) }.apply {
             visibility = View.GONE
         }
         headerToolbar.addView(editScoreButton)
-        fullScreen = headerAction("全屏看谱", "full") { fullSheet = !fullSheet; applyAdaptiveLayout(currentWidth) }.apply { id = R.id.full_screen }
+        fullScreen = headerAction("全屏看谱", "full", ::toggleFullSheet).apply { id = R.id.full_screen }
         headerToolbar.addView(fullScreen)
-        headerToolbar.addView(button("导入", true) { pickFile() }.apply {
+        importHeader = button("导入", true) { pickFile() }.apply {
             id = R.id.import_file; AppUi.iconButton(this, "import", AppUi.rail)
             setTextColor(AppUi.rail)
             background = AppUi.ripple(this@MainActivity, AppUi.railAccent, 11)
             layoutParams = LinearLayout.LayoutParams(-2, dp(44)).apply { marginStart = dp(8); marginEnd = dp(6) }
-        })
+        }
+        headerToolbar.addView(importHeader)
+        practiceToggle = headerAction("", "panel") { togglePracticeDock() }.apply { id = R.id.reader_practice_toggle }
+        headerToolbar.addView(practiceToggle, LinearLayout.LayoutParams(dp(48), dp(48)))
         moreButton = headerAction("更多", "more") { showMore() }.apply { id = R.id.more_actions }
         headerToolbar.addView(moreButton)
         root.addView(headerToolbar, LinearLayout.LayoutParams(-1, dp(60)))
-        val body = row().apply { gravity = Gravity.TOP; setBackgroundColor(paper) }
-        val workspace = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(paper) }
+        val body = row().apply { gravity = Gravity.TOP; setBackgroundColor(paper) }.also { readerBody = it }
+        val workspace = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(paper) }.also { readerWorkspace = it }
         sidebar = ScrollView(this).apply {
             id = R.id.library_panel; setBackgroundColor(AppUi.rail); isFillViewport = true; isVerticalScrollBarEnabled = false
         }
         val library = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(17), dp(14), dp(17), dp(20)) }
         library.addView(divider(AppUi.railLine), LinearLayout.LayoutParams(-1, dp(1)))
         library.addView(text("曲库", 18f, AppUi.railInk).apply { typeface = AppUi.medium }, LinearLayout.LayoutParams(-1, dp(50)))
+        library.addView(button("导入 GP 文件") { pickFile() }.apply {
+            setTextColor(AppUi.railInk)
+            background = AppUi.ripple(this@MainActivity, AppUi.railSurface, 9)
+            AppUi.iconButton(this, "import", AppUi.railAccent, 16)
+        }, LinearLayout.LayoutParams(-1, dp(48)))
         library.addView(recentUi.section)
         voicesPanel = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         voicesPanel.addView(divider(AppUi.railLine), LinearLayout.LayoutParams(-1, dp(1)).apply { topMargin = dp(16) })
         voicesPanel.addView(sectionLabel("声部", AppUi.railMuted))
         voiceList = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         voicesPanel.addView(voiceList)
-        sourceNotice = text("", 12f, AppUi.railMuted).apply {
-            setPadding(dp(12), dp(10), dp(12), dp(10)); background = AppUi.surface(this@MainActivity, AppUi.railSurface, 10, AppUi.railLine)
-            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(20) }
-        }
-        voicesPanel.addView(sourceNotice)
         library.addView(voicesPanel)
         sidebar.addView(library)
         body.addView(sidebar, LinearLayout.LayoutParams(dp(214), -1))
@@ -396,25 +455,28 @@ open class MainActivity : AppCompatActivity() {
             gravity = Gravity.CENTER_VERTICAL; setBackgroundColor(paper); setPadding(dp(24), dp(16), dp(24), dp(10))
         }
         documentHeading = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        title = text("未打开乐谱", 22f).apply {
-            id = R.id.score_title; typeface = AppUi.display; maxLines = 1; ellipsize = TextUtils.TruncateAt.END
-        }
         subtitle = text("GP3 / GP4 / GP5 / GPX / GP", 12f, muted).apply {
             maxLines = 1; ellipsize = TextUtils.TruncateAt.END; setPadding(0, dp(4), 0, 0)
         }
-        documentHeading.addView(title); documentHeading.addView(subtitle)
+        documentHeading.addView(subtitle)
         infoPanel.addView(documentHeading)
         scoreTools = row()
         source = button("音源") { chooseSource() }.apply { id = R.id.audio_source; AppUi.iconButton(this, "audio", accent) }
         track = button("声部") { chooseTrack() }.apply { id = R.id.track_select; AppUi.iconButton(this, "track", muted) }
-        zoom = button("85%") { chooseZoom() }.apply { AppUi.iconButton(this, "zoom", muted) }
-        scoreTools.addWeighted(source, 1.1f, 44); scoreTools.addWeighted(track, 1.5f, 44); scoreTools.addWeighted(zoom, 0.85f, 44)
-        practiceShortcut = button("") { this.practice.show() }.apply {
-            contentDescription = "混音与练习设置"; tooltipText = "混音与练习设置"
-            setPadding(dp(13), 0, dp(13), 0); AppUi.iconButton(this, "mix", accent); compoundDrawablePadding = 0
-        }
-        scoreTools.addView(practiceShortcut, LinearLayout.LayoutParams(dp(44), dp(44)))
+        zoom = button("谱面") { chooseScoreDisplay() }.apply { id = R.id.notation_select; AppUi.iconButton(this, "score", muted) }
+        scoreTools.addWeighted(track, 1.55f, 48); scoreTools.addWeighted(source, 1.15f, 48); scoreTools.addWeighted(zoom, 0.8f, 48)
         infoPanel.addView(scoreTools); workspace.addView(infoPanel)
+        loopHint = row().apply {
+            id = R.id.reader_loop_selection
+            visibility = View.GONE
+            setPadding(dp(12), 0, dp(4), 0)
+            setBackgroundColor(AppUi.selected)
+            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+        }
+        loopHintText = text("点谱面选择 A 点", 14f)
+        loopHint.addWeighted(loopHintText)
+        loopHint.addView(button("取消") { cancelLoopPick() }, LinearLayout.LayoutParams(-2, dp(48)))
+        workspace.addView(loopHint, LinearLayout.LayoutParams(-1, -2))
 
         scoreHost = FrameLayout(this)
         scoreFrame = FrameLayout(this).apply {
@@ -423,7 +485,7 @@ open class MainActivity : AppCompatActivity() {
         sheet = AlphaTabView(this, null).apply {
             id = R.id.score_view
             setBackgroundColor(AppUi.score)
-            barCursorFillColor = accent.withAlpha(26)
+            barCursorFillColor = accent.withAlpha(8)
             beatCursorFillColor = accent.withAlpha(214)
             selectionFillColor = accent.withAlpha(52)
             if (theme != ReaderTheme.Clay) settings.display.resources.apply {
@@ -436,13 +498,21 @@ open class MainActivity : AppCompatActivity() {
             }
             settings.display.scale = 0.85
             settings.display.barsPerRow = -1.0
+            settings.notation.elements.set(alphaTab.NotationElement.ScoreTitle, false)
             settings.display.padding = alphaTab.collections.DoubleList().apply { push(20.0); push(24.0); push(20.0); push(24.0) }
             settings.player.playerMode = PlayerMode.EnabledSynthesizer
             settings.player.enableUserInteraction = true
+            settings.player.scrollMode = alphaTab.ScrollMode.Continuous
+            settings.player.scrollOffsetY = -18.0
+            settings.player.scrollSpeed = 180.0
             settings.core.includeNoteBounds = true
             api.updateSettings()
         }
         scoreFrame.addView(sheet, FrameLayout.LayoutParams(-1, -1))
+        scoreOverlay = ReaderScoreOverlay(sheet)
+        scoreFrame.addView(scoreOverlay, FrameLayout.LayoutParams(-1, -1))
+        sheet.viewTreeObserver.addOnScrollChangedListener { scoreOverlay.invalidate() }
+        sheet.api.postRenderFinished.on { scoreOverlay.postInvalidateOnAnimation() }
         empty = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(AppUi.panel)
@@ -475,49 +545,87 @@ open class MainActivity : AppCompatActivity() {
         scoreEntry = ScoreEntryPanel(this, editor, { score }, { activeTrack }, { displayedBar - 1 },
             chooseMidi = ::chooseMidiInput,
             clearMidiGesture = { if (midiInputDelegate.isInitialized()) midiInput.clearGesture() },
-            exit = { setScoreEditing(false) })
+            exit = { setScoreEditing(false) }, selectionChanged = ::refreshEditOutline)
         workspace.addView(scoreEntry.view, LinearLayout.LayoutParams(-1, -2))
 
         inspector = ScrollView(this).apply { id = R.id.practice_panel; setBackgroundColor(AppUi.panel); isFillViewport = true; isVerticalScrollBarEnabled = false }
         val practice = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(12), dp(16), dp(18)) }
         val inspectorHeading = row()
-        inspectorHeading.addWeighted(text("练习", 18f).apply { typeface = AppUi.medium }, 1f, 48)
+        practiceTabs = row().apply { id = R.id.reader_practice_tabs }
+        for (section in PracticeTab.entries) {
+            val tab = button(section.label) { openPractice(section) }.apply {
+                setPadding(dp(2), 0, dp(2), 0)
+            }
+            practiceTabButtons[section] = tab
+            practiceTabs.addWeighted(tab)
+        }
+        inspectorHeading.addWeighted(practiceTabs, 1f, 48)
+        practiceClose = button("") { closePractice() }.apply {
+            AppUi.iconButton(this, "close", muted)
+            compoundDrawablePadding = 0
+            contentDescription = "收起练习面板"
+        }
+        inspectorHeading.addView(practiceClose, LinearLayout.LayoutParams(dp(48), dp(48)))
         barCounter = text("小节 —", 11f, muted).apply {
             id = R.id.reader_bar_number
             typeface = AppUi.medium; fontFeatureSettings = "'tnum'"
             background = AppUi.surface(this@MainActivity, AppUi.control, 7)
             setPadding(dp(7), dp(5), dp(7), dp(5))
         }
-        inspectorHeading.addView(barCounter); practice.addView(inspectorHeading)
-        fun practiceSection(): LinearLayout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL; setPadding(0, dp(11), 0, dp(11))
-            practice.addView(divider(), LinearLayout.LayoutParams(-1, dp(1)))
+        practice.addView(inspectorHeading)
+        fun practiceSection(section: PracticeTab? = null): LinearLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, dp(8), 0, dp(8))
+            section?.let { practiceSections[it] = this }
             practice.addView(this, LinearLayout.LayoutParams(-1, -2))
         }
-        val tempoCard = practiceSection()
+        val tempoCard = practiceSection(PracticeTab.Speed)
         val tempoHeading = row()
-        tempoHeading.addWeighted(text("播放速度", 13f).apply { typeface = AppUi.medium }, 1f, 42)
-        speedReadout = button("100%") { chooseSpeed() }.apply {
-            textSize = 21f; typeface = AppUi.medium; fontFeatureSettings = "'tnum'"
-            setTextColor(accent)
-            background = AppUi.ripple(this@MainActivity, AppUi.selected, 9)
+        tempoHeading.addWeighted(text("播放速度", 13f).apply { typeface = AppUi.medium }, 1f, 48)
+        speedInput = numberField("播放速度，10 到 100%")
+        speedInput.setSelectAllOnFocus(true)
+        speedInput.imeOptions = EditorInfo.IME_ACTION_DONE
+        speedInput.setOnEditorActionListener { _, action, _ ->
+            (action == EditorInfo.IME_ACTION_DONE).also { if (it) applyReaderSpeed() }
         }
-        tempoHeading.addView(speedReadout, LinearLayout.LayoutParams(-2, dp(44)))
+        tempoHeading.addView(speedInput, LinearLayout.LayoutParams(dp(54), dp(48)))
+        speedReadout = button("应用") { applyReaderSpeed() }.apply {
+            textSize = 12f
+            contentDescription = "应用播放速度百分比"
+        }
+        tempoHeading.addView(speedReadout, LinearLayout.LayoutParams(-2, dp(48)).apply { marginStart = dp(4) })
         tempoCard.addView(tempoHeading)
+        speedSlider = SeekBar(this).apply {
+            max = 90
+            contentDescription = "播放速度，10 到 100%"
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(bar: SeekBar?, value: Int, user: Boolean) {
+                    if (user) speedInput.setText((value + 10).toString())
+                }
+                override fun onStartTrackingTouch(bar: SeekBar?) = Unit
+                override fun onStopTrackingTouch(bar: SeekBar?) { applyReaderSpeed() }
+            })
+        }
+        tempoCard.addView(speedSlider, LinearLayout.LayoutParams(-1, dp(40)))
         val presets = row()
-        for ((index, value) in listOf(0.25, 0.5, 0.75, 1.0).withIndex()) {
-            val preset = button("${(value * 100).toInt()}%") { changeSpeed(value) }.apply {
+        for ((index, value) in listOf(0.5, 0.6, 0.75, 1.0).withIndex()) {
+            val preset = button("${(value * 100).toInt()}%") {
+                speedInput.clearFocus()
+                WindowCompat.getInsetsController(window, speedInput).hide(WindowInsetsCompat.Type.ime())
+                changeSpeed(value)
+            }.apply {
                 tag = value; setPadding(dp(2), 0, dp(2), 0); textSize = 12f
+                if (value == 0.6) id = R.id.reader_speed_sixty
             }
             speedPresets.add(preset)
-            presets.addView(preset, LinearLayout.LayoutParams(0, dp(44), 1f).apply { marginStart = dp(if (index == 0) 0 else 4) })
+            presets.addView(preset, LinearLayout.LayoutParams(0, dp(48), 1f).apply { marginStart = dp(if (index == 0) 0 else 4) })
         }
-        tempoCard.addView(presets, LinearLayout.LayoutParams(-1, dp(44)).apply { topMargin = dp(8) })
+        tempoCard.addView(presets, LinearLayout.LayoutParams(-1, dp(48)))
         tempoCard.addView(button("逐轮加速练习") { showTrainer() }.apply {
             background = AppUi.ripple(this@MainActivity, Color.TRANSPARENT); gravity = Gravity.CENTER_VERTICAL
             AppUi.iconButton(this, "tempo", accent, 16); setPadding(dp(4), 0, dp(4), 0)
         }, LinearLayout.LayoutParams(-1, dp(44)).apply { topMargin = dp(4) })
-        val loopCard = practiceSection()
+        val loopCard = practiceSection(PracticeTab.Loop)
         loopCard.addView(text("小节循环", 13f).apply { typeface = AppUi.medium }, LinearLayout.LayoutParams(-1, dp(30)))
         val loopInputs = row()
         inlineFrom = numberField("起始小节"); inlineTo = numberField("结束小节")
@@ -531,18 +639,17 @@ open class MainActivity : AppCompatActivity() {
             }
         }
         clearLoop = button("清除") { clearLoopRange() }
-        loopActions.addWeighted(applyLoop, 1.6f, 44); loopActions.addWeighted(clearLoop, 1f, 44)
+        loopActions.addWeighted(applyLoop, 1.6f, 48); loopActions.addWeighted(clearLoop, 1f, 48)
         loopCard.addView(loopActions)
-        val displayCard = practiceSection()
-        displayCard.addView(text("谱面显示", 13f).apply { typeface = AppUi.medium }, LinearLayout.LayoutParams(-1, dp(30)))
-        notation = button("五线谱 + 六线谱") { chooseNotation() }.apply { id = R.id.notation_select }
-        displayCard.addView(notation, LinearLayout.LayoutParams(-1, dp(44)))
-        displayCard.addView(button("回到播放位置") { sheet.api.scrollToCursor() }.apply {
-            background = AppUi.ripple(this@MainActivity, Color.TRANSPARENT); gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(4), 0, dp(4), 0); AppUi.iconButton(this, "location", muted, 16)
-        }, LinearLayout.LayoutParams(-1, dp(44)))
+        loopCard.addView(button("在谱上选段") { beginLoopPick() }.apply {
+            id = R.id.reader_loop_select_on_score
+            AppUi.iconButton(this, "loop", accent, 16)
+        }, LinearLayout.LayoutParams(-1, dp(48)).apply { topMargin = dp(8) })
+        val metronomeCard = practiceSection(PracticeTab.Metronome)
+        metronomePanel = ReaderMetronomePanel(this, this.practice)
+        metronomeCard.addView(metronomePanel)
         val sound = practiceSection()
-        sound.addView(button("混音与练习设置") { this@MainActivity.practice.show() }.apply {
+        sound.addView(button("音量与混音") { this@MainActivity.practice.show() }.apply {
             AppUi.iconButton(this, "mix", accent); gravity = Gravity.CENTER_VERTICAL
         }, LinearLayout.LayoutParams(-1, dp(48)))
         sound.addView(sectionLabel("主音量"))
@@ -556,11 +663,12 @@ open class MainActivity : AppCompatActivity() {
             })
         }
         sound.addView(masterVolume, LinearLayout.LayoutParams(-1, dp(32)))
-        sound.addView(sectionLabel("音频信息"))
         audioDetails = text("未打开乐谱", 11f, muted).apply { setLineSpacing(dp(3).toFloat(), 1f) }
-        sound.addView(audioDetails)
+        sound.addView(button("音频详情") { showAudioDetails() }.apply {
+            AppUi.iconButton(this, "info", muted, 16)
+        }, LinearLayout.LayoutParams(-1, dp(48)))
         inspector.addView(practice)
-        body.addView(inspector, LinearLayout.LayoutParams(dp(244), -1))
+        body.addView(inspector, LinearLayout.LayoutParams(dp(236), -1))
         root.addView(body, LinearLayout.LayoutParams(-1, 0, 1f))
         transport = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -572,7 +680,8 @@ open class MainActivity : AppCompatActivity() {
         transport.addView(status, LinearLayout.LayoutParams(-1, dp(24)))
         bottomContent = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
         timeline = row()
-        progress = SeekBar(this).apply {
+        timeline.addView(barCounter, LinearLayout.LayoutParams(-2, -2))
+        progress = ReaderTimeline(this).apply {
             max = 10000; progressTintList = android.content.res.ColorStateList.valueOf(accent)
             thumbTintList = android.content.res.ColorStateList.valueOf(accent)
             progressBackgroundTintList = android.content.res.ColorStateList.valueOf(AppUi.line)
@@ -590,22 +699,37 @@ open class MainActivity : AppCompatActivity() {
             setTextColor(ink); background = AppUi.ripple(this@MainActivity, AppUi.control, 10)
             icon?.let { AppUi.iconButton(this, it, ink, 17) }
         }
-        val restart = transportButton(button("") { sheet.api.stop() }, "restart").apply {
+        restart = transportButton(button("") { sheet.api.stop() }, "restart").apply {
             contentDescription = "回到开头"; tooltipText = "回到开头"; gravity = Gravity.CENTER
             setPadding(dp(14), 0, dp(14), 0); compoundDrawablePadding = 0
         }
-        controls.addView(restart, LinearLayout.LayoutParams(dp(44), dp(44)).apply { marginEnd = dp(6) })
+        controls.addView(restart, LinearLayout.LayoutParams(dp(48), dp(48)).apply { marginEnd = dp(6) })
         play = button("播放", true) { togglePlayback() }.apply {
             id = R.id.play_pause; background = AppUi.ripple(this@MainActivity, accent, 12)
             textSize = 14f; AppUi.iconButton(this, "play", AppUi.onAccent)
         }
-        controls.addWeighted(play, 1.25f, 44)
-        speed = transportButton(button("1.0×") { chooseSpeed() }).apply {
+        controls.addWeighted(play, 1.1f)
+        speed = transportButton(button("速度 100%") { openPractice(PracticeTab.Speed) }).apply {
             id = R.id.speed_select; typeface = AppUi.medium; fontFeatureSettings = "'tnum'"
         }
-        controls.addWeighted(speed, 0.9f, 44)
-        loop = transportButton(button("循环") { chooseLoop() }, "loop").apply { id = R.id.loop_select }
-        controls.addWeighted(loop, 1.18f, 44)
+        controls.addWeighted(speed, 1f)
+        loop = transportButton(button("循环") { openPractice(PracticeTab.Loop) }, "loop").apply { id = R.id.loop_select }
+        controls.addWeighted(loop, 1f)
+        metronomeButton = transportButton(button("节拍器关") {
+            this.practice.setMetronomeEnabled(!this.practice.metronomeUi().enabled)
+        }).apply {
+            id = R.id.reader_metronome_toggle
+            setOnLongClickListener { openPractice(PracticeTab.Metronome); true }
+        }
+        controls.addWeighted(metronomeButton, 1.05f)
+        followButton = transportButton(button("") { returnToPlayhead() }, "location").apply {
+            id = R.id.reader_scroll_resume
+            contentDescription = "回到播放位置"
+            tooltipText = "回到播放位置"
+            compoundDrawablePadding = 0
+            visibility = View.GONE
+        }
+        timeline.addView(followButton, 0, LinearLayout.LayoutParams(dp(48), dp(48)))
         bottomContent.addView(controls); transport.addView(bottomContent)
         root.addView(transport)
         setContentView(root)
@@ -644,63 +768,160 @@ open class MainActivity : AppCompatActivity() {
     private fun updateReaderChrome() {
         val loaded = score != null
         val compact = currentHeight in 1..420
-        inspector.visibility = if (loaded && currentWidth >= 1200 && !fullSheet) View.VISIBLE else View.GONE
+        val wide = currentWidth >= 840 && !compact
+        sidebar.visibility = if (wide && libraryPinned && !fullSheet) View.VISIBLE else View.GONE
+        libraryToggle.visibility = if (loaded && wide && !fullSheet) View.VISIBLE else View.GONE
+        libraryToggle.contentDescription = if (libraryPinned) "收起曲库" else "展开曲库"
+        libraryToggle.tooltipText = libraryToggle.contentDescription
+        libraryToggle.isSelected = libraryPinned
+        recentHeader.visibility = if (libraryToggle.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+        importHeader.visibility = if (loaded) View.GONE else View.VISIBLE
+        title.visibility = if (loaded) View.VISIBLE else View.GONE
+        draftIndicator.visibility = if (loaded && modified) View.VISIBLE else View.GONE
+        brand.visibility = if (loaded) View.GONE else View.VISIBLE
+        headerLogo.visibility = if (loaded) View.GONE else View.VISIBLE
+        val headerColor = if (loaded) AppUi.panel else AppUi.rail
+        headerToolbar.setBackgroundColor(headerColor)
+        val toolbarHeight = dp(if (loaded || compact) 52 else 60)
+        if (headerToolbar.layoutParams.height != toolbarHeight) {
+            headerToolbar.layoutParams.height = toolbarHeight
+            headerToolbar.requestLayout()
+        }
+        statusInset.setBackgroundColor(headerColor)
+        WindowCompat.getInsetsController(window, headerToolbar).isAppearanceLightStatusBars = loaded && !theme.dark
+        @Suppress("DEPRECATION")
+        if (Build.VERSION.SDK_INT < 35) window.statusBarColor = headerColor
+        updateHeaderActions(loaded)
+        practiceToggle.visibility = if (loaded && !fullSheet) View.VISIBLE else View.GONE
+        practiceToggle.contentDescription = if (inspector.visibility == View.VISIBLE) "收起练习面板" else "打开练习面板"
         infoPanel.visibility = if (loaded && !fullSheet && !(compact && (currentWidth < 600 || currentHeight < 300))) View.VISIBLE else View.GONE
-        practiceShortcut.visibility = if (currentWidth < 1200) View.VISIBLE else View.GONE
-        fullScreen.visibility = if (currentWidth >= 600 && (loaded || fullSheet)) View.VISIBLE else View.GONE
-        editScoreButton.visibility = if (loaded && !loading) View.VISIBLE else View.GONE
+        fullScreen.visibility = if (loaded && (fullSheet || currentWidth >= 600)) View.VISIBLE else View.GONE
+        editScoreButton.visibility = if (loaded && !loading && !fullSheet) View.VISIBLE else View.GONE
         voicesPanel.visibility = if (loaded) View.VISIBLE else View.GONE
         empty.getChildAt(0).visibility = if (!loaded && loading) View.INVISIBLE else View.VISIBLE
         transport.visibility = if (loaded || loading || importing) View.VISIBLE else View.GONE
-        val wide = currentWidth >= 840
-        val gutter = if (fullSheet) 0 else if (wide) 18 else 8
-        scoreHost.setPadding(dp(gutter), dp(if (fullSheet) 0 else if (!loaded && wide) 18 else 2), dp(gutter), dp(gutter))
+        status.visibility = if (loading || importing || showStatus) View.VISIBLE else View.GONE
+        val gutter = if (fullSheet) 0 else if (wide) 16 else 6
+        scoreHost.setPadding(dp(gutter), dp(if (fullSheet) 0 else 2), dp(gutter), dp(gutter))
+        positionPracticePanel()
+    }
+
+    private fun updateHeaderActions(loaded: Boolean) {
+        val glyphColor = if (loaded) ink else AppUi.railInk
+        fun headerGlyph(view: Button, icon: String, label: String, showLabel: Boolean) {
+            view.text = if (showLabel) label else ""
+            view.contentDescription = label
+            view.tooltipText = label
+            view.minWidth = dp(48)
+            view.minimumWidth = dp(48)
+            view.minHeight = dp(48)
+            view.minimumHeight = dp(48)
+            view.setTextColor(glyphColor)
+            AppUi.iconButton(view, icon, glyphColor, 19)
+            view.compoundDrawablePadding = if (showLabel) dp(6) else 0
+            view.setPadding(dp(if (showLabel) 8 else 14), 0, dp(if (showLabel) 8 else 14), 0)
+        }
+        val labeled = currentWidth >= 840 && resources.configuration.fontScale <= 1.2f
+        headerGlyph(recentHeader, "library", "曲库", (currentWidth >= 390 && resources.configuration.fontScale <= 1.2f && !fullSheet) || labeled)
+        headerGlyph(libraryToggle, if (libraryPinned) "back" else "library", if (libraryPinned) "收起曲库" else "展开曲库", false)
+        headerGlyph(editScoreButton, if (scoreEntry.isOpen) "check" else "edit", if (scoreEntry.isOpen) "完成编辑" else "编辑", labeled)
+        headerGlyph(fullScreen, if (fullSheet) "close" else "full", if (fullSheet) "退出全屏" else "全屏看谱", labeled)
+        headerGlyph(moreButton, "more", "更多", !loaded && currentWidth >= 400 || labeled)
+        headerGlyph(practiceToggle, "panel", "练习面板", false)
+    }
+
+    private fun canDockPractice() = currentWidth >= 1200 && currentHeight >= 460 && !fullSheet
+
+    private fun positionPracticePanel() {
+        val docked = canDockPractice() && (practicePinned || practiceInline)
+        val shouldShow = score != null && !loopPicking && (docked || practiceInline)
+        val parent = if (docked) readerBody else readerWorkspace
+        if (inspector.parent !== parent) {
+            (inspector.parent as? LinearLayout)?.removeView(inspector)
+            parent.addView(inspector)
+        }
+        val width = if (docked) dp(236) else -1
+        val height = if (docked) -1 else dp(((currentHeight - 70) * 0.36).roundToInt().coerceIn(76, 310))
+        if (inspector.layoutParams.width != width || inspector.layoutParams.height != height) {
+            inspector.layoutParams = LinearLayout.LayoutParams(width, height)
+        }
+        inspector.visibility = if (shouldShow) View.VISIBLE else View.GONE
+        practiceToggle.isSelected = shouldShow
+        practiceToggle.background = AppUi.ripple(this, if (shouldShow) AppUi.selected else Color.TRANSPARENT, 8,
+            if (shouldShow) accent else null)
+        practiceToggle.contentDescription = if (shouldShow) "收起练习面板" else "打开练习面板"
+        practiceToggle.tooltipText = practiceToggle.contentDescription
+        for ((section, view) in practiceSections) view.visibility = if (section == selectedPracticeTab) View.VISIBLE else View.GONE
+        for ((section, button) in practiceTabButtons) {
+            val active = section == selectedPracticeTab
+            button.isSelected = active
+            button.setTextColor(if (active) accent else muted)
+            button.background = AppUi.ripple(this, if (active) AppUi.selected else Color.TRANSPARENT, 8, if (active) accent else null)
+        }
+    }
+
+    private fun openPractice(section: PracticeTab) {
+        if (score == null) return
+        if (selectedPracticeTab != section) readerPanels.edit().putString("practice-tab", section.name).apply()
+        selectedPracticeTab = section
+        if (!canDockPractice() || !practicePinned) practiceInline = true
+        positionPracticePanel()
+        inspector.scrollTo(0, 0)
+        refreshMetronomeChrome()
+    }
+
+    private fun closePractice() {
+        if (canDockPractice() && practicePinned) practicePinned = false
+        practiceInline = false
+        positionPracticePanel()
+    }
+
+    private fun togglePracticeDock() {
+        if (inspector.visibility == View.VISIBLE) {
+            closePractice()
+        } else if (canDockPractice()) {
+            practicePinned = true
+            practiceInline = false
+            positionPracticePanel()
+        } else openPractice(selectedPracticeTab)
+    }
+
+    private fun toggleFullSheet() {
+        fullSheet = !fullSheet
+        if (fullSheet) practiceInline = false
+        applyAdaptiveLayout(currentWidth)
     }
 
     private fun applyAdaptiveLayout(width: Int) {
         if (!::sidebar.isInitialized) return
         val compact=currentHeight in 1..420
         val oneLineInfo=width>=840 || (compact && width>=600)
-        val oneLineTransport=width>=840 || (compact && width>=480)
-        sidebar.visibility = if (width >= 840 && !fullSheet) View.VISIBLE else View.GONE
+        val oneLineTransport=width>=780 || (compact && width>=580)
         updateReaderChrome()
-        fullScreen.text = if (fullSheet) "退出全屏" else "全屏看谱"
-        if (width < 600) {
-            recentHeader.setCompoundDrawables(null, null, null, null)
-            editScoreButton.setCompoundDrawables(null, null, null, null)
-            moreButton.setCompoundDrawables(null, null, null, null)
-        } else {
-            AppUi.iconButton(recentHeader, "clock", AppUi.railMuted)
-            AppUi.iconButton(editScoreButton, "edit", AppUi.railMuted)
-            AppUi.iconButton(moreButton, "more", AppUi.railMuted)
-        }
         val wide = width >= 840
-        headerToolbar.layoutParams.height=dp(if(compact) 52 else 60)
+        headerToolbar.layoutParams.height=dp(if (compact || score != null) 52 else 60)
         headerToolbar.requestLayout()
         val showBrand=width>=360 && (width>=380 || resources.configuration.fontScale<=1.1f)
         brand.text=if(showBrand) "弦页" else ""
         brand.isClickable=showBrand
         brand.importantForAccessibility=if(showBrand) View.IMPORTANT_FOR_ACCESSIBILITY_AUTO else View.IMPORTANT_FOR_ACCESSIBILITY_NO
         brand.layoutParams.height=dp(if(compact) 44 else 48);brand.requestLayout()
-        headerToolbar.setPadding(dp(if (wide) 22 else 14), dp(4), dp(if (wide) 18 else 8), dp(4))
-        // One header row on tablets; stack the same controls on phones without detaching the score view.
-        infoPanel.orientation = if (oneLineInfo) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
-        infoPanel.setPadding(dp(if (wide) 24 else 14), dp(if(compact) 4 else if (wide) 14 else 12), dp(if (wide) 18 else 14), dp(if(compact) 4 else 10))
-        documentHeading.layoutParams = if (oneLineInfo) LinearLayout.LayoutParams(0, -2, 1f) else LinearLayout.LayoutParams(-1, -2)
-        scoreTools.layoutParams = LinearLayout.LayoutParams(if(oneLineInfo) dp(if(compact && !wide) 340 else 360) else -1, dp(44)).apply {
-            if(oneLineInfo) marginStart=dp(if(compact) 10 else 16) else topMargin=dp(8)
+        headerToolbar.setPadding(dp(if (wide) 16 else 4), 0, dp(if (wide) 16 else 4), 0)
+        infoPanel.orientation = LinearLayout.HORIZONTAL
+        infoPanel.setPadding(dp(if (wide) 16 else 8), 0, dp(if (wide) 16 else 8), 0)
+        documentHeading.visibility = if (oneLineInfo && !compact) View.VISIBLE else View.GONE
+        documentHeading.layoutParams = LinearLayout.LayoutParams(0, -2, 1f)
+        scoreTools.layoutParams = LinearLayout.LayoutParams(if (oneLineInfo && !compact) dp(374) else -1, dp(48)).apply {
+            if (oneLineInfo && !compact) marginStart = dp(10)
         }
-        title.textSize = if(compact) 19f else if (wide) 30f else 25f
-        title.maxLines=1;title.ellipsize=TextUtils.TruncateAt.END
-        subtitle.maxLines=1;subtitle.ellipsize=TextUtils.TruncateAt.END
-        subtitle.visibility=if(compact) View.GONE else View.VISIBLE
+        title.textSize = if (compact) 18f else if (wide) 26f else 21f
         if (wide) {
             AppUi.iconButton(source, "audio", accent, 16); AppUi.iconButton(track, "track", muted, 16); AppUi.iconButton(zoom, "zoom", muted, 16)
         } else {
             listOf(source, track, zoom).forEach { it.setCompoundDrawables(null, null, null, null) }
         }
         listOf(source,track,zoom).forEach { it.setPadding(dp(if(width<380) 8 else 12),0,dp(if(width<380) 8 else 12),0) }
-        val gutter = if (fullSheet) 0 else if (wide) 18 else 8
+        val gutter = if (fullSheet) 0 else if (wide) 16 else 6
         scoreFrame.background = AppUi.surface(this, AppUi.score, if (wide && !fullSheet) 10 else 0, if (gutter == 0) null else AppUi.line)
         scoreFrame.elevation = if (wide && !fullSheet) dp(1).toFloat() else 0f
         transport.setPadding(dp(if (wide) 22 else 12), dp(if(compact) 1 else 3), dp(if (wide) 22 else 12), dp(if(compact) 4 else 8))
@@ -708,31 +929,107 @@ open class MainActivity : AppCompatActivity() {
         bottomContent.orientation = if (oneLineTransport) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
         val first = if (oneLineTransport) controls else timeline
         if (bottomContent.getChildAt(0) !== first) { bottomContent.removeView(first); bottomContent.addView(first, 0) }
-        timeline.layoutParams = if (oneLineTransport) LinearLayout.LayoutParams(0, dp(44), 1f).apply { marginStart = dp(16) }
-            else LinearLayout.LayoutParams(-1, dp(if(compact) 28 else 32))
+        timeline.layoutParams = if (oneLineTransport) LinearLayout.LayoutParams(0, dp(48), 1f).apply { marginStart = dp(12) }
+            else LinearLayout.LayoutParams(-1, dp(if (!followScore) 48 else if (compact) 28 else 32))
         position.visibility=if(compact && width<600) View.GONE else View.VISIBLE
-        controls.layoutParams = LinearLayout.LayoutParams(if(oneLineTransport) dp(if(wide) 358 else if(width>=600) 300 else 264) else -1, dp(44)).apply {
+        restart.visibility = if (width >= 780) View.VISIBLE else View.GONE
+        controls.layoutParams = LinearLayout.LayoutParams(if (oneLineTransport) dp(if (wide) 444 else 356) else -1, dp(48)).apply {
             if(!oneLineTransport) topMargin=dp(2)
         }
-        for(control in listOf(play,speed,loop)) control.setPadding(dp(if(width<380 || compact) 8 else 12),0,dp(if(width<380 || compact) 8 else 12),0)
+        for (control in listOf(play, speed, loop, metronomeButton)) control.setPadding(dp(4), 0, dp(4), 0)
         updatePlayIcon()
         updateLoopStyle()
+        refreshSpeedControls()
+        refreshMetronomeChrome()
+        updateZoomLabel()
         // AlphaTab observes its viewport size and reflows itself. Keep the
         // player intact while the window or keyboard changes its dimensions.
     }
 
     private fun updatePlayIcon() {
-        if(currentWidth<380 || (currentHeight in 1..420 && currentWidth<840)) play.setCompoundDrawables(null,null,null,null)
-        else AppUi.iconButton(play,if(playing) "pause" else "play",AppUi.onAccent,17)
+        val label = if (playing) "暂停" else "播放"
+        val iconOnly = currentWidth < 360 || resources.configuration.fontScale > 1.3f
+        play.text = if (iconOnly) "" else label
+        play.contentDescription = label
+        AppUi.iconButton(play, if (playing) "pause" else "play", AppUi.onAccent, 17)
+        play.compoundDrawablePadding = if (iconOnly) 0 else dp(5)
     }
 
     private fun updateLoopStyle() {
         val active = sheet.api.isLooping && sheet.api.playbackRange != null
-        loop.text = if (active) "循环中" else "循环"
+        val range = loopFromBar?.let { start -> loopToBar?.let { end -> start..end } }
+        val summary = range?.let { "${it.first}–${it.last}" }
+        val compact = currentWidth < 420 || resources.configuration.fontScale > 1.2f
+        loop.text = when {
+            active && summary != null -> if (compact && currentWidth >= 390 && resources.configuration.fontScale <= 1.2f) "循环 $summary" else summary
+            active -> "循环中"
+            else -> "循环"
+        }
+        loop.contentDescription = if (active) "循环已开启${summary?.let { "，第 $it 小节" }.orEmpty()}，调整循环" else "设置小节循环"
+        loop.isSelected = active
         loop.setTextColor(if (active) accent else ink)
-        loop.background = AppUi.ripple(this, if (active) AppUi.selected else AppUi.control, 10)
-        if (currentWidth < 380 || (currentHeight in 1..420 && currentWidth < 840)) loop.setCompoundDrawables(null, null, null, null)
+        loop.background = AppUi.ripple(this, if (active) AppUi.selected else AppUi.control, 9, if (active) accent else null)
+        if (compact) loop.setCompoundDrawables(null, null, null, null)
         else AppUi.iconButton(loop, "loop", if (active) accent else ink, 16)
+        scoreOverlay.updateLoop(if (active && !loopPicking) range else null, loopPickStart)
+        val ticks = sheet.api.playbackRange?.takeIf { active }
+        val clock = preparedScoreTime
+        if (ticks != null && clock != null) {
+            val zero = clock.scoreTimeAt(0.0)
+            val total = clock.scoreTimeAt(sheet.api.endTick) - zero
+            progress.showLoop((clock.scoreTimeAt(ticks.startTick) - zero) / total, (clock.scoreTimeAt(ticks.endTick) - zero) / total)
+        } else progress.showLoop(0.0, 0.0)
+    }
+
+    private fun refreshMetronomeChrome() {
+        if (!::metronomeButton.isInitialized) return
+        val state = practice.metronomeUi()
+        val compact = currentWidth < 420 || resources.configuration.fontScale > 1.2f
+        metronomeButton.text = when {
+            !state.enabled -> if (compact) "节拍关" else "节拍器关"
+            compact -> "${state.bpm} BPM"
+            else -> "节拍 ${state.bpm} BPM"
+        }
+        metronomeButton.contentDescription = if (state.enabled) "节拍器已开启，${state.bpm} BPM，点击关闭" else "节拍器已关闭，点击开启"
+        metronomeButton.tooltipText = "长按打开节拍设置"
+        metronomeButton.isSelected = state.enabled
+        metronomeButton.setTextColor(if (state.enabled) accent else ink)
+        metronomeButton.background = AppUi.ripple(this, if (state.enabled) AppUi.selected else AppUi.control, 9,
+            if (state.enabled) accent else null)
+        if (!compact) AppUi.iconButton(metronomeButton, "tempo", if (state.enabled) accent else muted, 15)
+        else metronomeButton.setCompoundDrawables(null, null, null, null)
+        metronomePanel.refresh()
+    }
+
+    private fun refreshSpeedControls() {
+        val percentage = (currentSpeed * 100).roundToInt()
+        speed.text = if (currentWidth >= 390 && resources.configuration.fontScale <= 1.2f) "速度 $percentage%" else "$percentage%"
+        speed.contentDescription = "播放速度 $percentage%，点击调整"
+        if (!speedInput.hasFocus()) speedInput.setText(percentage.toString())
+        if (!speedSlider.isPressed) speedSlider.progress = (percentage - 10).coerceIn(0, 90)
+        speedPresets.forEach {
+            it.isSelected = it.tag == currentSpeed
+            it.setTextColor(if (it.isSelected) accent else ink)
+            it.background = AppUi.ripple(this, if (it.isSelected) AppUi.selected else AppUi.control, 8,
+                if (it.isSelected) accent else null)
+        }
+    }
+
+    private fun applyReaderSpeed() {
+        val percentage = speedInput.text.toString().toIntOrNull()
+        if (percentage == null || percentage !in 10..100) {
+            speedInput.error = "请输入 10 到 100 之间的整数"
+        } else if (speed.isEnabled) {
+            speedInput.clearFocus()
+            WindowCompat.getInsetsController(window, speedInput).hide(WindowInsetsCompat.Type.ime())
+            changeSpeed(percentage / 100.0)
+        }
+    }
+
+    private fun setReaderStatus(message: String, prominent: Boolean = false) {
+        showStatus = prominent
+        status.text = message
+        status.visibility = if (loading || importing || prominent) View.VISIBLE else View.GONE
     }
 
     private fun refreshPanels() {
@@ -754,34 +1051,53 @@ open class MainActivity : AppCompatActivity() {
         audioDetails.text = when {
             factoryMode -> "原厂采样 · 按谱播放\n$factoryNoteCount 个演奏音符\n$fileLabel"
             liveAmp != null -> "按谱合成 · 吉他音箱\n$fileLabel"
-            hasAudio && audioMode -> "内嵌录音\n$syncCount 个同步点\n${fileLabel}"
+            hasAudio && audioMode -> "内嵌录音\n$syncCount 个同步点\n$fileLabel\n切换声部只改变谱面。"
             loaded != null -> "GeneralUser GS 1.44\n按谱合成演奏\n$fileLabel"
             else -> "未打开乐谱"
         }
-        sourceNotice.text = when {
-            hasAudio && audioMode && !preparedMode -> "内嵌原曲为整首混音。切换声部只改变谱面。"
-            else -> ""
-        }
-        sourceNotice.visibility = if (sourceNotice.text.isEmpty()) View.GONE else View.VISIBLE
         source.setTextColor(if (loaded != null) accent else ink)
         source.background = AppUi.ripple(this, if (loaded != null) AppUi.selected else AppUi.control, 10)
-        val percentage = (currentSpeed * 100).roundToInt()
-        speedReadout.text = "$percentage%"
-        speedReadout.contentDescription = "播放速度 $percentage%，点击调整"
-        speedPresets.forEach {
-            it.isSelected = it.tag == currentSpeed
-            it.setTextColor(if (it.isSelected) accent else ink)
-            it.background = AppUi.ripple(this, if (it.isSelected) AppUi.selected else AppUi.control, 8)
-        }
+        refreshSpeedControls()
+        refreshMetronomeChrome()
     }
 
     private fun chooseNotation() {
         val values = arrayOf(alphaTab.StaveProfile.ScoreTab, alphaTab.StaveProfile.Tab, alphaTab.StaveProfile.Score)
         val names = arrayOf("五线谱 + 六线谱", "六线谱", "五线谱")
         AlertDialog.Builder(this).setTitle("谱面显示").setItems(names) { _, index ->
-            sheet.settings.display.staveProfile = values[index]; notation.text = names[index]
+            sheet.settings.display.staveProfile = values[index]
             sheet.api.updateSettings(); sheet.api.render()
         }.show()
+    }
+
+    private fun updateZoomLabel() {
+        val percentage = (sheet.settings.display.scale * 100).roundToInt()
+        zoom.text = "谱面"
+        zoom.contentDescription = "谱面设置，缩放 $percentage%"
+        zoom.tooltipText = zoom.contentDescription
+    }
+
+    private fun chooseScoreDisplay() {
+        val percentage = (sheet.settings.display.scale * 100).roundToInt()
+        val labels = arrayOf("谱表显示", "缩放 $percentage%", "回到播放位置", "回到开头",
+            if (fullSheet) "退出全屏" else "全屏看谱", "乐谱信息")
+        AlertDialog.Builder(this).setTitle("谱面").setItems(labels) { _, index ->
+            when (index) {
+                0 -> chooseNotation()
+                1 -> chooseZoom()
+                2 -> returnToPlayhead()
+                3 -> { sheet.api.stop(); returnToPlayhead() }
+                4 -> toggleFullSheet()
+                5 -> showAudioDetails()
+            }
+        }.setNegativeButton("关闭", null).show()
+    }
+
+    private fun showAudioDetails() {
+        if (score == null) return
+        val details = listOf(title.text, subtitle.text, audioDetails.text, status.text).filter { it.isNotBlank() }
+        AlertDialog.Builder(this).setTitle("乐谱与音频详情").setMessage(details.joinToString("\n\n"))
+            .setPositiveButton("关闭", null).show()
     }
 
     private fun showAbout() {
@@ -804,23 +1120,24 @@ open class MainActivity : AppCompatActivity() {
     private fun setControlsReady(ready: Boolean) {
         updateReaderChrome()
         scoreEntry.setReady(ready)
-        (listOf(play, speed, speedReadout, loop, progress, applyLoop, clearLoop) + speedPresets).forEach {
+        (listOf(play, speed, speedReadout, speedSlider, speedInput, loop, progress, applyLoop, clearLoop, metronomeButton) + speedPresets).forEach {
             it.isEnabled = ready; it.alpha = if (ready) 1f else 0.4f
         }
-        listOf(source, track, zoom, notation, practiceShortcut).forEach { it.isEnabled = score != null && !loading }
+        listOf(source, track, zoom, practiceToggle).forEach { it.isEnabled = score != null && !loading }
         moreButton.isEnabled = !loading
     }
 
     private fun wirePlayer() {
         sheet.api.midiLoad.on { midi ->
-            practice.applyPlaybackMidi(midi)
-            preparedScoreTime = PreparedScoreTime(midi)
+            val time = PreparedScoreTime(midi)
+            preparedScoreTime = time
+            practice.applyPlaybackMidi(midi, time)
         }
         sheet.api.error.on { error -> runOnUiThread {
             if (!isDestroyed) {
                 resumeAfterToneReload = null
                 setControlsReady(false)
-                status.text = "播放或显示失败，可尝试切换音源或重新导入。"
+                setReaderStatus("播放或显示失败，可尝试切换音源或重新导入。", prominent = true)
                 showError("无法处理这份谱子", error)
             }
         } }
@@ -828,7 +1145,7 @@ open class MainActivity : AppCompatActivity() {
             if (!loading && score != null && sheet.api.score===score) {
                 midiReady = true
                 bindEmbeddedOutput()
-                if (audioMode && !preparedMode && embeddedReady) sheet.api.updateSyncPoints()
+                if (audioMode && !preparedMode && embeddedReady) applyRecordingSync()
                 sheet.api.playbackSpeed = currentSpeed
                 practice.reapply()
                 restorePlaybackPosition()
@@ -841,13 +1158,13 @@ open class MainActivity : AppCompatActivity() {
         } }
         sheet.api.playerStateChanged.on { e -> runOnUiThread {
             playing = e.state == PlayerState.Playing
-            play.text = if (playing) "暂停" else "播放"
             updatePlayIcon()
             if (playing) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             else { window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON); audioManager.abandonAudioFocusRequest(focus) }
         } }
         sheet.api.playerPositionChanged.on { e -> runOnUiThread {
             duration = e.endTime; currentTick = e.currentTick
+            preparedScoreTime?.let { practice.updateMetronomeBpm(it.scoreTempoAt(e.currentTick) * currentSpeed) }
             updateBarCounter(e.currentTick)
             if (!progress.isPressed) progress.progress = if (duration > 0) (e.currentTime / duration * 10000).toInt() else 0
             position.text = "${formatTime(e.currentTime)} / ${formatTime(duration)}"
@@ -917,7 +1234,12 @@ open class MainActivity : AppCompatActivity() {
             // The player reports whole ticks. A seek may land one tick short at an exact bar line.
             if (bars[middle].start <= tick + 1.0) low = middle + 1 else high = middle
         }
-        val number = bars[(low - 1).coerceAtLeast(0)].masterBar.index.toInt() + 1
+        val visit = bars[(low - 1).coerceAtLeast(0)]
+        val number = visit.masterBar.index.toInt() + 1
+        if (playing && followScore && !loopPicking && previewedVisit != visit.start && tick >= (visit.start + visit.end) / 2) {
+            previewedVisit = visit.start
+            scoreOverlay.revealNextSystem(number)
+        }
         if (number == displayedBar) return
         displayedBar = number
         barCounter.text = "小节 $number / ${loaded.masterBars.length.toInt()}"
@@ -955,7 +1277,7 @@ open class MainActivity : AppCompatActivity() {
         loading = true
         setControlsReady(false)
         loadingIndicator.visibility = View.VISIBLE
-        status.text = "正在读取录音…"
+        setReaderStatus("正在读取录音…")
         io.execute {
             val result = runCatching {
                 val source = contentResolver.openInputStream(uri) ?: throw IllegalArgumentException("无法打开所选录音。")
@@ -967,10 +1289,10 @@ open class MainActivity : AppCompatActivity() {
                 loadingIndicator.visibility = View.GONE
                 result.mapCatching { clip ->
                     if (scoreEntry.isOpen) setScoreEditing(false)
-                    if (editor.replaceRecording(clip)) status.text = "已导入内嵌录音 · ${formatTime(clip.durationMs.toDouble())}"
+                    if (editor.replaceRecording(clip)) setReaderStatus("已导入内嵌录音 · ${formatTime(clip.durationMs.toDouble())}")
                 }
                     .onFailure { error ->
-                        status.text = "录音导入失败。"
+                        setReaderStatus("录音导入失败。", prominent = true)
                         setControlsReady(midiReady && sheet.api.isReadyForPlayback && (!audioMode || embeddedReady))
                         showError("无法导入录音", error)
                     }
@@ -1032,14 +1354,15 @@ open class MainActivity : AppCompatActivity() {
             exportFile = null; exportFormat = null; exportScore = null
             if (resultCode != RESULT_OK || data?.data == null) { pending?.delete(); return }
             val destination = data.data!!
-            if (pending == null || !pending.isFile || format == null) { status.text = "导出数据已失效，请重新导出。"; return }
+            if (pending == null || !pending.isFile || format == null) { setReaderStatus("导出数据已失效，请重新导出。", prominent = true); return }
             io.execute {
                 try {
                     contentResolver.openOutputStream(destination, "w")?.use { output -> pending.inputStream().use { it.copyTo(output) } }
                         ?: throw IllegalStateException("无法写入所选位置。")
                     runOnUiThread {
                         if (isDestroyed) return@runOnUiThread
-                        status.text = "已导出 ${format.label}"
+                        setReaderStatus("已导出 ${format.label}")
+                        Toast.makeText(this, "已导出 ${format.label}", Toast.LENGTH_SHORT).show()
                         if (format == ExportKind.GUITAR_PRO && score === exportedScore) {
                             modified = false; updateDocumentSubtitle(); io.execute { drafts.delete() }
                         }
@@ -1102,13 +1425,13 @@ open class MainActivity : AppCompatActivity() {
         val token = ++generation
         val cancelled = AtomicBoolean(false); batchCancellation = cancelled
         setControlsReady(false); loadingIndicator.visibility = View.VISIBLE
-        status.text = "正在批量导入 ${uris.size} 份乐谱…"
+        setReaderStatus("正在批量导入 ${uris.size} 份乐谱…")
         val form = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(24), dp(8), dp(24), dp(16)) }
         val detail = text("逐份读取并校验 GP 文件", 13f, muted).apply { maxLines = 2; ellipsize = TextUtils.TruncateAt.END }
         val progress = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply { max = uris.size }
         form.addView(detail); form.addView(progress, LinearLayout.LayoutParams(-1, dp(32)))
         val dialog = AlertDialog.Builder(this).setTitle("批量导入 · 0 / ${uris.size}").setView(form)
-            .setNegativeButton("取消导入") { _, _ -> cancelled.set(true); status.text = "正在取消，已校验成功的乐谱会保留。" }
+            .setNegativeButton("取消导入") { _, _ -> cancelled.set(true); setReaderStatus("正在取消，已校验成功的乐谱会保留。") }
             .setCancelable(false).create()
         batchDialog = dialog; dialog.show()
         io.execute {
@@ -1126,7 +1449,7 @@ open class MainActivity : AppCompatActivity() {
                     finishBatchUi()
                     refreshPanels()
                     val heading = if (report.cancelled) "批量导入已取消" else "批量导入完成"
-                    status.text = "$heading · 成功 ${report.imported.size} 份，失败 ${report.failures.size} 份"
+                    setReaderStatus("$heading · 成功 ${report.imported.size} 份，失败 ${report.failures.size} 份")
                     val openFirst = score == null && !modified && report.imported.isNotEmpty()
                     val message = buildString {
                         append("已加入 ${report.imported.size} 份，未导入 ${report.failures.size} 份。重复选择的同一文件只保留一条记录。")
@@ -1250,7 +1573,7 @@ open class MainActivity : AppCompatActivity() {
         pausePlayback()
         val token = ++generation
         loading = true; setControlsReady(false)
-        status.text = "正在读取谱面、内嵌音频和同步点…"
+        setReaderStatus("正在读取谱面、内嵌音频和同步点…")
         loadingIndicator.visibility = View.VISIBLE
         io.execute {
             try {
@@ -1290,35 +1613,34 @@ open class MainActivity : AppCompatActivity() {
                     embedded.release(); embeddedReady = false; midiReady = false; preparedScoreTime = null
                     liveAmp?.close(); liveAmp = null
                     embeddedFile?.delete(); embeddedFile = audioFile
-                    currentSpeed = resume?.speed ?: 1.0; speed.text = "${currentSpeed}×"
+                    currentSpeed = resume?.speed ?: 1.0
                     resume?.let {
                         sheet.settings.display.scale=it.scale
                         sheet.settings.display.staveProfile=runCatching { alphaTab.StaveProfile.valueOf(it.notation) }.getOrDefault(alphaTab.StaveProfile.ScoreTab)
                     }
-                    zoom.text="${(sheet.settings.display.scale*100).roundToInt()}%"
-                    notation.text=when(sheet.settings.display.staveProfile) {
-                        alphaTab.StaveProfile.Tab -> "六线谱"
-                        alphaTab.StaveProfile.Score -> "五线谱"
-                        else -> "五线谱 + 六线谱"
-                    }
+                    updateZoomLabel()
+                    cancelLoopPick()
+                    practiceInline = false
+                    setReaderFollow(true)
                     loopFromBar=null;loopToBar=null
                     sheet.api.isLooping = false; sheet.api.playbackRange = null; updateLoopStyle()
                     duration = 0.0; progress.progress = 0; position.text = "00:00 / 00:00"
                     title.text = parsed.title.ifBlank { label.substringBeforeLast('.') }
+                    title.tooltipText = title.text
                     subtitle.text = listOf(parsed.artist, "${parsed.masterBars.length.toInt()} 小节", "${parsed.tracks.length.toInt()} 个声部")
                         .filter { it.isNotBlank() }.joinToString(" · ")
                     updateDocumentSubtitle()
                     source.text = if (audioMode) "内嵌原曲" else "合成音源"
                     track.text = parsed.tracks[activeTrack].name.ifBlank { "声部 ${activeTrack+1}" }
                     val syncCount = parsed.masterBars.sumOf { it.syncPoints?.length?.toInt() ?: 0 }
-                    status.text = when {
+                    setReaderStatus(when {
                         newDocument -> "点按休止符即可输入音符。"
                         resume?.source=="prepared" -> "已恢复练习设置；采样音频需重新准备。"
                         audioMode && syncCount > 0 -> "已读取内嵌音频及 $syncCount 个同步点 · 点击谱面可跳转"
                         audioMode -> "已读取内嵌音频；缺少同步点，跟谱位置可能有偏差。"
                         hasAudio -> "按谱合成演奏 · 可切换到内嵌录音"
                         else -> "这份谱子没有可读取的内嵌音频，当前按谱合成播放。"
-                    }
+                    }, prominent = resume?.source == "prepared")
                     sheet.settings.player.playerMode = if (audioMode) PlayerMode.EnabledExternalMedia else PlayerMode.EnabledSynthesizer
                     sheet.api.updateSettings()
                     bindEmbeddedOutput()
@@ -1348,7 +1670,7 @@ open class MainActivity : AppCompatActivity() {
                     if (token != generation || isDestroyed) return@runOnUiThread
                     loading = false; loadingIndicator.visibility = View.GONE
                     setControlsReady(score != null && sheet.api.isReadyForPlayback)
-                    status.text = "导入失败。请选择完整的 GP 文件。"
+                    setReaderStatus("导入失败。请选择完整的 GP 文件。", prominent = true)
                     showError("无法打开乐谱", e)
                 }
             }
@@ -1368,13 +1690,26 @@ open class MainActivity : AppCompatActivity() {
         val audio = liveAmp ?: return
         val timing = preparedScoreTime ?: return
         sheet.api.player?.updateSyncPoints(timing.syncPoints(audio.syncOffsetMs, audio.backingTrackDuration))
+        audio.setMetronome(practice.mediaMetronome(MetronomeTimeMap.offset(audio.syncOffsetMs)), practice::mediaMetronomeVolume)
+        updateLiveLoop()
+    }
+
+    private fun applyRecordingSync() {
+        sheet.api.updateSyncPoints()
+        val map = AlphaTabMetronomeBridge.recordingMap(sheet.api.player, embedded.backingTrackDuration)
+        recordingMetronomeMap = map
+        embedded.setMetronome(practice.mediaMetronome(map), cacheDir, practice::mediaMetronomeVolume)
         updateLiveLoop()
     }
 
     private fun updateLiveLoop() {
-        val audio = liveAmp ?: return
-        val timing = preparedScoreTime ?: return
         val range = sheet.api.playbackRange?.takeIf { sheet.api.isLooping }
+        val timing = preparedScoreTime ?: return
+        val audio = liveAmp
+        if (audio == null) {
+            if (audioMode) embedded.metronomeEndMs = range?.let { recordingMetronomeMap?.mediaAt(timing.scoreTimeAt(it.endTick)) }
+            return
+        }
         val end = range?.let {
             if (it.endTick >= sheet.api.endTick) audio.backingTrackDuration
             else timing.timeAt(it.endTick) + audio.syncOffsetMs
@@ -1545,10 +1880,10 @@ open class MainActivity : AppCompatActivity() {
         }
         api.render()
         source.text = if (factoryMode) "原厂采样" else "音箱混音"
-        status.text = if (factory != null) {
+        setReaderStatus(if (factory != null) {
             "已准备 ${factory.noteCount} 个演奏音符" +
                 if (factory.substitutedArticulations > 0) " · ${factory.substitutedArticulations} 个音符使用替代技法采样" else ""
-        } else "已准备 ${stems.guitarTracks.size} 个吉他声部"
+        } else "已准备 ${stems.guitarTracks.size} 个吉他声部")
         refreshPanels()
     }
 
@@ -1590,21 +1925,22 @@ open class MainActivity : AppCompatActivity() {
                         add(ReaderMenu.Action("当前声部音色", "audio") { practice.showTone(activeTrack) })
                     }
                     add(ReaderMenu.Action("播放音源", "audio", source.text.toString()) { chooseSource() })
-                    add(ReaderMenu.Action("混音与练习", "mix") { practice.show() })
+                    add(ReaderMenu.Action("练习面板", "panel") { openPractice(selectedPracticeTab) })
+                    add(ReaderMenu.Action("音量与混音", "mix") { practice.show() })
                 }
                 add(ReaderMenu.Section("播放与练习", listOf(ReaderMenu.Action("逐轮加速练习", "tempo") { showTrainer() }), shortcuts))
                 add(ReaderMenu.Section("谱面", listOf(
                     ReaderMenu.Action(if (scoreEntry.isOpen) "完成谱面编辑" else "在谱面编辑", "edit") { setScoreEditing(!scoreEntry.isOpen) },
                     ReaderMenu.Action("MIDI 输入", "audio", if (midiInputDelegate.isInitialized()) midiInput.portLabel.orEmpty() else "") { chooseMidiInput() },
                     ReaderMenu.Action("选择声部", "track", track.text.toString()) { chooseTrack() },
-                    ReaderMenu.Action("谱面大小", "zoom", zoom.text.toString()) { chooseZoom() },
+                    ReaderMenu.Action("谱面设置", "score") { chooseScoreDisplay() },
                     ReaderMenu.Action(if (fullSheet) "退出全屏" else "全屏看谱", "full") {
-                        fullSheet = !fullSheet
-                        applyAdaptiveLayout(currentWidth)
+                        toggleFullSheet()
                     }
                 )))
             }
             val other = buildList {
+                if (available && !pdfPreview) add(ReaderMenu.Action("导入 GP 文件", "import") { pickFile() })
                 add(ReaderMenu.Action("界面主题", "theme", theme.label, enabled = preparingExport == null) {
                     showReaderThemes(this@MainActivity, theme, ::changeTheme)
                 })
@@ -1694,7 +2030,8 @@ open class MainActivity : AppCompatActivity() {
             scoreEntry.applyBarEdit(bars)
             displayedBar = (position?.bar ?: bars.map(displayedBar - 1) ?: bars.index) + 1
         }
-        status.text = if (timing != null && hasAudio) "$description · 请试听改动附近的录音同步。" else description
+        setReaderStatus(if (timing != null && hasAudio) "$description · 请试听改动附近的录音同步。" else description,
+            prominent = timing != null && hasAudio)
         setControlsReady(false)
         if (recordingChanged) sheet.api.updateSettings()
         sheet.tracks = listOf(next.tracks[activeTrack])
@@ -1754,6 +2091,8 @@ open class MainActivity : AppCompatActivity() {
     private fun setScoreEditing(enabled: Boolean, keepSource: Boolean = false) {
         if (enabled && (loading || score == null)) return
         if (enabled) {
+            cancelLoopPick()
+            practiceInline = false
             pausePlayback()
             scoreEntry.open()
             if (audioMode && !keepSource) switchSource(false)
@@ -1763,11 +2102,13 @@ open class MainActivity : AppCompatActivity() {
         editScoreButton.contentDescription = if (enabled) "完成谱面编辑" else "编辑谱面"
         sheet.settings.player.enableUserInteraction = !enabled
         sheet.api.updateSettings()
+        updateReaderChrome()
+        refreshEditOutline()
     }
 
     override fun dispatchTouchEvent(event: MotionEvent): Boolean {
-        var editTap = false
-        if (::scoreEntry.isInitialized && scoreEntry.isOpen) {
+        var targetedTap = false
+        if (::scoreEntry.isInitialized && score != null) {
             val x = event.rawX
             val y = event.rawY
             val slop = ViewConfiguration.get(this).scaledTouchSlop
@@ -1779,20 +2120,60 @@ open class MainActivity : AppCompatActivity() {
                         PointF(x, y)
                     } else null
                 }
-                MotionEvent.ACTION_MOVE -> scoreTap?.let { if (kotlin.math.abs(x - it.x) > slop || kotlin.math.abs(y - it.y) > slop) scoreTap = null }
+                MotionEvent.ACTION_MOVE -> scoreTap?.let {
+                    val dx = kotlin.math.abs(x - it.x)
+                    val dy = kotlin.math.abs(y - it.y)
+                    if (dy > slop && dy > dx && !scoreEntry.isOpen && !loopPicking) {
+                        panningScore = true
+                        sheet.settings.player.enableUserInteraction = false
+                        if (playing && followScore) setReaderFollow(false)
+                    }
+                    if (dx > slop || dy > slop) scoreTap = null
+                }
                 MotionEvent.ACTION_UP -> {
                     val start = scoreTap
                     scoreTap = null
                     if (start != null && kotlin.math.abs(x - start.x) <= slop && kotlin.math.abs(y - start.y) <= slop) {
-                        editTap = true
+                        targetedTap = true
                     }
                 }
                 MotionEvent.ACTION_CANCEL, MotionEvent.ACTION_POINTER_DOWN -> scoreTap = null
             }
         }
         val handled = super.dispatchTouchEvent(event)
-        if (editTap) selectScorePosition(event)
+        if (panningScore && (event.actionMasked == MotionEvent.ACTION_UP || event.actionMasked == MotionEvent.ACTION_CANCEL)) {
+            panningScore = false
+            sheet.settings.player.enableUserInteraction = !scoreEntry.isOpen && !loopPicking
+        }
+        if (targetedTap && scoreEntry.isOpen) selectScorePosition(event)
+        else if (targetedTap && loopPicking) {
+            val origin = IntArray(2).also(scoreOverlay::getLocationOnScreen)
+            scoreOverlay.measureAt(event.rawX - origin[0], event.rawY - origin[1])?.let(::pickLoopBar)
+        }
         return handled
+    }
+
+    private fun refreshEditOutline() {
+        if (!::scoreEntry.isInitialized) return
+        val selection = scoreEntry.resolvedSelection()?.takeIf { scoreEntry.isOpen }
+        scoreOverlay.updateEditSelection(selection?.first, selection?.second)
+    }
+
+    private fun setReaderFollow(enabled: Boolean) {
+        val changed = followScore != enabled
+        followScore = enabled
+        previewedVisit = Double.NaN
+        sheet.settings.player.scrollMode = if (enabled) alphaTab.ScrollMode.Continuous else alphaTab.ScrollMode.Off
+        followButton.visibility = if (enabled) View.GONE else View.VISIBLE
+        if (changed && bottomContent.orientation == LinearLayout.VERTICAL) {
+            timeline.layoutParams.height = dp(if (enabled && currentHeight in 1..420) 28 else if (enabled) 32 else 48)
+            timeline.requestLayout()
+        }
+    }
+
+    private fun returnToPlayhead() {
+        setReaderFollow(true)
+        sheet.api.scrollToCursor()
     }
 
     private fun selectScorePosition(event: MotionEvent) {
@@ -1812,6 +2193,7 @@ open class MainActivity : AppCompatActivity() {
 
     private fun updateDocumentSubtitle() {
         val current = score ?: return
+        draftIndicator.visibility = if (modified) View.VISIBLE else View.GONE
         val lyrics = when {
             activeTrack in lyricTracks -> "含歌词"
             lyricTracks.isNotEmpty() -> "歌词见声部列表"
@@ -1828,7 +2210,7 @@ open class MainActivity : AppCompatActivity() {
             try { drafts.write(ScoreExport.guitarProBytes(current)) }
             catch (error: Exception) {
                 android.util.Log.w("StringPage", "Failed to write score recovery copy", error)
-                runOnUiThread { if (score === current && !isDestroyed) status.text = "草稿写入失败，请导出副本保存修改。" }
+                runOnUiThread { if (score === current && !isDestroyed) setReaderStatus("草稿写入失败，请导出副本保存修改。", prominent = true) }
             }
         }
     }
@@ -1911,7 +2293,7 @@ open class MainActivity : AppCompatActivity() {
         val cancel = AtomicBoolean(false)
         preparingExport = cancel
         loading = true; loadingIndicator.visibility = View.VISIBLE; setControlsReady(false)
-        status.text = "正在准备 ${format.label}…"
+        setReaderStatus("正在准备 ${format.label}…")
         val name = current.title.ifBlank { fileLabel.substringBeforeLast('.') }.replace(Regex("[\\\\/:*?\"<>|]"), "_").take(100)
         io.execute {
             var pending: File? = null
@@ -1960,7 +2342,7 @@ open class MainActivity : AppCompatActivity() {
                 bindEmbeddedOutput()
                 embedded.masterVolume = sheet.api.masterVolume
                 sheet.api.playbackSpeed = currentSpeed
-                if (preparedMode) applyPreparedSync() else sheet.api.updateSyncPoints()
+                if (preparedMode) applyPreparedSync() else applyRecordingSync()
                 restorePlaybackPosition()
                 if (midiReady && !loading) setControlsReady(pendingReaderSession==null && restoreTick==null)
             }
@@ -2044,7 +2426,7 @@ open class MainActivity : AppCompatActivity() {
         else { embedded.release(); embeddedReady = false }
         sheet.api.render()
         source.text = if (audioMode) "内嵌原曲" else "合成音源"
-        status.text = if (audioMode) "播放内嵌录音" else "按谱合成演奏"
+        setReaderStatus(if (audioMode) "播放内嵌录音" else "按谱合成演奏")
         refreshPanels()
     }
 
@@ -2075,60 +2457,9 @@ open class MainActivity : AppCompatActivity() {
         if (stopTrainer) trainer.stop()
         val wasPlaying = playing
         currentSpeed = value; sheet.api.playbackSpeed = value
+        preparedScoreTime?.let { practice.updateMetronomeBpm(it.scoreTempoAt(currentTick) * value) }
         if (!wasPlaying) { pausePlayback(); embedded.pause() }
-        speed.text = "${currentSpeed}×"
-        refreshPanels()
-    }
-
-    private fun chooseSpeed() {
-        val values = doubleArrayOf(0.1, 0.25, 0.5, 0.6, 0.75, 0.85, 1.0)
-        AlertDialog.Builder(this).setTitle("练习速度 · 保持音高")
-            .setSingleChoiceItems(values.map { "${(it * 100).toInt()}%" }.toTypedArray(), values.indexOfFirst { it == currentSpeed }) { dialog, index ->
-                changeSpeed(values[index]); dialog.dismiss()
-            }.setNeutralButton("自定义") { _, _ -> showCustomSpeed() }
-            .setNegativeButton("取消", null).show()
-    }
-
-    private fun showCustomSpeed() {
-        val allowed = 10..100
-        val input = numberField("自定义播放速度，百分比").apply {
-            setText((currentSpeed * 100).roundToInt().coerceIn(allowed).toString())
-            setSelectAllOnFocus(true)
-            imeOptions = EditorInfo.IME_ACTION_DONE
-        }
-        val content = FrameLayout(this).apply {
-            setPadding(dp(24), dp(8), dp(24), 0)
-            addView(input, FrameLayout.LayoutParams(-1, dp(48)))
-        }
-        val dialog = AlertDialog.Builder(this)
-            .setTitle("自定义播放速度")
-            .setMessage("输入 ${allowed.first}% 至 ${allowed.last}%，100% 为原速。")
-            .setView(content)
-            .setPositiveButton("应用", null)
-            .setNegativeButton("取消", null)
-            .create()
-        fun applySpeed() {
-            val percentage = input.text.toString().toIntOrNull()
-            if (percentage == null || percentage !in allowed) {
-                input.error = "请输入 ${allowed.first} 到 ${allowed.last} 之间的整数"
-                return
-            }
-            if (!speed.isEnabled) {
-                input.error = "请等待播放器准备完成"
-                return
-            }
-            changeSpeed(percentage / 100.0)
-            dialog.dismiss()
-        }
-        input.requestFocus()
-        dialog.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE)
-        dialog.show()
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener { applySpeed() }
-        input.setOnEditorActionListener { _, action, _ ->
-            if (action != EditorInfo.IME_ACTION_DONE) return@setOnEditorActionListener false
-            applySpeed()
-            true
-        }
+        refreshSpeedControls()
     }
 
     private fun showTrainer() {
@@ -2152,7 +2483,7 @@ open class MainActivity : AppCompatActivity() {
         }
         content.addView(text("完成指定轮数后升速，到达目标后保持。手动变速、切换音源或关闭循环会停止加速。", 12f, muted))
         val dialog = AlertDialog.Builder(this).setTitle("逐轮加速练习").setView(ScrollView(this).apply { addView(content) })
-            .setPositiveButton("应用", null).setNeutralButton("停止加速") { _, _ -> trainer.stop(); status.text = "逐轮加速已停止" }
+            .setPositiveButton("应用", null).setNeutralButton("停止加速") { _, _ -> trainer.stop(); setReaderStatus("逐轮加速已停止") }
             .setNegativeButton("取消", null).create()
         dialog.setOnShowListener {
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
@@ -2160,7 +2491,7 @@ open class MainActivity : AppCompatActivity() {
                     val input = fields.map { it.text.toString().toIntOrNull() ?: throw IllegalArgumentException("请输入整数。") }
                     val settings = ProgressivePractice.Configuration(input[0], input[1], input[2], input[3])
                     if (!startTrainer(settings)) throw IllegalArgumentException("请等待合成音源准备完成，并选择小节循环。")
-                    status.text = "逐轮加速 ${settings.start}% → ${settings.target}% · 每个速度 ${settings.repeats} 轮"
+                    setReaderStatus("逐轮加速 ${settings.start}% → ${settings.target}% · 每个速度 ${settings.repeats} 轮")
                     dialog.dismiss()
                 } catch (error: IllegalArgumentException) { Toast.makeText(this, error.message, Toast.LENGTH_LONG).show() }
             }
@@ -2184,25 +2515,45 @@ open class MainActivity : AppCompatActivity() {
                 if (index == values.size) { chooseNotation(); return@setItems }
                 sheet.settings.display.scale = values[index] / 100.0
                 sheet.api.updateSettings(); sheet.api.render()
-                zoom.text = "${values[index]}%"
+                updateZoomLabel()
             }.show()
     }
 
-    private fun chooseLoop() {
-        val loaded = score ?: return
-        val form = row().apply { setPadding(dp(20), dp(8), dp(20), dp(8)); gravity = Gravity.CENTER }
-        val from = NumberPicker(this).apply { minValue = 1; maxValue = loaded.masterBars.length.toInt(); value = 1 }
-        val to = NumberPicker(this).apply { minValue = 1; maxValue = loaded.masterBars.length.toInt(); value = loaded.masterBars.length.toInt() }
-        form.addView(from); form.addView(text("  到  ")); form.addView(to)
-        val dialog = AlertDialog.Builder(this).setTitle("循环练习 · 选择小节")
-            .setView(form).setPositiveButton("开始循环", null)
-            .setNeutralButton("取消循环") { _, _ -> clearLoopRange() }.setNegativeButton("关闭", null).create()
-        dialog.setOnShowListener {
-            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-                if (applyLoopRange(from.value, to.value)) dialog.dismiss()
-            }
+    private fun beginLoopPick() {
+        if (score == null || !play.isEnabled) return
+        if (scoreEntry.isOpen) {
+            Toast.makeText(this, "完成编辑后可在谱面选段。", Toast.LENGTH_SHORT).show()
+            return
         }
-        dialog.show()
+        loopPicking = true
+        loopPickStart = null
+        practiceInline = false
+        loopHint.visibility = View.VISIBLE
+        loopHintText.text = "点谱面选择 A 点"
+        sheet.settings.player.enableUserInteraction = false
+        positionPracticePanel()
+        updateLoopStyle()
+    }
+
+    private fun pickLoopBar(bar: Int) {
+        val start = loopPickStart
+        if (start == null) {
+            loopPickStart = bar
+            loopHintText.text = "A · 第 $bar 小节，点谱面选择 B 点"
+            updateLoopStyle()
+        } else if (applyLoopRange(minOf(start, bar), maxOf(start, bar))) {
+            cancelLoopPick()
+        }
+    }
+
+    private fun cancelLoopPick() {
+        if (!loopPicking) return
+        loopPicking = false
+        loopPickStart = null
+        loopHint.visibility = View.GONE
+        sheet.settings.player.enableUserInteraction = !scoreEntry.isOpen
+        positionPracticePanel()
+        updateLoopStyle()
     }
 
     internal fun applyLoopRange(from: Int, to: Int): Boolean {
@@ -2218,7 +2569,7 @@ open class MainActivity : AppCompatActivity() {
         updateLiveLoop()
         sheet.api.tickPosition = start
         inlineFrom.setText(from.toString()); inlineTo.setText(to.toString())
-        updateLoopStyle(); status.text = "循环第 $from–$to 小节"
+        updateLoopStyle(); setReaderStatus("循环第 $from–$to 小节")
         return true
     }
 
@@ -2237,7 +2588,7 @@ open class MainActivity : AppCompatActivity() {
         loopFromBar=null;loopToBar=null
         sheet.api.isLooping = false; sheet.api.playbackRange = null; updateLoopStyle()
         updateLiveLoop()
-        status.text = "循环已关闭"
+        setReaderStatus("循环已关闭")
     }
 
     private fun saveRecent(uri: Uri, name: String) {
@@ -2307,7 +2658,7 @@ open class MainActivity : AppCompatActivity() {
         generation++; io.shutdown(); unregisterReceiver(unplugged)
         embedded.release(); embeddedFile?.delete()
         liveAmp?.close()
-        practice.close()
+        practice.destroy()
         super.onDestroy()
         // AlphaTabView releases audio workers and rendering resources on detach.
     }

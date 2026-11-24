@@ -89,12 +89,64 @@ abstract class AlphaTabLyricsPlacementVisitor : AsmClassVisitorFactory<Instrumen
         }
 }
 
+// Use the synth's render clock for reader clicks, including at slow practice speeds.
+abstract class AlphaTabReaderMetronomeVisitor : AsmClassVisitorFactory<InstrumentationParameters.None> {
+    override fun isInstrumentable(classData: ClassData) = classData.className == "alphaTab.synth.MidiFileSequencer"
+
+    override fun createClassVisitor(classContext: ClassContext, nextClassVisitor: ClassVisitor): ClassVisitor =
+        object : ClassVisitor(Opcodes.ASM9, nextClassVisitor) {
+            private val sequencer = "alphaTab/synth/MidiFileSequencer"
+            private val state = "LalphaTab/synth/MidiSequencerState;"
+            private val midi = "LalphaTab/midi/MidiFile;"
+            private val synth = "LalphaTab/synth/IAudioSampleSynthesizer;"
+            private val hook = "com/stringpage/app/AlphaTabMetronomeBridge"
+            private var configured = 0
+            private var rendered = 0
+
+            override fun visitMethod(access: Int, name: String, descriptor: String, signature: String?, exceptions: Array<out String>?): MethodVisitor {
+                val method = super.visitMethod(access, name, descriptor, signature, exceptions)
+                val createState = name == "createStateFromFile" && descriptor == "($midi)$state"
+                val renderBlock = name == "fillMidiEventQueue" && descriptor == "()Z"
+                if (!createState && !renderBlock) return method
+                return object : MethodVisitor(Opcodes.ASM9, method) {
+                    override fun visitInsn(opcode: Int) {
+                        if (createState && opcode == Opcodes.ARETURN) {
+                            visitInsn(Opcodes.DUP)
+                            visitMethodInsn(Opcodes.INVOKESTATIC, hook, "configure", "($state)V", false)
+                            configured++
+                        }
+                        if (renderBlock && opcode == Opcodes.IRETURN) {
+                            for ((field, type) in listOf("_mainState" to state, "_currentState" to state,
+                                "_synthesizer" to synth, "playbackSpeed" to "D")) {
+                                visitVarInsn(Opcodes.ALOAD, 0)
+                                visitFieldInsn(Opcodes.GETFIELD, sequencer, field, type)
+                            }
+                            visitMethodInsn(Opcodes.INVOKESTATIC, hook, "renderBlock", "($state$state${synth}D)V", false)
+                            rendered++
+                        }
+                        super.visitInsn(opcode)
+                    }
+
+                    override fun visitMaxs(maxStack: Int, maxLocals: Int) = super.visitMaxs(maxStack + 6, maxLocals)
+                }
+            }
+
+            override fun visitEnd() {
+                check(configured == 1 && rendered == 1) { "Unexpected alphaTab 1.8.4 sequencer layout" }
+                super.visitEnd()
+            }
+        }
+}
+
 androidComponents.onVariants { variant ->
     variant.instrumentation.transformClassesWith(
         AlphaTabPlaybackSpeedVisitor::class.java, InstrumentationScope.ALL
     ) {}
     variant.instrumentation.transformClassesWith(
         AlphaTabLyricsPlacementVisitor::class.java, InstrumentationScope.ALL
+    ) {}
+    variant.instrumentation.transformClassesWith(
+        AlphaTabReaderMetronomeVisitor::class.java, InstrumentationScope.ALL
     ) {}
 }
 
@@ -106,8 +158,8 @@ android {
         applicationId = "com.stringpage.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 55
-        versionName = "1.35.0"
+        versionCode = 56
+        versionName = "1.36.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64") }
         externalNativeBuild { cmake { arguments += "-DANDROID_STL=c++_static" } }

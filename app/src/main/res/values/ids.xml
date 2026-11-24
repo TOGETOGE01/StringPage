@@ -23,4 +23,12 @@
     <item name="notation_select" type="id" />
     <item name="master_volume" type="id" />
     <item name="app_brand" type="id" />
+    <item name="reader_library_toggle" type="id" />
+    <item name="reader_practice_toggle" type="id" />
+    <item name="reader_metronome_toggle" type="id" />
+    <item name="reader_loop_select_on_score" type="id" />
+    <item name="reader_loop_selection" type="id" />
+    <item name="reader_practice_tabs" type="id" />
+    <item name="reader_speed_sixty" type="id" />
+    <item name="reader_scroll_resume" type="id" />
 </resources>

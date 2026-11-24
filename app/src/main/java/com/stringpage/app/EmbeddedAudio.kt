@@ -7,6 +7,7 @@ import alphaTab.synth.IExternalMediaSynthOutput
 import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.media.PlaybackParams
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import java.io.File
@@ -22,6 +23,28 @@ class EmbeddedAudio(private val failed: (Throwable) -> Unit) : IExternalMediaHan
     private var volume = 1.0
     private var pendingSeek: Long? = null
     private var queuedSeek: Long? = null
+    private var clickSound: RecordingClickSound? = null
+    private var clickClock: RecordingMetronome? = null
+    private var clickVolume: () -> Double = { 0.0 }
+    internal var metronomeEndMs: Double? = null
+    private val clickPoll = object : Runnable {
+        override fun run() {
+            val current = media ?: return
+            if (!ready || !playRequested || pendingSeek != null || queuedSeek != null || clickVolume() <= 0.0) return
+            if (current.isPlaying) {
+                val timestamp = current.timestamp
+                val position = if (timestamp != null && timestamp.mediaClockRate > 0f) {
+                    @Suppress("DEPRECATION")
+                    val anchor = if (Build.VERSION.SDK_INT >= 29) timestamp.anchorSystemNanoTime else timestamp.anchorSytemNanoTime
+                    timestamp.anchorMediaTimeUs / 1000.0 +
+                        (System.nanoTime() - anchor) / 1_000_000.0 * timestamp.mediaClockRate
+                } else current.currentPosition.toDouble()
+                val end = minOf(current.duration.toDouble(), metronomeEndMs ?: Double.POSITIVE_INFINITY)
+                clickClock?.update(position.coerceIn(0.0, end.coerceAtLeast(0.0)), rate)
+            }
+            main.postDelayed(this, 8)
+        }
+    }
     private val dispatchSeek = Runnable {
         val current = media ?: return@Runnable
         val target = queuedSeek ?: return@Runnable
@@ -39,6 +62,29 @@ class EmbeddedAudio(private val failed: (Throwable) -> Unit) : IExternalMediaHan
 
     /** Preserve the recording clock when the notation engine snaps a pause to a beat. */
     internal fun restorePausedPosition(time: Double) = requestSeek(time)
+
+    internal fun setMetronome(clock: AlphaTabMetronomeBridge.Clock?, cacheDir: File, volume: () -> Double) {
+        stopClicks()
+        if (clickSound == null) clickSound = RecordingClickSound(cacheDir)
+        clickVolume = volume
+        clickClock = clock?.let { RecordingMetronome(it, volume) { gain -> clickSound?.play((gain * this.volume).toFloat()) } }
+        refreshMetronome()
+    }
+
+    internal fun refreshMetronome() {
+        main.removeCallbacks(clickPoll)
+        if (clickClock == null || clickVolume() <= 0.0 || !ready) {
+            stopClicks()
+            return
+        }
+        if (clickSound?.prepare() == true && playRequested && pendingSeek == null && queuedSeek == null) main.post(clickPoll)
+    }
+
+    private fun stopClicks() {
+        main.removeCallbacks(clickPoll)
+        clickClock?.reset()
+        clickSound?.stop()
+    }
     var output: IExternalMediaSynthOutput? = null
         set(value) { field?.handler = null; field = value; value?.handler = this }
     private val poll = object : Runnable {
@@ -78,12 +124,14 @@ class EmbeddedAudio(private val failed: (Throwable) -> Unit) : IExternalMediaHan
         next.setOnCompletionListener {
             if (media === next && ready && pendingSeek == null && queuedSeek == null) {
                 main.removeCallbacks(poll)
+                stopClicks()
                 output?.updatePosition(it.duration.toDouble())
             }
         }
         next.setOnErrorListener { _, what, extra ->
             if (media !== next) return@setOnErrorListener true
             ready = false; playRequested = false; main.removeCallbacks(poll)
+            stopClicks()
             failed(IllegalArgumentException("内嵌音频无法解码（$what/$extra），可切换到合成音源。")); true
         }
         next.setDataSource(file.absolutePath)
@@ -109,6 +157,7 @@ class EmbeddedAudio(private val failed: (Throwable) -> Unit) : IExternalMediaHan
     override fun seekTo(time: Double) = requestSeek(time)
     private fun requestSeek(time: Double) {
         if (!ready || media == null) return
+        stopClicks()
         val target = time.coerceIn(0.0, backingTrackDuration).toLong()
         // Source restoration updates sync points, the loop and the playhead
         // in one UI turn. Only seek the native decoder to the final position.
@@ -132,10 +181,12 @@ class EmbeddedAudio(private val failed: (Throwable) -> Unit) : IExternalMediaHan
     }
     private fun startPlayback(current: MediaPlayer) {
         if (pendingSeek != null || queuedSeek != null) return
+        if (clickVolume() > 0.0) clickClock?.prime(current.currentPosition.toDouble(), rate)
         applyRate(current)
         if (!current.isPlaying) current.start()
         main.removeCallbacks(poll)
         main.post(poll)
+        refreshMetronome()
     }
     private fun applyRate(current: MediaPlayer) {
         if (appliedRate == rate) return
@@ -144,10 +195,15 @@ class EmbeddedAudio(private val failed: (Throwable) -> Unit) : IExternalMediaHan
     }
     override fun pause() {
         playRequested = false
+        stopClicks()
         if (ready && media?.isPlaying == true) media?.pause()
         main.removeCallbacks(poll)
     }
     fun release() {
+        stopClicks()
+        clickClock = null
+        clickSound?.release(); clickSound = null
+        metronomeEndMs = null
         main.removeCallbacks(poll); main.removeCallbacks(dispatchSeek); ready = false; playRequested = false
         pendingSeek = null; queuedSeek = null
         output = null

@@ -28,6 +28,7 @@ internal class StemAudio(
     private val sampleRate = stems.sampleRate
     private val samples = FloatArray(BLOCK * 2)
     private var mixer: LiveAmpMixer? = null
+    private var metronome: StemMetronome? = null
     private var track: AudioTrack? = null
     private var sourceStart = 0L
     private var written = 0L
@@ -90,6 +91,10 @@ internal class StemAudio(
         }
 
     fun setAmps(newSettings: Map<Int, GuitarAmpSettings>) { settings = newSettings.toMap() }
+
+    fun setMetronome(clock: AlphaTabMetronomeBridge.Clock?, volume: () -> Double) = command {
+        metronome = clock?.let { StemMetronome(it, volume, sampleRate) }
+    }
 
     fun open(ready: () -> Unit) {
         val initialVolume = volume
@@ -173,6 +178,7 @@ internal class StemAudio(
             blockSamples = 0
             blockOffset = 0
             endingTail = null
+            metronome?.reset()
             mixer?.seek(frame, settings)
             if (workerPlaying) startDevice(device)
             ui.post { if (!closed && epoch == seekEpoch) output?.updatePosition(ms(frame)) }
@@ -240,9 +246,13 @@ internal class StemAudio(
                 val count = if (frame < end) {
                     val count = minOf(BLOCK.toLong(), end - frame).toInt()
                     val controls = settings
-                    if (frame != nextSourceFrame) mixer?.seek(frame, controls)
+                    if (frame != nextSourceFrame) {
+                        mixer?.seek(frame, controls)
+                        metronome?.reset()
+                    }
                     mixer?.read(samples, count, controls, renderSpeed)
                     if (loop != null) fadeLoopEdges(frame, count, loop)
+                    metronome?.mix(samples, frame, count, renderSpeed)
                     nextSourceFrame = frame + count
                     if (loop == null && nextSourceFrame == end) endingTail = mixer?.tailFrames(end, renderSpeed) ?: 0
                     count

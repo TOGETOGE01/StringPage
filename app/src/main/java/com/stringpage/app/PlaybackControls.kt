@@ -11,16 +11,19 @@ import android.content.Context
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.text.InputType
 import android.text.TextUtils
 import android.view.Gravity
 import android.widget.Button
 import android.widget.CheckBox
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import java.security.MessageDigest
+import kotlin.math.roundToInt
 
 /**
  * Practice settings for the synthesized score. Full-band recordings are never presented as stems.
@@ -35,12 +38,14 @@ class PlaybackControls(
     private val beforeMixChange: () -> Unit = {},
     private val afterMixChange: () -> Unit = {},
     private val onMixSessionEnded: () -> Unit = {},
-    private val externalPlaybackDescription: () -> String = { "轨道混音、音色、节拍器、预备拍和播放移调在合成音源模式下使用。" },
+    private val externalPlaybackDescription: () -> String = { "声部混音、预备拍和播放移调可在按谱合成中使用。" },
     private val documentKey: () -> String? = { null },
     private val reloadTone: () -> Boolean = { false },
     private val liveGuitarTracks: () -> Set<Int> = { emptySet() },
     private val openAmp: (Int) -> Unit = {},
-    private val trackSlot: (Int) -> Int = { it }
+    private val trackSlot: (Int) -> Int = { it },
+    private val onMetronomeChange: () -> Unit = {},
+    private val onMetronomeUiChange: () -> Unit = {}
 ) {
     data class TrackMix(val volume: Double, val muted: Boolean, val solo: Boolean)
     data class Snapshot(
@@ -48,7 +53,9 @@ class PlaybackControls(
         val transposition: Int,
         val metronomeEnabled: Boolean,
         val metronomeVolume: Double,
-        val countInEnabled: Boolean
+        val countInEnabled: Boolean,
+        val customMetronomeBpm: Int? = null,
+        val metronomeRhythm: MetronomeRhythm = MetronomeRhythm.Meter
     )
 
     private var score: Score? = null
@@ -62,6 +69,10 @@ class PlaybackControls(
     private var metronomeEnabled = false
     private var metronomeVolume = 0.7
     private var countInEnabled = false
+    private val metronome = ReaderMetronome()
+    private var scoreBpmTenths = 1200
+    private var metronomeTempoButton: Button? = null
+    private var metronomeDialog: AlertDialog? = null
     private var dialog: AlertDialog? = null
     private var toneDialog: AlertDialog? = null
     private var openWhenReady = false
@@ -71,6 +82,7 @@ class PlaybackControls(
 
     fun reset(newScore: Score, preservePractice: Boolean = false) {
         close()
+        metronome.reset()
         score = newScore
         if (!preservePractice) sessionTones.clear()
         toneMidi = PracticeToneMidi(newScore)
@@ -92,10 +104,17 @@ class PlaybackControls(
             metronomeEnabled = false
             metronomeVolume = 0.7
             countInEnabled = false
+            metronome.settings = MetronomeSettings()
         }
+        metronome.volume = if (metronomeEnabled) metronomeVolume else 0.0
+        updateMetronomeBpm(newScore.tempo)
     }
 
-    fun snapshot() = Snapshot(tracks.toList(), transposition, metronomeEnabled, metronomeVolume, countInEnabled)
+    fun snapshot(): Snapshot {
+        val settings = metronome.settings
+        return Snapshot(tracks.toList(), transposition, metronomeEnabled, metronomeVolume, countInEnabled,
+            settings.bpm, settings.rhythm)
+    }
     internal fun snapshotTones() = tones.toList()
 
     internal fun restoreSession(snapshot: Snapshot, savedTones: List<GuitarTone>) {
@@ -103,6 +122,8 @@ class PlaybackControls(
         metronomeEnabled = snapshot.metronomeEnabled
         metronomeVolume = snapshot.metronomeVolume
         countInEnabled = snapshot.countInEnabled
+        metronome.settings = MetronomeSettings(snapshot.customMetronomeBpm, snapshot.metronomeRhythm)
+        metronome.volume = if (metronomeEnabled) metronomeVolume else 0.0
         if (snapshot.tracks.size == tracks.size) {
             tracks.clear()
             tracks.addAll(snapshot.tracks)
@@ -121,9 +142,45 @@ class PlaybackControls(
 
     internal fun canChooseTone(index: Int) = toneMidi?.canChooseTone(index) == true
 
-    internal fun applyPlaybackMidi(midi: MidiFile) {
+    internal fun applyPlaybackMidi(midi: MidiFile, time: PreparedScoreTime) {
         val api = apiProvider()
-        if (isSynthesizer() && api.score === score) toneMidi?.apply(midi, api.settings, tones)
+        if (api.score !== score) return
+        val synth = isSynthesizer()
+        if (synth) toneMidi?.apply(midi, api.settings, tones)
+        api.tickCache?.masterBars?.let { metronome.prepare(midi, it, time, synth) }
+    }
+
+    internal fun mediaMetronome(map: MetronomeTimeMap) = metronome.clock(map)
+    internal fun mediaMetronomeVolume() = metronome.volume
+
+    internal data class MetronomeUi(val enabled: Boolean, val bpm: String, val fixed: Int?, val rhythm: MetronomeRhythm, val volume: Int)
+    internal fun metronomeUi() = MetronomeUi(metronomeEnabled, metronome.settings.bpm?.toString() ?: scoreBpmLabel(),
+        metronome.settings.bpm, metronome.settings.rhythm, (metronomeVolume * 100).roundToInt())
+
+    internal fun updateMetronomeBpm(bpm: Double) {
+        if (!bpm.isFinite() || bpm <= 0.0) return
+        val tenths = (bpm * 10).roundToInt()
+        if (tenths == scoreBpmTenths) return
+        scoreBpmTenths = tenths
+        if (metronome.settings.bpm == null) {
+            metronomeTempoButton?.text = metronomeTempoLabel()
+            onMetronomeUiChange()
+        }
+    }
+
+    internal fun setMetronomeBpm(bpm: Int?): Boolean {
+        if (score == null || (bpm != null && bpm !in MetronomeSettings.bpmRange)) return false
+        metronome.settings = metronome.settings.copy(bpm = bpm)
+        metronomeTempoButton?.text = metronomeTempoLabel()
+        onMetronomeUiChange()
+        return true
+    }
+
+    internal fun setMetronomeRhythm(rhythm: MetronomeRhythm): Boolean {
+        if (score == null) return false
+        metronome.settings = metronome.settings.copy(rhythm = rhythm)
+        onMetronomeUiChange()
+        return true
     }
 
     internal fun showTone(index: Int) {
@@ -175,7 +232,7 @@ class PlaybackControls(
         if (!api.isReadyForPlayback || api.score !== loaded) return false
         val player = api.player ?: return false
         val routes = toneMidi?.channels ?: return false
-        api.metronomeVolume = if (metronomeEnabled) metronomeVolume else 0.0
+        api.metronomeVolume = metronome.volume
         api.countInVolume = if (countInEnabled) 1.0 else 0.0
         for ((index, track) in loaded.tracks.withIndex()) {
             val state = tracks[index]
@@ -248,12 +305,24 @@ class PlaybackControls(
         return true
     }
     fun setMetronomeEnabled(enabled: Boolean): Boolean {
-        if (score == null || !isSynthesizer()) return false
-        metronomeEnabled = enabled; reapply(); return true
+        if (score == null) return false
+        metronomeEnabled = enabled
+        updateMetronomeVolume()
+        return true
     }
     fun setMetronomeVolume(volume: Double): Boolean {
-        if (score == null || !isSynthesizer()) return false
-        metronomeVolume = volume.coerceIn(0.0, 1.0); reapply(); return true
+        if (score == null || !volume.isFinite()) return false
+        metronomeVolume = volume.coerceIn(0.0, 1.0)
+        updateMetronomeVolume()
+        return true
+    }
+
+    private fun updateMetronomeVolume() {
+        metronome.volume = if (metronomeEnabled) metronomeVolume else 0.0
+        if (isSynthesizer()) {
+            if (score != null && apiProvider().score === score) apiProvider().metronomeVolume = metronome.volume
+        } else onMetronomeChange()
+        onMetronomeUiChange()
     }
     fun setCountInEnabled(enabled: Boolean): Boolean {
         if (score == null || !isSynthesizer()) return false
@@ -275,6 +344,7 @@ class PlaybackControls(
 
     fun show() {
         dialog?.dismiss(); dialog = null; widgets.clear()
+        metronomeTempoButton = null
         val loaded = score
         if (loaded == null) {
             dialog = AlertDialog.Builder(context).setTitle("练习控制").setMessage("请先打开乐谱。")
@@ -282,15 +352,18 @@ class PlaybackControls(
             return
         }
         if (!isSynthesizer()) {
+            val content = practiceContent()
+            addMetronomeControls(content, countIn = false)
             val live = liveGuitarTracks().sorted()
-            val builder = AlertDialog.Builder(context).setTitle("混音与练习设置")
-            if (live.isEmpty()) builder.setMessage(externalPlaybackDescription())
-            else builder.setItems(live.map { index ->
-                loaded.tracks[index].name.ifBlank { "声部 ${index + 1}" } + " · 效果器"
-            }.toTypedArray()) { _, row -> openAmp(live[row]) }
-            dialog = builder
-                .setPositiveButton("切换到合成音源") { _, _ -> openWhenReady = true; switchToSynthesizer() }
-                .setNegativeButton("关闭", null).show()
+            if (live.isEmpty()) content.addView(label(externalPlaybackDescription()).apply { setPadding(0, dp(12), 0, 0) })
+            else {
+                content.addView(label("声部效果器", true))
+                for (index in live) {
+                    val name = loaded.tracks[index].name.ifBlank { "声部 ${index + 1}" }
+                    content.addView(mixButton("$name · 效果器") { dialog?.dismiss(); openAmp(index) })
+                }
+            }
+            showPracticeDialog(content, synth = false)
             return
         }
         if (!apiProvider().isReadyForPlayback) {
@@ -299,10 +372,7 @@ class PlaybackControls(
             return
         }
 
-        val content = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(20), dp(4), dp(20), dp(20))
-        }
+        val content = practiceContent()
         content.addView(label("播放移调", true))
         val transposeLabel = label(transpositionText(), false)
         content.addView(transposeLabel)
@@ -311,21 +381,7 @@ class PlaybackControls(
         })
         content.addView(label("仅改变合成播放音高，不修改谱面音符；鼓轨保持原音高。", false, 12f))
 
-        content.addView(label("节拍与预备拍", true))
-        val metroVolumeLabel = label("节拍器音量 ${(metronomeVolume * 100).toInt()}%")
-        val metroVolumeSlider = slider(100, (metronomeVolume * 100).toInt(), "节拍器音量") { value ->
-            setMetronomeVolume(value / 100.0); metroVolumeLabel.text = "节拍器音量 $value%"
-        }
-        metroVolumeSlider.isEnabled = metronomeEnabled
-        val metro = CheckBox(context).apply {
-            text = "节拍器"; isChecked = metronomeEnabled
-            setOnCheckedChangeListener { _, checked -> setMetronomeEnabled(checked); metroVolumeSlider.isEnabled = checked }
-        }
-        content.addView(metro); content.addView(metroVolumeLabel); content.addView(metroVolumeSlider)
-        content.addView(CheckBox(context).apply {
-            text = "播放前预备一小节"; isChecked = countInEnabled
-            setOnCheckedChangeListener { _, checked -> setCountInEnabled(checked) }
-        })
+        addMetronomeControls(content, countIn = true)
 
         content.addView(label("声部混音", true))
         if (tracks.indices.any { linkedTracks(it).size > 1 }) {
@@ -377,6 +433,40 @@ class PlaybackControls(
             widgets[index] = TrackWidgets(volumeSlider, volumeLabel, mute, solo, tone)
             content.addView(card, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
         }
+        showPracticeDialog(content, synth = true)
+    }
+
+    private fun practiceContent() = LinearLayout(context).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(dp(20), dp(4), dp(20), dp(20))
+    }
+
+    private fun addMetronomeControls(content: LinearLayout, countIn: Boolean) {
+        if (countIn) content.addView(label("节拍与预备拍", true))
+        val metroVolumeLabel = label("节拍器音量 ${(metronomeVolume * 100).toInt()}%")
+        val metroVolumeSlider = slider(100, (metronomeVolume * 100).toInt(), "节拍器音量") { value ->
+            setMetronomeVolume(value / 100.0); metroVolumeLabel.text = "节拍器音量 $value%"
+        }
+        metroVolumeSlider.isEnabled = metronomeEnabled
+        content.addView(CheckBox(context).apply {
+            text = "节拍器"; isChecked = metronomeEnabled
+            setOnCheckedChangeListener { _, checked -> setMetronomeEnabled(checked); metroVolumeSlider.isEnabled = checked }
+        })
+        val tempoButton = mixButton(metronomeTempoLabel(), ::chooseMetronomeTempo)
+        metronomeTempoButton = tempoButton
+        content.addView(tempoButton, LinearLayout.LayoutParams(-1, dp(44)))
+        val rhythmButton = mixButton(metronomeRhythmLabel()) {}
+        rhythmButton.setOnClickListener { chooseMetronomeRhythm(rhythmButton) }
+        content.addView(rhythmButton, LinearLayout.LayoutParams(-1, dp(44)).apply { topMargin = dp(6) })
+        content.addView(metroVolumeLabel)
+        content.addView(metroVolumeSlider)
+        if (countIn) content.addView(CheckBox(context).apply {
+            text = "播放前预备一小节"; isChecked = countInEnabled
+            setOnCheckedChangeListener { _, checked -> setCountInEnabled(checked) }
+        })
+    }
+
+    private fun showPracticeDialog(content: LinearLayout, synth: Boolean) {
         val scroll = object : ScrollView(context) {
             override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
                 val maximum = (resources.displayMetrics.heightPixels * 0.66).toInt()
@@ -385,10 +475,14 @@ class PlaybackControls(
                 super.onMeasure(widthMeasureSpec, android.view.View.MeasureSpec.makeMeasureSpec(available, android.view.View.MeasureSpec.AT_MOST))
             }
         }.apply { addView(content); isFillViewport = false }
-        dialog = AlertDialog.Builder(context).setTitle("合成练习控制").setView(scroll)
-            .setPositiveButton("关闭", null).create().apply {
+        val builder = AlertDialog.Builder(context).setTitle("混音与练习设置").setView(scroll).setPositiveButton("关闭", null)
+        if (!synth) builder.setNeutralButton("切换到合成音源") { _, _ -> openWhenReady = true; switchToSynthesizer() }
+        dialog = builder.create().apply {
                 val owner = this
-                setOnDismissListener { if (dialog === owner) widgets.clear(); onMixSessionEnded() }
+                setOnDismissListener {
+                    if (dialog === owner) { widgets.clear(); metronomeTempoButton = null }
+                    onMixSessionEnded()
+                }
                 setOnShowListener {
                     val display = context.resources.displayMetrics
                     window?.setLayout(minOf(display.widthPixels - dp(32), dp(620)), android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
@@ -399,8 +493,71 @@ class PlaybackControls(
 
     fun close() {
         openWhenReady = false
+        metronomeDialog?.dismiss(); metronomeDialog = null; metronomeTempoButton = null
         toneDialog?.dismiss(); toneDialog = null
         dialog?.dismiss(); dialog = null; widgets.clear()
+    }
+
+    internal fun destroy() {
+        close()
+        metronome.cancelPendingLoad()
+    }
+
+    private fun metronomeTempoLabel(): String {
+        val fixed = metronome.settings.bpm
+        if (fixed != null) return "自定义 · $fixed BPM"
+        return "跟随乐谱 · ${scoreBpmLabel()} BPM"
+    }
+
+    private fun scoreBpmLabel() = if (scoreBpmTenths % 10 == 0) (scoreBpmTenths / 10).toString() else (scoreBpmTenths / 10.0).toString()
+
+    private fun chooseMetronomeTempo() {
+        metronomeDialog = AlertDialog.Builder(context).setTitle("节拍器速度")
+            .setSingleChoiceItems(arrayOf("跟随乐谱", "自定义 BPM"), if (metronome.settings.bpm == null) 0 else 1) { owner, choice ->
+                owner.dismiss()
+                if (choice == 0) setMetronomeBpm(null) else enterMetronomeBpm()
+            }
+            .setNegativeButton("取消", null).show()
+    }
+
+    private fun enterMetronomeBpm() {
+        val range = MetronomeSettings.bpmRange
+        val input = EditText(context).apply {
+            hint = "BPM（${range.first}–${range.last}）"
+            inputType = InputType.TYPE_CLASS_NUMBER
+            setSingleLine()
+            setText((metronome.settings.bpm ?: (scoreBpmTenths / 10.0).roundToInt().coerceIn(range)).toString())
+            setSelectAllOnFocus(true)
+        }
+        val content = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(4), dp(20), dp(8))
+            addView(input, LinearLayout.LayoutParams(-1, -2))
+            addView(label("BPM 按四分音符计算，以 4/4 打拍。", size = 12f))
+        }
+        metronomeDialog = AlertDialog.Builder(context).setTitle("自定义节拍器 BPM").setView(content)
+            .setNegativeButton("取消", null).setPositiveButton("应用", null).create().apply {
+                setOnShowListener {
+                    getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                        val bpm = input.text.toString().toIntOrNull()
+                        if (bpm == null || bpm !in range) input.error = "请输入 ${range.first}–${range.last} 的整数"
+                        else if (setMetronomeBpm(bpm)) dismiss()
+                    }
+                }
+                show()
+            }
+    }
+
+    private fun metronomeRhythmLabel() = "节奏 · ${metronome.settings.rhythm.label}"
+
+    private fun chooseMetronomeRhythm(button: Button) {
+        val rhythms = MetronomeRhythm.entries
+        metronomeDialog = AlertDialog.Builder(context).setTitle("节拍器节奏")
+            .setSingleChoiceItems(rhythms.map { it.label }.toTypedArray(), metronome.settings.rhythm.ordinal) { owner, index ->
+                if (setMetronomeRhythm(rhythms[index])) button.text = metronomeRhythmLabel()
+                owner.dismiss()
+            }
+            .setNegativeButton("取消", null).show()
     }
 
     private fun transpositionText() = if (transposition > 0) "+$transposition 半音" else "$transposition 半音"

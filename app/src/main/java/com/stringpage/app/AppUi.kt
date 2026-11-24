@@ -96,6 +96,12 @@ object AppUi {
                 "import" -> { path(4f, 9f, 4f, 20f, 20f, 20f, 20f, 9f); line(12f, 3f, 12f, 14f); path(8f, 10f, 12f, 14f, 16f, 10f) }
                 "clock" -> { canvas.drawCircle(12f, 12f, 9f, paint); path(12f, 7f, 12f, 12f, 16f, 14f) }
                 "full" -> { path(4f, 9f, 4f, 4f, 9f, 4f); path(15f, 4f, 20f, 4f, 20f, 9f); path(20f, 15f, 20f, 20f, 15f, 20f); path(9f, 20f, 4f, 20f, 4f, 15f) }
+                "library", "panel" -> {
+                    canvas.drawRoundRect(3f, 5f, 21f, 19f, 2f, 2f, paint)
+                    val split = if (name == "library") 9f else 15f
+                    line(split, 5f, split, 19f)
+                }
+                "close" -> { line(6f, 6f, 18f, 18f); line(18f, 6f, 6f, 18f) }
                 "more" -> { paint.style = Paint.Style.FILL; for (x in listOf(5f, 12f, 19f)) canvas.drawCircle(x, 12f, 1.5f, paint); paint.style = Paint.Style.STROKE }
                 "audio" -> { line(4f, 10f, 4f, 14f); line(8f, 6f, 8f, 18f); line(12f, 3f, 12f, 21f); line(16f, 7f, 16f, 17f); line(20f, 10f, 20f, 14f) }
                 "track" -> { for (y in listOf(6f, 12f, 18f)) { canvas.drawCircle(4f, y, 1f, paint); line(9f, y, 21f, y) } }
