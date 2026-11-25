@@ -3,13 +3,38 @@ package com.stringpage.app.pdf
 import kotlin.math.abs
 
 internal fun pdfBeatsFit(beats: List<PdfTabBeat>, meter: PdfMeter): Boolean {
-    val timed = beats.filter { it.grace == null }
-    val single = timed.singleOrNull()
+    val single = beats.singleOrNull { it.grace == null }
     if (single != null && single.notes.isEmpty() && single.denominator == 1 && single.dots == 0 && !single.triplet) return true
-    val total = timed.sumOf { beat ->
-        (2.0 - 1.0 / (1 shl beat.dots)) / beat.denominator * if (beat.triplet) 2.0 / 3 else 1.0
+    return abs(pdfBeatLength(beats) - meter.length) < 0.0001
+}
+
+internal fun pdfBeatLength(beats: List<PdfTabBeat>) = beats.sumOf { beat ->
+    if (beat.grace != null) 0.0
+    else (2.0 - 1.0 / (1 shl beat.dots)) / beat.denominator * if (beat.triplet) 2.0 / 3 else 1.0
+}
+
+internal fun pdfTrailingRests(beats: List<PdfTabBeat>, meter: PdfMeter): List<PdfTabBeat> {
+    if (beats.isEmpty() || beats.last().grace != null || pdfBeatsFit(beats, meter)) return emptyList()
+    var remaining = meter.length - pdfBeatLength(beats)
+    if (remaining <= 0.0) return emptyList()
+    val rests = ArrayList<PdfTabBeat>()
+    for (denominator in listOf(1, 2, 4, 8, 16, 32, 64)) {
+        val count = ((remaining + 0.0001) * denominator).toInt()
+        if (beats.size + rests.size + count > 64) return emptyList()
+        repeat(count) { rests.add(PdfTabBeat(denominator, emptyList())) }
+        remaining -= count.toDouble() / denominator
     }
-    return abs(total - meter.length) < 0.0001
+    return rests.takeIf { pdfBeatsFit(beats + it, meter) }.orEmpty()
+}
+
+internal fun pdfLongestReadyRange(bars: List<PdfTabBar>): IntRange? {
+    var best: IntRange? = null
+    var start = 0
+    for (index in bars.indices) {
+        if (bars[index].issues.isNotEmpty()) start = index + 1
+        else if (index - start + 1 > (best?.count() ?: 0)) best = start..index
+    }
+    return best
 }
 
 /** A compact textual form for correcting the rhythm and fingering of one recognized measure. */
@@ -56,9 +81,15 @@ internal object PdfTabCorrection {
     }
 
     fun correct(original: PdfTabBar, strings: Int, text: String): PdfTabBar {
+        val beats = parseBeats(original, strings, text)
+        pdfRequire(pdfBeatsFit(beats, original.meter), "音符与休止符的时值需要填满 ${original.meter} 小节。")
+        return original.copy(beats = beats, issues = emptyList(), review = emptyList())
+    }
+
+    fun parseBeats(original: PdfTabBar, strings: Int, text: String): List<PdfTabBeat> {
         val rows = text.lineSequence().map(String::trim).filter(String::isNotEmpty).take(65).toList()
         pdfRequire(rows.size in 1..64, "请填写 1 到 64 个音符组或休止符。")
-        val beats = rows.mapIndexed { index, line ->
+        return rows.mapIndexed { index, line ->
             val fail = "第 ${index + 1} 行的时值或指法有误。"
             val cells = line.split(Regex("\\s+")).take(strings + 2)
             val length = duration.matchEntire(cells.first()) ?: throw PdfConversionException(fail)
@@ -108,7 +139,5 @@ internal object PdfTabCorrection {
             PdfTabBeat(length.groupValues[1].toInt(), notes.sortedBy { it.string },
                 length.groupValues[3].isNotEmpty(), length.groupValues[2].length, grace, tremolo, whammy)
         }
-        pdfRequire(pdfBeatsFit(beats, original.meter), "音符与休止符的时值需要填满 ${original.meter} 小节。")
-        return original.copy(beats = beats, issues = emptyList(), review = emptyList())
     }
 }

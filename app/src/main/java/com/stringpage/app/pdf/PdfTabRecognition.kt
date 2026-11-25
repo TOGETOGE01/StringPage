@@ -7,11 +7,11 @@ internal data class PdfTabResult(
     val bpm: Int?,
     val tracks: List<PdfTabTrack>,
     val pageWidth: Double,
-    val scanned: Boolean = false,
-    val meterNeedsConfirmation: Boolean = false
+    val scanned: Boolean = false
 ) {
     val bars get() = tracks.first().bars
     val standardTuning get() = tracks.first().tuning == PdfTabTuning.standard(6)
+    val meterNeedsConfirmation get() = bars.any { it.provisionalMeter }
 }
 
 internal data class PdfTabTrack(val name: String, val strings: Int, val tuning: List<Int>?, val bars: List<PdfTabBar>)
@@ -24,7 +24,8 @@ internal data class PdfTabBar(
     val issues: List<String>,
     val review: List<String>,
     val meter: PdfMeter = PdfMeter(4, 4),
-    val bpm: Int? = null
+    val bpm: Int? = null,
+    val provisionalMeter: Boolean = false
 )
 
 internal data class PdfTabBeat(
@@ -110,7 +111,7 @@ internal object PdfTabRecognition {
                     ) }.distinct()
                     pdfRequire(printed.size <= 1, "第 $barNumber 小节的声部拍号不一致。")
                     meter = printed.singleOrNull() ?: meter
-                    val time = meter ?: throw PdfConversionException("未找到明确的起始拍号。")
+                    val time = meter ?: PdfMeter(4, 4)
                     val top = system.first().let { it.notation?.top ?: it.tab.top }
                     val mark = tempoMarks.filter { it.x in left..(right + 1) && it.y in (top - 33)..top }
                     val newTempo = mark.singleOrNull()?.let(::tempo)
@@ -132,7 +133,8 @@ internal object PdfTabRecognition {
                             bar.copy(beats = listOf(PdfTabBeat(1, emptyList())), issues = emptyList())
                         } else bar
                         val onsets = if (result === bar) fromTab.onsets else timed?.onsets.orEmpty()
-                        recognized[track].add(PdfTabWhammy.read(geometry, staff, result, onsets))
+                        val parsed = PdfTabWhammy.read(geometry, staff, result, onsets)
+                        recognized[track].add(if (meter == null) parsed.copy(provisionalMeter = true) else parsed)
                     }
                     barNumber++
                 }

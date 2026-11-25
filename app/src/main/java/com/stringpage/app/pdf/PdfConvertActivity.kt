@@ -1,5 +1,6 @@
 package com.stringpage.app.pdf
 
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Bitmap
@@ -11,6 +12,7 @@ import android.graphics.Typeface
 import android.net.Uri
 import android.os.Bundle
 import android.text.InputType
+import android.text.TextUtils
 import android.view.View
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
@@ -27,6 +29,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.widget.doAfterTextChanged
 import com.stringpage.app.AppUi
 import com.stringpage.app.ReaderTheme
 import com.stringpage.app.GpDocumentReader
@@ -47,11 +50,12 @@ class PdfConvertActivity : AppCompatActivity() {
     private var selectedTracks: Set<Int>? = null
     private val tuningOverrides = HashMap<Int, List<Int>>()
     private val corrections = HashMap<String, String>()
-    private var scannedMeter: PdfMeter? = null
+    private var meterOverride: PdfMeter? = null
     private var selected: IntRange? = null
     private var focused = -1
     private var tempo: Int? = null
     private var pendingSave: File? = null
+    private var saveLocation: SaveLocation? = null
     private var busy = false
     private var message = "选择电子吉他谱或清晰的六线谱扫描 PDF。"
     private lateinit var content: LinearLayout
@@ -60,19 +64,14 @@ class PdfConvertActivity : AppCompatActivity() {
     private lateinit var picker: Button
 
     private data class PageData(val bitmap: Bitmap?, val result: PdfTabResult?, val error: String?)
+    private data class SaveLocation(val uri: Uri?)
 
     private val openDocument = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) open(uri, 1)
     }
     private val saveDocument = registerForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
-        val file = pendingSave
-        pendingSave = null
-        if (file != null && uri != null) {
-            runTask("正在保存 GP…", {
-                contentResolver.openOutputStream(uri, "wt")?.use { out -> file.inputStream().use { it.copyTo(out) } }
-                    ?: throw PdfConversionException("无法写入所选位置。")
-            }) { message = "GP 文件已保存。"; updateStatus() }
-        }
+        saveLocation = SaveLocation(uri)
+        finishPendingSave()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -80,7 +79,7 @@ class PdfConvertActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         selectedTracks = savedInstanceState?.getIntArray("tracks")?.toSet()
         val restoredMeter = savedInstanceState?.getIntArray("scannedMeter")
-        if (restoredMeter?.size == 2) scannedMeter = PdfMeter(restoredMeter[0], restoredMeter[1])
+        if (restoredMeter?.size == 2) meterOverride = PdfMeter(restoredMeter[0], restoredMeter[1])
         savedInstanceState?.getBundle("corrections")?.let { bundle ->
             for (key in bundle.keySet()) bundle.getString(key)?.let { corrections[key] = it }
         }
@@ -90,6 +89,9 @@ class PdfConvertActivity : AppCompatActivity() {
             }
         }
         pendingSave = privatePreviewFile(cacheDir, savedInstanceState?.getString("pendingSave"))
+        if (savedInstanceState?.getBoolean("saveLocationReturned") == true) {
+            saveLocation = SaveLocation(savedInstanceState.getString("saveLocation")?.let(Uri::parse))
+        }
         buildLayout()
         val uri = savedInstanceState?.getString("source")?.let(Uri::parse) ?: intent.data
         if (uri != null) {
@@ -98,6 +100,7 @@ class PdfConvertActivity : AppCompatActivity() {
             open(uri, savedInstanceState?.getInt("page", 1) ?: 1, from..to, savedInstanceState?.getInt("tempo", -1),
                 savedInstanceState?.getBoolean("wholeScore") == true)
         }
+        finishPendingSave()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -108,13 +111,15 @@ class PdfConvertActivity : AppCompatActivity() {
         outState.putInt("end", selected?.last ?: -1)
         outState.putInt("tempo", tempo ?: -1)
         outState.putIntArray("tracks", selectedTracks?.toIntArray())
-        outState.putIntArray("scannedMeter", scannedMeter?.let { intArrayOf(it.beats, it.unit) })
+        outState.putIntArray("scannedMeter", meterOverride?.let { intArrayOf(it.beats, it.unit) })
         outState.putBundle("corrections", Bundle().apply { for ((key, correction) in corrections) putString(key, correction) })
         outState.putBundle("tunings", Bundle().apply {
             for ((index, tuning) in tuningOverrides) putIntArray(index.toString(), tuning.toIntArray())
         })
         outState.putBoolean("wholeScore", wholeScore != null)
         outState.putString("pendingSave", pendingSave?.name)
+        outState.putBoolean("saveLocationReturned", saveLocation != null)
+        outState.putString("saveLocation", saveLocation?.uri?.toString())
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
@@ -125,6 +130,7 @@ class PdfConvertActivity : AppCompatActivity() {
     override fun onDestroy() {
         io.shutdownNow()
         sourceFile?.delete()
+        if (isFinishing) pendingSave?.delete()
         super.onDestroy()
     }
 
@@ -181,7 +187,7 @@ class PdfConvertActivity : AppCompatActivity() {
             }
         }) { opened ->
             if (savedRange == null) {
-                selectedTracks = null; tuningOverrides.clear(); scannedMeter = null; corrections.clear()
+                selectedTracks = null; tuningOverrides.clear(); meterOverride = null; corrections.clear()
             }
             source = uri
             sourceFile?.delete()
@@ -205,24 +211,27 @@ class PdfConvertActivity : AppCompatActivity() {
         catch (error: PdfConversionException) { PageData(preview, null, error.message) }
     }
 
-    private fun turnPage(change: Int) {
+    private fun turnPage(change: Int, onShown: (() -> Unit)? = null) {
         val model = document ?: return
         val index = page + change
         if (index !in 1..model.pageCount || busy) return
         runTask("正在识别第 $index 页…", { scan(model, index) }) { result ->
             page = index
             showPage(result, selected.takeIf { wholeScore != null })
+            onShown?.invoke()
         }
     }
 
     private fun scanWhole(savedRange: IntRange? = null) {
         val model = document ?: return
         runTask("正在识别全部 ${model.pageCount} 页…", {
-            val first = model.read(1)
+            val first = try { model.read(1) } catch (error: PdfConversionException) {
+                throw PdfConversionException("第 1 页无法转换。${error.message.orEmpty()}")
+            }
             val all = first.tracks.map { ArrayList<PdfTabBar>() }
             for (index in 1..model.pageCount) {
                 try {
-                    val result = model.read(index)
+                    val result = if (index == 1) first else model.read(index)
                     for ((track, staff) in result.tracks.withIndex()) all[track].addAll(staff.bars)
                 } catch (error: PdfConversionException) {
                     throw PdfConversionException("第 $index 页无法转换。${error.message.orEmpty()}")
@@ -263,15 +272,18 @@ class PdfConvertActivity : AppCompatActivity() {
     private fun chosenTracks() = chosenTrackEntries().map { it.second }
 
     private fun correctedBar(index: Int, strings: Int, original: PdfTabBar): PdfTabBar {
-        val meter = scannedMeter.takeIf { pageData?.result?.scanned == true }
+        val meter = meterOverride.takeIf { original.provisionalMeter || pageData?.result?.scanned == true }
         val bar = if (meter != null && meter != original.meter) {
-            val issues = original.issues.filterNot { it.startsWith("识别出的节奏未填满") }
+            val issues = original.issues.filterNot { isMeasureLengthIssue(it, original.meter) }
             original.copy(meter = meter, issues = if (pdfBeatsFit(original.beats, meter)) issues else issues + "识别出的节奏未填满 $meter 小节")
         } else original
         val edited = corrections["$index/${bar.number}"] ?: return bar
         return try { PdfTabCorrection.correct(bar, strings, edited) }
         catch (error: PdfConversionException) { bar.copy(issues = bar.issues + error.message.orEmpty()) }
     }
+
+    private fun isMeasureLengthIssue(issue: String, meter: PdfMeter) =
+        issue == "识别出的节奏未填满 $meter 小节" || issue == "音符与休止符不足或超过 $meter 小节"
 
     private fun scopeBars(tracks: List<PdfTabTrack>): List<PdfTabBar> {
         val first = tracks.firstOrNull()?.bars.orEmpty()
@@ -322,12 +334,23 @@ class PdfConvertActivity : AppCompatActivity() {
         panels.addView(list, if (wide) LinearLayout.LayoutParams(0, MATCH_PARENT, 1f)
             else LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f))
         controls.addView(label(sourceName, 18f, bold = true))
-        if (bars.isEmpty()) return
-        val bpm = startTempo(bars)
         val instruments = row()
         if (available.size > 1) instruments.addView(button("声部 ${tracks.size} / ${available.size}") { chooseTracks(available) },
             LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+        val scanned = data.result?.scanned == true
+        val needsMeter = needsMeterConfirmation(bars)
+        val bpm = startTempo(bars)
+        val exportProblems = exportProblems(data, tracks, bars, bpm, needsMeter)
+        val output = exportControls(exportProblems)
+        if (bars.isEmpty()) {
+            if (instruments.childCount > 0) controls.addView(instruments)
+            addExportControls(output, controls, wide)
+            return
+        }
         val needsTuning = tracks.any { it.tuning == null }
+        if (!busy && (needsTuning || needsMeter || bpm == null)) {
+            controls.addView(suggestSettings(data, entries, bars, bpm, needsMeter))
+        }
         instruments.addView(button(if (needsTuning) "设置调弦" else "调弦") { chooseTuning(available) },
             LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
         controls.addView(instruments)
@@ -336,28 +359,29 @@ class PdfConvertActivity : AppCompatActivity() {
         configuration.addView(button("选择小节范围") { editRange(bars) }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1.5f))
         controls.addView(configuration)
         val verification = row()
-        val scanned = data.result?.scanned == true
-        val needsMeter = scanned && data.result.meterNeedsConfirmation && scannedMeter == null
-        if (scanned) verification.addView(button(if (needsMeter) "确认拍号" else "${scannedMeter ?: bars.first().meter} 拍号") {
-            editMeter(bars.first().meter)
+        if (scanned || bars.any { it.provisionalMeter }) verification.addView(button(if (needsMeter) "确认拍号" else "拍号设置") {
+            editMeter(meterOverride ?: (bars.firstOrNull { it.provisionalMeter } ?: bars.first()).meter)
         }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
         verification.addView(button("修正小节") { chooseBarToCorrect(marks) }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
         controls.addView(verification)
         if (scanned) controls.addView(label("请对照原谱检查扫描识别的指法、节奏和技巧。", 13f, AppUi.muted))
-        val range = selected
-        controls.addView(label(if (range == null) "请选择连续可导出的小节。"
-            else "已选 ${barLabel(bars[range.first], range.first)} 至 ${barLabel(bars[range.last], range.last)}",
-            13f, AppUi.muted))
-        val output = row()
-        val enabled = !busy && range != null && bpm != null && !needsTuning && !needsMeter &&
-            range.all { bars[it].issues.isEmpty() }
-        output.addView(button("试听") { encode(true) }.apply { isEnabled = enabled }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
-        output.addView(button("保存 GP", true) { encode(false) }.apply { isEnabled = enabled }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
-        if (wide) controls.addView(output) else {
-            output.setPadding(dp(12), dp(4), dp(12), dp(8))
-            output.setBackgroundColor(AppUi.canvas)
-            content.addView(output, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
+        val range = selected?.takeIf { validRange(it, bars) }
+        val blockedAt = (range ?: bars.indices).firstOrNull { bars[it].issues.isNotEmpty() }
+        if (!busy && blockedAt != null) {
+            val entry = entries.firstNotNullOfOrNull { (index, track) ->
+                track.bars[blockedAt].takeIf { it.issues.isNotEmpty() }?.let { EditableBar(index, track, it) }
+            }
+            if (entry != null) controls.addView(button("校对${barLabel(entry.bar, blockedAt)}") { openReview(entry) })
+            pdfLongestReadyRange(bars)?.let { ready ->
+                controls.addView(button("选用可导出段 · ${rangeLabel(bars, ready)}") {
+                    showPage(data, ready)
+                })
+            }
         }
+        controls.addView(label(if (range == null) "请选择连续可导出的小节。"
+            else "已选 ${rangeLabel(bars, range)}",
+            13f, AppUi.muted))
+        addExportControls(output, controls, wide)
         if (marks.all { it.bar.issues.isEmpty() && it.bar.review.isEmpty() }) return
         controls.addView(label("校对小节", 15f, bold = true).apply { setPadding(0, dp(8), 0, 0) })
         for ((index, entry) in marks.withIndex()) {
@@ -372,6 +396,85 @@ class PdfConvertActivity : AppCompatActivity() {
                     .setNegativeButton("修正") { _, _ -> editBar(entry) }
                     .setPositiveButton("关闭", null).show()
             })
+        }
+    }
+
+    private fun validRange(range: IntRange, bars: List<PdfTabBar>) =
+        !range.isEmpty() && range.first in bars.indices && range.last in bars.indices
+
+    private fun rangeLabel(bars: List<PdfTabBar>, range: IntRange): String {
+        val start = barLabel(bars[range.first], range.first)
+        return if (range.first == range.last) start else "$start 至 ${barLabel(bars[range.last], range.last)}"
+    }
+
+    private fun needsMeterConfirmation(bars: List<PdfTabBar>): Boolean {
+        val range = selected?.takeIf { validRange(it, bars) } ?: bars.indices
+        return meterOverride == null && range.any { bars[it].provisionalMeter }
+    }
+
+    private fun suggestSettings(data: PageData, entries: List<Pair<Int, PdfTabTrack>>, bars: List<PdfTabBar>,
+                                bpm: Int?, needsMeter: Boolean) = column().apply {
+        val untuned = entries.filter { it.second.tuning == null }
+        val suggestedMeter = bars.firstOrNull { it.provisionalMeter }?.meter?.takeIf { needsMeter }
+        val suggestions = listOfNotNull("100 BPM（试听参考）".takeIf { bpm == null },
+            "标准调弦".takeIf { untuned.isNotEmpty() }, suggestedMeter?.let { "暂按 $it" })
+        addView(label(suggestions.joinToString(" · "), 13f, AppUi.muted))
+        addView(button("应用建议设置") {
+            if (bpm == null) tempo = 100
+            for ((index, track) in untuned) tuningOverrides[index] = PdfTabTuning.standard(track.strings)
+            if (suggestedMeter != null) meterOverride = suggestedMeter
+            showPage(data, selected)
+        })
+    }
+
+    private fun openReview(entry: EditableBar) {
+        if (entry.bar.page == page) editBar(entry)
+        else turnPage(entry.bar.page - page) { editBar(entry) }
+    }
+
+    private fun exportProblems(data: PageData, tracks: List<PdfTabTrack>, bars: List<PdfTabBar>,
+                               bpm: Int?, needsMeter: Boolean): List<String> {
+        if (bars.isEmpty()) return listOf(data.error ?: if (availableTracks().isEmpty()) {
+            "当前页没有识别到可导出的小节。请换一页，或选择清晰的六线谱 PDF。"
+        } else "请选择包含可导出小节的声部。")
+        return buildList {
+            if (bpm == null) add("缺少速度。请点击「设置速度」输入原谱的 BPM。")
+            val untuned = tracks.filter { it.tuning == null }
+            if (untuned.isNotEmpty()) {
+                add("${untuned.joinToString("、", limit = 3) { it.name }}缺少调弦。请点击「设置调弦」确认各弦音高。")
+            }
+            if (needsMeter) add("扫描谱的拍号尚未确认。请点击「确认拍号」核对原谱。")
+            val range = selected?.takeIf { validRange(it, bars) }
+            val toReview = (range ?: bars.indices).firstOrNull { bars[it].issues.isNotEmpty() }
+            if (toReview != null) {
+                val bar = bars[toReview]
+                val location = if (bar.page == page) "" else "切到第 ${bar.page} 页，"
+                val issue = bar.issues.first().trimEnd('。', '！', '？')
+                add("${barLabel(bar, toReview)}待校对。$issue。请${location}点击「修正小节」，或选择不含待校对小节的范围。")
+            } else if (range == null) add("还未选择导出范围。请点击「选择小节范围」。")
+        }
+    }
+
+    private fun exportControls(problems: List<String>) = column().apply {
+        val waiting = busy || pendingSave != null
+        if (!waiting && problems.isNotEmpty()) addView(label("无法保存 GP · ${problems.first()}", 13f, AppUi.muted).apply {
+            maxLines = 2
+            ellipsize = TextUtils.TruncateAt.END
+            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+        })
+        val actions = row()
+        actions.addView(button("试听") { encode(true) }.apply { isEnabled = !waiting && problems.isEmpty() },
+            LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+        actions.addView(button("保存 GP", problems.isEmpty()) { encode(false) }.apply { isEnabled = !waiting },
+            LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+        addView(actions)
+    }
+
+    private fun addExportControls(output: LinearLayout, controls: LinearLayout, wide: Boolean) {
+        if (wide) controls.addView(output) else {
+            output.setPadding(dp(12), dp(4), dp(12), dp(8))
+            output.setBackgroundColor(AppUi.canvas)
+            content.addView(output, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
         }
     }
 
@@ -393,6 +496,30 @@ class PdfConvertActivity : AppCompatActivity() {
             minLines = 4; maxLines = 11
             setText(corrections[key] ?: PdfTabCorrection.format(bar.beats, track.strings))
         }
+        val feedback = label("", 13f, AppUi.muted).apply { accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE }
+        val advanced = column().apply { visibility = View.GONE }
+        var suggestedRests = emptyList<PdfTabBeat>()
+        val timingOnly = bar.issues.isNotEmpty() && bar.issues.all { isMeasureLengthIssue(it, bar.meter) }
+        val rest = button("补尾部休止符") {
+            field.append("\n" + PdfTabCorrection.format(suggestedRests, track.strings))
+        }
+        val duration = button("点选时值") { editBeatDuration(field) }
+        fun updateBeatTools() {
+            val beats = try { PdfTabCorrection.parseBeats(bar, track.strings, field.text.toString()) }
+            catch (_: PdfConversionException) { emptyList() }
+            val complete = pdfBeatsFit(beats, bar.meter)
+            suggestedRests = if (timingOnly) pdfTrailingRests(beats, bar.meter) else emptyList()
+            feedback.text = when {
+                beats.isEmpty() -> "请在高级文本编辑中检查指法或录入缺失的音符。"
+                complete -> "时值已填满 ${bar.meter} 小节。"
+                pdfBeatLength(beats) > bar.meter.length -> "时值超过 ${bar.meter} 小节。"
+                suggestedRests.isNotEmpty() -> "时值尚未填满 ${bar.meter} 小节。原谱末尾有休止时，可直接补齐。"
+                else -> "时值尚未填满 ${bar.meter} 小节。"
+            }
+            rest.visibility = if (suggestedRests.isEmpty()) View.GONE else View.VISIBLE
+            duration.isEnabled = beats.isNotEmpty()
+        }
+        field.doAfterTextChanged { updateBeatTools() }
         val form = column().apply {
             setPadding(dp(22), 0, dp(22), 0)
             sourceMeasure(bar)?.let { fragment ->
@@ -403,12 +530,23 @@ class PdfConvertActivity : AppCompatActivity() {
                     setBackgroundColor(Color.WHITE)
                 }, LinearLayout.LayoutParams(MATCH_PARENT, dp(112)))
             }
-            addView(label("每行填写时值与弦号-品位。和弦 4 1-3 2-0，休止符 8 R。\n8. 6-3m 表示附点八分音符加闷音。推弦 ^1 表示一个半音，^0>2>0 表示推两个半音后释放。时值加 t 表示三连音，加 g 表示拍前装饰音。", 13f))
-            addView(label("泛音加 @类型品位。NH 自然、AH 人工、PH 拨片、TH 点弦、SH 半泛音、FB 反馈。6-5@AH12 表示按第 5 品，触弦位置再高 12 品。@0 清除泛音。", 13f))
-            addView(label("快速拨弦在时值后加 r8、r16 或 r32。4r16 表示四分音符内按十六分音符反复拨弦。", 13f))
-            addView(label("颤音杆在时值后加 w 和音高偏移，单位为全音。4w0>-0.5>0 表示降半个全音再回原音。", 13f))
-            addView(field)
+            if (bar.issues.isNotEmpty() || bar.review.isNotEmpty()) {
+                addView(label((bar.issues + bar.review).joinToString("\n"), 13f, AppUi.muted))
+            }
+            addView(feedback)
+            val quick = row()
+            quick.addView(duration, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+            quick.addView(rest, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+            addView(quick)
+            addView(button("高级文本编辑") { advanced.visibility = if (advanced.visibility == View.VISIBLE) View.GONE else View.VISIBLE })
+            advanced.addView(label("每行填写时值与弦号-品位。和弦 4 1-3 2-0，休止符 8 R。\n8. 6-3m 表示附点八分音符加闷音。推弦 ^1 表示一个半音，^0>2>0 表示推两个半音后释放。时值加 t 表示三连音，加 g 表示拍前装饰音。", 13f))
+            advanced.addView(label("泛音加 @类型品位。NH 自然、AH 人工、PH 拨片、TH 点弦、SH 半泛音、FB 反馈。6-5@AH12 表示按第 5 品，触弦位置再高 12 品。@0 清除泛音。", 13f))
+            advanced.addView(label("快速拨弦在时值后加 r8、r16 或 r32。4r16 表示四分音符内按十六分音符反复拨弦。", 13f))
+            advanced.addView(label("颤音杆在时值后加 w 和音高偏移，单位为全音。4w0>-0.5>0 表示降半个全音再回原音。", 13f))
+            advanced.addView(field)
+            addView(advanced)
         }
+        updateBeatTools()
         val scroll = ScrollView(this).apply { addView(form) }
         val dialog = AlertDialog.Builder(this).setTitle("第 ${bar.number} 小节 · ${bar.meter}").setView(scroll)
             .setNegativeButton("取消", null).setPositiveButton("应用", null)
@@ -421,8 +559,26 @@ class PdfConvertActivity : AppCompatActivity() {
                 val checked = PdfTabCorrection.correct(bar, track.strings, value)
                 corrections[key] = PdfTabCorrection.format(checked.beats, track.strings)
                 dialog.dismiss(); pageData?.let { showPage(it, selected) }
-            } catch (error: PdfConversionException) { field.error = error.message }
+            } catch (error: PdfConversionException) { feedback.text = error.message }
         }
+    }
+
+    private fun editBeatDuration(field: EditText) {
+        val lines = field.text.lineSequence().map(String::trim).filter(String::isNotEmpty).toMutableList()
+        val prefix = Regex("^\\d{1,2}")
+        val values = listOf(1, 2, 4, 8, 16, 32, 64)
+        val names = arrayOf("全音符", "二分音符", "四分音符", "八分音符", "十六分音符", "三十二分音符", "六十四分音符")
+        val groups = lines.mapIndexed { i, line ->
+            val before = prefix.find(line)?.value?.toIntOrNull()
+            val name = names.getOrNull(before?.let(values::indexOf) ?: -1) ?: "时值待确认"
+            "第 ${i + 1} 组 · $name · ${line.substringAfter(' ').take(24)}"
+        }.toTypedArray()
+        AlertDialog.Builder(this).setTitle("选择音符组或休止符").setItems(groups) { _, beat ->
+            AlertDialog.Builder(this).setTitle("第 ${beat + 1} 组选时值").setItems(names) { _, choice ->
+                lines[beat] = lines[beat].replaceFirst(prefix, values[choice].toString())
+                field.setText(lines.joinToString("\n"))
+            }.show()
+        }.show()
     }
 
     private fun sourceMeasure(bar: PdfTabBar): Bitmap? {
@@ -444,14 +600,14 @@ class PdfConvertActivity : AppCompatActivity() {
         val beats = numberField("每小节拍数", current.beats.toString())
         val unit = numberField("以几分音符为一拍", current.unit.toString())
         val form = column().apply { setPadding(dp(24), 0, dp(24), 0); addView(beats); addView(unit) }
-        val dialog = AlertDialog.Builder(this).setTitle("扫描谱拍号").setView(form)
+        val dialog = AlertDialog.Builder(this).setTitle("拍号设置").setView(form)
             .setNegativeButton("取消", null).setPositiveButton("确认", null).show()
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
             val count = beats.text.toString().toIntOrNull()
             val base = unit.text.toString().toIntOrNull()
             if (count == null || count !in 1..32) beats.error = "请输入 1 到 32"
             else if (base == null || base !in setOf(1, 2, 4, 8, 16, 32)) unit.error = "可输入 1、2、4、8、16 或 32"
-            else { scannedMeter = PdfMeter(count, base); dialog.dismiss(); pageData?.let { showPage(it, selected) } }
+            else { meterOverride = PdfMeter(count, base); dialog.dismiss(); pageData?.let { showPage(it, selected) } }
         }
     }
 
@@ -544,26 +700,83 @@ class PdfConvertActivity : AppCompatActivity() {
     }
 
     private fun encode(play: Boolean) {
-        val range = selected ?: return
+        if (busy || pendingSave != null) return
+        val data = pageData ?: return
         val tracks = chosenTracks()
-        val bpm = startTempo(scopeBars(tracks)) ?: return
+        val bars = scopeBars(tracks)
+        val bpm = startTempo(bars)
+        val needsMeter = needsMeterConfirmation(bars)
+        val problems = exportProblems(data, tracks, bars, bpm, needsMeter)
+        if (problems.isNotEmpty()) {
+            AlertDialog.Builder(this).setTitle(if (play) "现在无法试听" else "现在无法保存 GP")
+                .setMessage(problems.joinToString("\n\n"))
+                .setPositiveButton("知道了", null).show()
+            return
+        }
+        val range = checkNotNull(selected)
+        val speed = checkNotNull(bpm)
         val extract = tracks.map { track -> track.copy(bars = track.bars.slice(range)) }
         val name = if (wholeScore != null) sourceName else "$sourceName · 第 $page 页"
         runTask("正在生成 GP…", {
-            val bytes = PdfTabGp.encodeTracks(name, bpm, extract)
+            val bytes = PdfTabGp.encodeTracks(name, speed, extract)
             val directory = File(cacheDir, PREVIEW_DIR).apply { mkdirs() }
             val cutoff = System.currentTimeMillis() - 24 * 60 * 60 * 1000L
             directory.listFiles()?.filter { it.isFile && it.lastModified() < cutoff }?.forEach { it.delete() }
             File.createTempFile("tab-", ".gp", directory).apply { writeBytes(bytes) }
-        }) { file ->
-            message = "已生成 ${range.count()} 小节 · ${tracks.size} 声部 · $bpm BPM"
-            updateStatus()
-            if (play) startActivity(Intent(this, PdfPreviewActivity::class.java).putExtra(PREVIEW_EXTRA, file.name))
-            else { pendingSave = file; saveDocument.launch("$name.gp") }
+        }, failure = "无法生成 GP 文件。请检查储存空间，或选择较短的小节范围后重试。") { file ->
+            if (play) {
+                message = "已生成 ${range.count()} 小节 · ${tracks.size} 声部 · $speed BPM"
+                updateStatus()
+                startActivity(Intent(this, PdfPreviewActivity::class.java).putExtra(PREVIEW_EXTRA, file.name))
+            } else {
+                pendingSave = file
+                message = "请选择 GP 文件的保存位置。"
+                try {
+                    saveDocument.launch("$name.gp")
+                } catch (_: ActivityNotFoundException) {
+                    pendingSave = null
+                    file.delete()
+                    message = "无法打开保存窗口。请检查系统的「文件」应用是否已启用，再重试。"
+                }
+                renderPage()
+            }
         }
     }
 
-    private fun <T> runTask(working: String, operation: () -> T, display: (T) -> Unit) {
+    private fun finishPendingSave() {
+        // A picker result can arrive while the PDF is reopening after activity recreation.
+        if (busy) return
+        val location = saveLocation ?: return
+        saveLocation = null
+        val file = pendingSave
+        pendingSave = null
+        val uri = location.uri
+        if (uri == null || file?.isFile != true) {
+            message = if (uri == null) "已取消保存，未写入 GP 文件。" else "待保存的 GP 临时文件已失效。请重新点击「保存 GP」。"
+            file?.delete()
+            renderPage()
+            return
+        }
+        runTask("正在保存 GP…", {
+            try {
+                file.inputStream().use { input ->
+                    val out = contentResolver.openOutputStream(uri, "wt")
+                        ?: throw PdfConversionException("无法写入所选位置。请换到本机「下载」目录后重试。")
+                    out.use { input.copyTo(it) }
+                }
+            } catch (_: SecurityException) {
+                throw PdfConversionException("没有所选位置的写入权限。请重新选择保存位置。")
+            } finally {
+                file.delete()
+            }
+        }, failure = "写入 GP 文件失败。请检查储存空间，或换到本机「下载」目录后重试。") {
+            message = "GP 文件已保存。"
+            updateStatus()
+        }
+    }
+
+    private fun <T> runTask(working: String, operation: () -> T,
+                            failure: String = "无法完成 PDF 操作，请重新选择文件。", display: (T) -> Unit) {
         if (busy) return
         busy = true
         message = working
@@ -574,11 +787,13 @@ class PdfConvertActivity : AppCompatActivity() {
                 runOnUiThread {
                     if (isDestroyed || isFinishing) {
                         if (result is OpenPdf) result.file.delete()
+                        if (result is File) result.delete()
                         return@runOnUiThread
                     }
                     busy = false
                     renderPage()
                     display(result)
+                    finishPendingSave()
                 }
             } catch (_: InterruptedException) {
                 Thread.currentThread().interrupt()
@@ -586,8 +801,9 @@ class PdfConvertActivity : AppCompatActivity() {
                 runOnUiThread {
                     if (isDestroyed || isFinishing) return@runOnUiThread
                     busy = false
-                    message = if (error is PdfConversionException) error.message.orEmpty() else "无法完成 PDF 操作，请重新选择文件或保存位置。"
+                    message = (error as? PdfConversionException)?.message ?: failure
                     renderPage()
+                    finishPendingSave()
                 }
             }
         }

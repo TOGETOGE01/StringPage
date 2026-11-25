@@ -4,7 +4,9 @@
 
 An Android Guitar Pro score reader, practice player, and touch editor for phones and tablets.
 
-当前源码版本：**1.36.0** · 最低系统：**Android 8.0 / API 26** · 项目代码：[MIT](LICENSE)
+当前源码版本：**1.37.0** · 最低系统：**Android 8.0 / API 26** · 项目代码：[MIT](LICENSE)
+
+1.37.0 优化了 PDF 转 GP 的校对和保存。可以一次应用缺失参数的建议、选用可导出段，或直接点选时值修正小节。[查看更新说明](docs/RELEASE_1.37.0.md)
 
 1.36.0 更新了手机和平板阅读界面，加入谱面 A/B 选段，为所有播放音源提供可调节拍器。[查看更新说明](docs/RELEASE_1.36.0.md)
 
@@ -14,11 +16,11 @@ An Android Guitar Pro score reader, practice player, and touch editor for phones
 
 ## 下载与安装
 
-**[直接下载 StringPage 1.36.0 APK](https://github.com/TOGETOGE01/StringPage/releases/download/v1.36.0/StringPage-1.36.0.apk)** · [版本说明与附件](https://github.com/TOGETOGE01/StringPage/releases/tag/v1.36.0) · [所有版本](https://github.com/TOGETOGE01/StringPage/releases)
+**[直接下载 StringPage 1.37.0 APK](https://github.com/TOGETOGE01/StringPage/releases/download/v1.37.0/StringPage-1.37.0.apk)** · [版本说明与附件](https://github.com/TOGETOGE01/StringPage/releases/tag/v1.37.0) · [所有版本](https://github.com/TOGETOGE01/StringPage/releases)
 
 下载 `.apk` 文件到安卓设备安装，最低 Android 8.0。该安装包包含 ARM64、ARMv7、x86 和 x86_64，沿用项目发布签名。Release 页面中的 `Source code` 是源码压缩包，直接安装请选 APK 附件。
 
-SHA-256 为 `39a0290e61da660417c9c38e7e7bb1ff9b64a46141ab7ee59502d8868af8e8ba`。可下载 [SHA-256 校验文件](https://github.com/TOGETOGE01/StringPage/releases/download/v1.36.0/SHA256-1.36.0.txt)。
+SHA-256 为 `99f22eef3faea121ebb312456962dd62744cdb218f57b7734129c884a7677987`。可下载 [SHA-256 校验文件](https://github.com/TOGETOGE01/StringPage/releases/download/v1.37.0/SHA256-1.37.0.txt)。
 
 **[下载 Strat-Guitar 电吉他音色库（.gp7bank，52.8 MiB）](https://github.com/TOGETOGE01/StringPage/releases/download/v1.35.0/Strat-Guitar.gp7bank)** · [音色库获取与导入指南](docs/USER_GUIDE.md#音色库管理与单音试听)
 

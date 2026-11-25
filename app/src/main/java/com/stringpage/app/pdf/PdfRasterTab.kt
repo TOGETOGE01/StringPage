@@ -27,12 +27,13 @@ internal class PdfRasterTab(private val glyphs: PdfRasterGlyphs) {
             for ((index, pair) in strip.staff.edges.zipWithNext().withIndex()) {
                 val (left, right) = pair
                 val hasSignature = page == 1 && bars.isEmpty() && !meter.needsConfirmation
-                bars.add(readBar(strip, left, right, index == 0, hasSignature, start + bars.size, page, meter.meter, mutes))
+                val bar = readBar(strip, left, right, index == 0, hasSignature, start + bars.size, page, meter.meter, mutes)
+                bars.add(if (meter.needsConfirmation) bar.copy(provisionalMeter = true) else bar)
             }
         }
         pdfRequire(bars.isNotEmpty(), "扫描页上没有可识别的小节。")
         val track = PdfTabTrack("扫描吉他谱", 6, null, bars)
-        return PdfTabResult(null, listOf(track), source.width.toDouble(), true, meter.needsConfirmation) to meter
+        return PdfTabResult(null, listOf(track), source.width.toDouble(), true) to meter
     }
 
     private fun readMeter(strip: Strip): PdfMeter? {
