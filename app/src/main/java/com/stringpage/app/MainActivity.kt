@@ -55,6 +55,7 @@ import kotlin.math.roundToInt
 /** Offline GP reader. Embedded audio and the GP8 sync map stay inside alphaTab's data model. */
 open class MainActivity : AppCompatActivity() {
     private val pdfPreview get() = this is com.stringpage.app.pdf.PdfPreviewActivity
+    private val pdfReviewPlayback get() = pdfPreview && intent.getBooleanExtra(com.stringpage.app.pdf.PdfConvertActivity.REVIEW_PLAYBACK_EXTRA, false)
     private val ink get() = AppUi.ink
     private val paper get() = AppUi.canvas
     private val accent get() = AppUi.accent
@@ -796,7 +797,7 @@ open class MainActivity : AppCompatActivity() {
         practiceToggle.contentDescription = if (inspector.visibility == View.VISIBLE) "收起练习面板" else "打开练习面板"
         infoPanel.visibility = if (loaded && !fullSheet && !(compact && (currentWidth < 600 || currentHeight < 300))) View.VISIBLE else View.GONE
         fullScreen.visibility = if (loaded && (fullSheet || currentWidth >= 600)) View.VISIBLE else View.GONE
-        editScoreButton.visibility = if (loaded && !loading && !fullSheet) View.VISIBLE else View.GONE
+        editScoreButton.visibility = if (loaded && !loading && !fullSheet && !pdfReviewPlayback) View.VISIBLE else View.GONE
         voicesPanel.visibility = if (loaded) View.VISIBLE else View.GONE
         empty.getChildAt(0).visibility = if (!loaded && loading) View.INVISIBLE else View.VISIBLE
         transport.visibility = if (loaded || loading || importing) View.VISIBLE else View.GONE
@@ -1364,7 +1365,7 @@ open class MainActivity : AppCompatActivity() {
                         setReaderStatus("已导出 ${format.label}")
                         Toast.makeText(this, "已导出 ${format.label}", Toast.LENGTH_SHORT).show()
                         if (format == ExportKind.GUITAR_PRO && score === exportedScore) {
-                            modified = false; updateDocumentSubtitle(); io.execute { drafts.delete() }
+                            modified = false; updateDocumentSubtitle(); discardRecoveryDraft()
                         }
                     }
                 } catch (error: Exception) { runOnUiThread { if (!isDestroyed) showError("导出失败", error) } }
@@ -1538,7 +1539,7 @@ open class MainActivity : AppCompatActivity() {
         AlertDialog.Builder(this).setTitle("修改尚未导出")
             .setMessage("导出 GP 副本可保留当前修改。继续切换会丢弃当前草稿；取消可留在当前乐谱。")
             .setPositiveButton("导出副本") { _, _ -> requestExport(ExportKind.GUITAR_PRO) }
-            .setNeutralButton("丢弃修改") { _, _ -> modified = false; io.execute { drafts.delete() }; action() }
+            .setNeutralButton("丢弃修改") { _, _ -> modified = false; discardRecoveryDraft(); action() }
             .setNegativeButton("取消", null).show()
     }
 
@@ -1930,7 +1931,7 @@ open class MainActivity : AppCompatActivity() {
                 }
                 add(ReaderMenu.Section("播放与练习", listOf(ReaderMenu.Action("逐轮加速练习", "tempo") { showTrainer() }), shortcuts))
                 add(ReaderMenu.Section("谱面", listOf(
-                    ReaderMenu.Action(if (scoreEntry.isOpen) "完成谱面编辑" else "在谱面编辑", "edit") { setScoreEditing(!scoreEntry.isOpen) },
+                    ReaderMenu.Action(if (scoreEntry.isOpen) "完成谱面编辑" else "在谱面编辑", "edit", enabled = !pdfReviewPlayback) { setScoreEditing(!scoreEntry.isOpen) },
                     ReaderMenu.Action("MIDI 输入", "audio", if (midiInputDelegate.isInitialized()) midiInput.portLabel.orEmpty() else "") { chooseMidiInput() },
                     ReaderMenu.Action("选择声部", "track", track.text.toString()) { chooseTrack() },
                     ReaderMenu.Action("谱面设置", "score") { chooseScoreDisplay() },
@@ -1965,7 +1966,7 @@ open class MainActivity : AppCompatActivity() {
                         add(ReaderMenu.Action("导出 WAV 合成混音", "audio") { requestExport(ExportKind.WAV) })
                         add(ReaderMenu.Action("导出打印版 PDF", "export") { choosePrintExport() })
                     }
-                    add(ReaderMenu.Action(if (pdfPreview) "导出" else "编辑与导出", "file", children = fileActions))
+                    if (!pdfReviewPlayback) add(ReaderMenu.Action(if (pdfPreview) "导出" else "编辑与导出", "file", children = fileActions))
                 }
                 if (!importing && !pdfPreview) add(ReaderMenu.Action("PDF 转 GP", "file") { openPdf() })
                 add(ReaderMenu.Action("原厂音色库 · 采样预览", "audio") { bankLibrary.show() })
@@ -2089,7 +2090,7 @@ open class MainActivity : AppCompatActivity() {
     }
 
     private fun setScoreEditing(enabled: Boolean, keepSource: Boolean = false) {
-        if (enabled && (loading || score == null)) return
+        if (enabled && (loading || score == null || pdfReviewPlayback)) return
         if (enabled) {
             cancelLoopPick()
             practiceInline = false
@@ -2205,6 +2206,7 @@ open class MainActivity : AppCompatActivity() {
     }
 
     private fun saveDraft() {
+        if (pdfPreview) return
         val current = score ?: return
         io.execute {
             try { drafts.write(ScoreExport.guitarProBytes(current)) }
@@ -2213,6 +2215,10 @@ open class MainActivity : AppCompatActivity() {
                 runOnUiThread { if (score === current && !isDestroyed) setReaderStatus("草稿写入失败，请导出副本保存修改。", prominent = true) }
             }
         }
+    }
+
+    private fun discardRecoveryDraft() {
+        if (!pdfPreview) io.execute { drafts.delete() }
     }
 
     private fun choosePrintExport() {
@@ -2277,6 +2283,7 @@ open class MainActivity : AppCompatActivity() {
     }
 
     private fun requestExport(format: ExportKind, acknowledged: Boolean = false, print: ScorePrintExport.Options? = null) {
+        if (pdfReviewPlayback) return
         val current = score ?: return
         if (loading) return
         if (!acknowledged) {

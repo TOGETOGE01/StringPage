@@ -12,36 +12,64 @@ internal class PdfConversionDocument(private val file: File, bytes: ByteArray, a
     val pageCount = withRenderer { it.pageCount }.also {
         pdfRequire(it in 1..200, "请选择 1 到 200 页的 PDF 文件。")
     }
-    private val vector = try {
-        val document = VectorPdf(bytes)
-        val first = document.geometry(0)
-        if (!first.containsExternalDrawing && first.text.any { it.text in PdfGeometry.TAB_CLEFS }) {
-            PdfTabRecognition.Document(document, first)
-        } else null
-    } catch (error: InterruptedException) { throw error }
-      catch (_: Exception) { null }
+    private val graphics = try { VectorPdf(bytes) }
+    catch (error: InterruptedException) { throw error }
+    catch (_: Exception) { null }
+    private val printed = try { graphics?.title()?.contains("Songsterr Tabs with Rhythm", ignoreCase = true) == true }
+    catch (_: PdfConversionException) { false }
+    private val vector by lazy { graphics?.let { PdfTabRecognition.Document(it) } }
     private val raster by lazy { PdfRasterTab(AndroidRasterGlyphs.load(assets)) }
-    private val scannedPages = ArrayList<PdfTabResult>()
+    private val pages = ArrayList<Result<PdfTabResult>>()
     private var meter: PdfRasterTab.MeterResult? = null
+    private var rasterTempo: Int? = null
     private var nextBar = 1
 
     fun preview(page: Int): Bitmap = render(page, 1_400)
 
     fun read(page: Int): PdfTabResult {
         pdfRequire(page in 1..pageCount, "请选择有效页码。")
-        vector?.let { return it.read(page) }
-        while (scannedPages.size < page) {
-            if (Thread.currentThread().isInterrupted) throw InterruptedException()
-            val number = scannedPages.size + 1
-            val large = render(number, 2_600)
-            try {
-                val (result, signature) = raster.recognize(AndroidRasterGlyphs.bitmapToInk(large), number, nextBar, meter)
-                scannedPages.add(result)
-                meter = signature
-                nextBar += result.bars.size
-            } finally { large.recycle() }
+        while (pages.size < page) {
+            checkCancelled()
+            val result = try {
+                val recognized = readPage(pages.size + 1)
+                val start = nextBar
+                nextBar += recognized.bars.size
+                Result.success(recognized.copy(tracks = recognized.tracks.map { track ->
+                    track.copy(bars = track.bars.mapIndexed { index, bar -> bar.copy(number = start + index) })
+                }))
+            } catch (error: PdfConversionException) {
+                meter = null
+                rasterTempo = null
+                Result.failure(error)
+            }
+            pages.add(result)
         }
-        return scannedPages[page - 1]
+        return pages[page - 1].getOrThrow()
+    }
+
+    private fun readPage(page: Int): PdfTabResult {
+        val geometry = try { graphics?.geometry(page - 1, collectInkOutlines = printed) }
+        catch (error: InterruptedException) { throw error }
+        catch (_: Exception) { null }
+        if (geometry != null && !geometry.containsExternalDrawing && geometry.text.any { it.text in PdfGeometry.TAB_CLEFS }) {
+            meter = null
+            rasterTempo = null
+            return checkNotNull(vector).read(page, geometry)
+        }
+        val large = try { render(page, 2_600) }
+        catch (_: java.io.IOException) { throw PdfConversionException("无法读取第 $page 页的谱面图像。") }
+        catch (_: IllegalStateException) { throw PdfConversionException("无法渲染第 $page 页的谱面图像。") }
+        try {
+            val hints = if (printed && geometry != null && graphics != null) {
+                PdfRasterPrintLayout(graphics.pageWidth(page - 1), geometry.lines, geometry.inkOutlines)
+            } else null
+            val preceding = pages.lastOrNull()?.getOrNull()?.takeIf { it.scanned }
+                ?.bars?.lastOrNull()?.beats?.lastOrNull()?.notes.orEmpty()
+            val (result, signature) = raster.recognize(AndroidRasterGlyphs.bitmapToInk(large), page, nextBar, meter, hints, preceding)
+            meter = signature
+            rasterTempo = result.bpm ?: rasterTempo
+            return result.copy(bpm = rasterTempo)
+        } finally { large.recycle() }
     }
 
     private fun render(page: Int, longestEdge: Int): Bitmap = withRenderer { renderer ->

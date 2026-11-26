@@ -14,6 +14,7 @@ internal class VectorPdf(bytes: ByteArray) {
     private val pages = ArrayList<Page>()
     private val fontCache = HashMap<Ref, PdfFont?>()
     val pageCount get() = pages.size
+    fun title() = pdf.title()
     fun pageWidth(index: Int) = pages[index].bounds.width
 
     init {
@@ -49,7 +50,7 @@ internal class VectorPdf(bytes: ByteArray) {
         }
     }
 
-    fun geometry(index: Int): PdfGeometry {
+    fun geometry(index: Int, collectInkOutlines: Boolean = false): PdfGeometry {
         val page = pages[index]
         val content = page.contents ?: throw PdfConversionException("这一页没有谱面内容。")
         val refs = if (resolve(content) is List<*>) list(content).map(::reference) else listOf(reference(content))
@@ -63,7 +64,7 @@ internal class VectorPdf(bytes: ByteArray) {
         val bounds = page.bounds
         val matrix = Matrix(d = -1.0, x = -bounds.left, y = bounds.bottom)
         val clip = PdfBox(0.0, 0.0, bounds.width, bounds.height)
-        val drawing = PdfDrawingPage()
+        val drawing = PdfDrawingPage(collectInkOutlines)
         PdfDrawingReader(drawingResources(page.resources), drawing, PdfGraphics(matrix, PdfClip(listOf(clip)))).read(output.toString())
         return drawing.geometry
     }
@@ -214,6 +215,7 @@ internal class PdfGeometry {
     val filledArcs = ArrayList<PdfCurve>()
     val closedCurves = ArrayList<PdfBox>()
     val fills = ArrayList<PdfBox>()
+    val inkOutlines = ArrayList<PdfBox>()
     val beams = ArrayList<PdfBeam>()
     val text = ArrayList<PdfText>()
     var containsExternalDrawing = false
@@ -321,7 +323,7 @@ private class PdfClip(val rectangles: List<PdfBox>) {
     }
 }
 
-private class PdfDrawingPage {
+private class PdfDrawingPage(val collectInkOutlines: Boolean) {
     val geometry = PdfGeometry()
     val activeForms = HashSet<Ref>()
     var formCount = 0
@@ -339,6 +341,7 @@ private class PdfDrawingReader(
     private val curves = ArrayList<PdfCurve>()
     private val points = ArrayList<PdfPoint>()
     private val subpaths = ArrayList<Int>()
+    private val subpathCurves = ArrayList<Int>()
     private var currentPoint: PdfPoint? = null
     private var firstPoint: PdfPoint? = null
     private var evenOddClip: Boolean? = null
@@ -364,7 +367,7 @@ private class PdfDrawingReader(
                 operands.add(next)
             }
             pdfRequire(result.lines.size + result.dashes.size + result.curves.size +
-                result.closedCurves.size + result.filledArcs.size + result.fills.size + result.text.size + points.size < 40_000, "PDF 页面元素过多。")
+                result.closedCurves.size + result.filledArcs.size + result.fills.size + result.inkOutlines.size + result.text.size + points.size < 40_000, "PDF 页面元素过多。")
         }
         flushText()
         pdfRequire(stack.isEmpty(), "PDF 页面绘制指令不完整。")
@@ -395,10 +398,12 @@ private class PdfDrawingReader(
                 closePath()
             }
             "h" -> closePath()
-            "c" -> {
-                val end = p(4)
+            "c", "v", "y" -> {
+                val end = p(if (operator == "c") 4 else 2)
                 val start = currentPoint ?: throw PdfConversionException("PDF 路径缺少起点。")
-                curves.add(PdfCurve(start, p(0), p(2), end))
+                val control1 = if (operator == "v") start else p(0)
+                val control2 = when (operator) { "v" -> p(0); "y" -> end; else -> p(2) }
+                curves.add(PdfCurve(start, control1, control2, end))
                 points.add(end)
                 currentPoint = end
             }
@@ -503,6 +508,7 @@ private class PdfDrawingReader(
 
     private fun move(point: PdfPoint) {
         subpaths.add(points.size)
+        if (page.collectInkOutlines) subpathCurves.add(curves.size)
         points.add(point)
         currentPoint = point
         firstPoint = point
@@ -521,6 +527,7 @@ private class PdfDrawingReader(
         curves.clear()
         points.clear()
         subpaths.clear()
+        subpathCurves.clear()
         currentPoint = null
         firstPoint = null
     }
@@ -635,6 +642,16 @@ private class PdfDrawingReader(
         val clip = graphics.clip
         if (!graphics.darkFill || clip.empty) return
         pathBounds()?.let { bounds -> clip.rectangles.mapNotNullTo(result.fills) { it.intersect(bounds) } }
+        if (page.collectInkOutlines) {
+            for ((index, start) in subpaths.withIndex()) {
+                val contour = points.subList(start, subpaths.getOrElse(index + 1) { points.size })
+                val contourCurves = curves.subList(subpathCurves[index], subpathCurves.getOrElse(index + 1) { curves.size })
+                val shape = contour + contourCurves.flatMap { listOf(it.control1, it.control2) }
+                if (shape.size < 3 || shape.any { !clip.contains(it) }) continue
+                val box = shape.bounds()
+                if (box.width > 0 && box.height > 0) result.inkOutlines.add(box)
+            }
+        }
         if (!points.all(clip::contains)) return
         if (curves.size == 2 && curves.first().from == curves.last().to &&
             curves.first().to == curves.last().from) result.filledArcs.add(curves.first())

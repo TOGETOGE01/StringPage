@@ -39,6 +39,15 @@ internal object AndroidRasterGlyphs {
         for (font in sans) for (value in PdfRasterGlyphs.frets) {
             glyph(RasterAlphabet.FRET, value, if (value == "x") "X" else value, font, measure * 1.1f)
         }
+        for (font in sans) for (number in 0..9) {
+            val token = number.toString()
+            glyph(RasterAlphabet.PRINT_DIGIT, token, token, font, measure * 3.0f)
+            glyph(RasterAlphabet.PRINT_DIGIT, token, token, font, measure * 1.15f)
+        }
+        val bold = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+        for (token in (0..9).map(Int::toString) + "X") {
+            glyph(RasterAlphabet.PRINT_DIGIT, token, token, bold, measure * 1.15f)
+        }
         for ((token, value) in PdfRasterGlyphs.rests) glyph(RasterAlphabet.REST, token, value, music, measure * 2.667f)
         for ((token, value) in PdfRasterGlyphs.flags) glyph(RasterAlphabet.FLAG, token, value, music, measure * 2.667f)
         for ((token, value) in PdfRasterGlyphs.meter) glyph(RasterAlphabet.METER, token, value, music, measure * 2.667f)

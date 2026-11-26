@@ -25,7 +25,8 @@ internal data class PdfTabBar(
     val review: List<String>,
     val meter: PdfMeter = PdfMeter(4, 4),
     val bpm: Int? = null,
-    val provisionalMeter: Boolean = false
+    val provisionalMeter: Boolean = false,
+    val scanned: Boolean = false
 )
 
 internal data class PdfTabBeat(
@@ -68,25 +69,34 @@ internal object PdfTabRecognition {
     fun read(document: VectorPdf, page: Int): PdfTabResult = Document(document).read(page)
 
     class Document(private val pdf: VectorPdf, private var firstPageGeometry: PdfGeometry? = null) {
-        private val pages = ArrayList<PdfTabResult>()
+        private val pages = ArrayList<Result<PdfTabResult>>()
         private var terminalMeter: PdfMeter? = null
         private var nextBar = 1
         private var currentTempo: Int? = null
         val pageCount get() = pdf.pageCount
 
-        fun read(page: Int): PdfTabResult {
+        fun read(page: Int, geometry: PdfGeometry? = null): PdfTabResult {
             pdfRequire(page in 1..pageCount, "请选择有效页码。")
-            while (pages.size < page) pages.add(readPage(pages.size + 1))
-            return pages[page - 1]
+            while (pages.size < page) {
+                val next = pages.size + 1
+                val result = try { Result.success(readPage(next, geometry.takeIf { next == page })) } catch (error: PdfConversionException) {
+                    terminalMeter = null
+                    currentTempo = null
+                    Result.failure(error)
+                }
+                pages.add(result)
+            }
+            return pages[page - 1].getOrThrow()
         }
 
-        private fun readPage(page: Int): PdfTabResult {
-            val geometry = firstPageGeometry?.also { firstPageGeometry = null } ?: pdf.geometry(page - 1)
+        private fun readPage(page: Int, suppliedGeometry: PdfGeometry?): PdfTabResult {
+            val geometry = firstPageGeometry?.also { firstPageGeometry = null } ?: suppliedGeometry ?: pdf.geometry(page - 1)
             pdfRequire(!geometry.containsExternalDrawing, "这页含有当前无法识别的图像或绘图。")
             val formScale = geometry.normalizeFormScale()
             val systems = PdfTabLayout.systems(geometry)
             val first = systems.first()
-            val trackDetails = pages.firstOrNull()?.tracks ?: PdfTabTuning.read(geometry, first)
+            val previousPage = pages.lastOrNull()?.getOrNull()
+            val trackDetails = previousPage?.tracks ?: PdfTabTuning.read(geometry, first)
             pdfRequire(systems.all { system -> system.map { it.tab.rows.size } == trackDetails.map { it.strings } },
                 "PDF 的声部数量或弦数在页面中改变，无法对齐整首谱。")
             val firstTop = first.first().let { it.notation?.top ?: it.tab.top }
@@ -117,7 +127,7 @@ internal object PdfTabRecognition {
                     val newTempo = mark.singleOrNull()?.let(::tempo)
                     if (newTempo != null) activeTempo = newTempo
                     for ((track, staff) in system.withIndex()) {
-                        val previous = recognized[track].lastOrNull() ?: pages.lastOrNull()?.tracks?.get(track)?.bars?.lastOrNull()
+                        val previous = recognized[track].lastOrNull() ?: previousPage?.tracks?.get(track)?.bars?.lastOrNull()
                         val precedingNotes = previous?.beats?.lastOrNull()?.notes.orEmpty()
                         val fromTab = readBar(drawings[track], staff.tab.rows, staff.tab.gap, staff.edges[column], staff.edges[column + 1],
                             barNumber, page, mutes[track], time, newTempo, precedingNotes)

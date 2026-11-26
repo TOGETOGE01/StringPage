@@ -30,6 +30,9 @@ import com.stringpage.app.pdf.PdfBox
 import com.stringpage.app.pdf.PdfBend
 import com.stringpage.app.pdf.PdfConversionException
 import com.stringpage.app.pdf.PdfConvertActivity
+import com.stringpage.app.pdf.PdfPreviewActivity
+import com.stringpage.app.pdf.PdfReviewDrafts
+import com.stringpage.app.pdf.pdfLongestReadyRange
 import com.stringpage.app.pdf.PdfObjects
 import com.stringpage.app.pdf.PdfTabBar
 import com.stringpage.app.pdf.PdfTabBeat
@@ -41,8 +44,10 @@ import com.stringpage.app.pdf.PdfWhammy
 import com.stringpage.app.pdf.Ref
 import com.stringpage.app.pdf.VectorPdf
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.nio.ByteBuffer
 import java.util.Locale
+import java.util.UUID
 import java.util.zip.DeflaterOutputStream
 import org.junit.Assert.*
 import org.junit.Assume.assumeTrue
@@ -134,6 +139,144 @@ class PdfTabConversionTest {
             assertPreviewEnabled(activity)
         }
 
+    @Test fun aCoverDoesNotBlockTheScorePageOrWholeConversion() = withPdfEditor(examplePdf(leadingCover = true)) { activity ->
+        tapControl(activity, "下一页")
+        waitForText(activity, "已选 第 1 小节 至 第 2 小节")
+        assertPreviewEnabled(activity)
+        tapControl(activity, "整份转换")
+        waitForText(activity, "已跳过第 1 页")
+        assertPreviewEnabled(activity)
+    }
+
+    @Test fun selectedRangeIsRecoveredAfterClosingAndOpeningTheSamePdf() = withPdf(examplePdf(includeRest = false)) { uri ->
+        inPdfEditor(uri) { activity ->
+            tapControl(activity, "选用可导出段 · 第 2 小节")
+            waitForText(activity, "已选 第 2 小节")
+        }
+        inPdfEditor(uri) { activity ->
+            waitForText(activity, "已选 第 2 小节")
+            assertPreviewEnabled(activity)
+        }
+    }
+
+    @Test fun correctedNotesAndTempoAreRecoveredAfterClosingThePdf() =
+        withPdf(examplePdf(includeRest = false, includeSettings = false)) { uri ->
+            inPdfEditor(uri) { activity ->
+                tapControl(activity, "应用建议设置")
+                tapControl(activity, "校对第 1 小节")
+                tapDialogControl("补尾部休止符")
+                tapDialogControl("应用")
+                waitForText(activity, "已选 第 1 小节 至 第 2 小节")
+            }
+            inPdfEditor(uri) { activity ->
+                waitForText(activity, "100 BPM")
+                waitForText(activity, "已选 第 1 小节 至 第 2 小节")
+                assertPreviewEnabled(activity)
+            }
+        }
+
+    @Test fun tappingTheOriginalOpensCorrectionAndAnUnresolvedMeasureCanBeAuditioned() =
+        withPdfEditor(examplePdf(includeRest = false)) { activity ->
+            waitForText(activity, "校对第 1 小节")
+            val instrument = InstrumentationRegistry.getInstrumentation()
+            val monitor = instrument.addMonitor(PdfPreviewActivity::class.java.name, null, false)
+            val rect = Rect()
+            val anchor = IntArray(2)
+            var width = 0
+            instrument.runOnMainSync {
+                val views = ArrayList<View>()
+                activity.window.decorView.findViewsWithText(views, "PDF 原谱", View.FIND_VIEWS_WITH_CONTENT_DESCRIPTION)
+                val source = views.single()
+                source.getLocationOnScreen(anchor)
+                source.getGlobalVisibleRect(rect)
+                width = source.width
+            }
+            val probeX = anchor[0] + width * 0.31f
+            val probeY = anchor[1] + width * 0.28f
+            assertTrue(rect.contains(probeX.toInt(), probeY.toInt()))
+            tapAt(probeX, probeY)
+            try {
+                tapDialogControl("试听已识别音符")
+                val preview = instrument.waitForMonitorWithTimeout(monitor, 12_000)
+                assertTrue(preview is PdfPreviewActivity)
+                assertTrue(preview.intent.getBooleanExtra(PdfConvertActivity.REVIEW_PLAYBACK_EXTRA, false))
+                instrument.runOnMainSync { preview.finish() }
+            } finally { instrument.removeMonitor(monitor) }
+        }
+
+    @Test fun applyingACompleteRhythmDoesNotConfirmUnrecognizedFingering() {
+        val parsed = PdfTabRecognition.read(VectorPdf(examplePdf()), 1)
+        val bar = parsed.bars.first().copy(issues = listOf("第 3 弦品位需确认"), review = listOf("技巧待核对"))
+        val text = PdfTabCorrection.format(bar.beats, 6)
+        val unconfirmed = PdfTabCorrection.review(bar, 6, text, false)
+        assertEquals(bar.issues, unconfirmed.issues)
+        assertEquals(bar.review, unconfirmed.review)
+        assertTrue(PdfTabCorrection.review(bar, 6, text, true).issues.isEmpty())
+
+        val silence = bar.copy(issues = emptyList(), beats = listOf(PdfTabBeat(1, emptyList())))
+        val audible = bar.copy(issues = emptyList())
+        assertEquals(5..6, pdfLongestReadyRange(listOf(silence, silence, silence, audible, bar, audible, audible)))
+        assertEquals(0..0, pdfLongestReadyRange(listOf(audible, audible.copy(page = 3))))
+    }
+
+    @Test fun exportingAConvertedPreviewPreservesTheUnrelatedRecoveryDraft() {
+        assumeTrue(Build.VERSION.SDK_INT >= 29)
+        val instrument = InstrumentationRegistry.getInstrumentation()
+        val context = instrument.targetContext
+        val store = DraftStore(context)
+        val previous = if (store.exists()) store.read() else null
+        val bars = PdfTabRecognition.read(VectorPdf(examplePdf()), 1).bars
+        val directory = File(context.cacheDir, "pdf-gp-previews").apply { mkdirs() }
+        val preview = File.createTempFile("tab-", ".gp", directory)
+        val resolver = context.contentResolver
+        val destination = checkNotNull(resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, "stringpage-preview-test.gp")
+            put(MediaStore.MediaColumns.MIME_TYPE, "application/octet-stream")
+        }))
+        val filter = IntentFilter(Intent.ACTION_CREATE_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            addDataType("application/octet-stream")
+        }
+        val monitor = instrument.addMonitor(filter, Instrumentation.ActivityResult(Activity.RESULT_OK, Intent().setData(destination)), true)
+        var activity: PdfPreviewActivity? = null
+        try {
+            val draft = PdfTabGp.encode("Unrelated GP draft", 130, bars)
+            store.write(draft)
+            preview.writeBytes(PdfTabGp.encode("PDF preview", 120, bars))
+            val player = instrument.startActivitySync(Intent(context, PdfPreviewActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                putExtra(PdfConvertActivity.PREVIEW_EXTRA, preview.name)
+            }) as PdfPreviewActivity
+            activity = player
+            val deadline = SystemClock.uptimeMillis() + 12_000
+            var ready = false
+            while (!ready && SystemClock.uptimeMillis() < deadline) {
+                instrument.runOnMainSync { ready = player.findViewById<Button>(R.id.play_pause).isEnabled }
+                if (!ready) SystemClock.sleep(40)
+            }
+            assertTrue(ready)
+            instrument.runOnMainSync { player.findViewById<Button>(R.id.more_actions).performClick() }
+            tapDialogControl("导出")
+            tapDialogControl("导出 GP 兼容副本")
+            tapDialogControl("选择保存位置")
+            val saveDeadline = SystemClock.uptimeMillis() + 8_000
+            var status = ""
+            while (!status.contains("已导出 GP 兼容副本") && SystemClock.uptimeMillis() < saveDeadline) {
+                instrument.runOnMainSync { status = player.findViewById<TextView>(R.id.playback_status).text.toString() }
+                if (!status.contains("已导出 GP 兼容副本")) SystemClock.sleep(40)
+            }
+            assertEquals(1, monitor.hits)
+            assertTrue(status.contains("已导出 GP 兼容副本"))
+            assertArrayEquals(draft, store.read())
+        } finally {
+            instrument.removeMonitor(monitor)
+            activity?.let { player -> instrument.runOnMainSync { player.finish() } }
+            if (previous != null) store.write(previous) else store.delete()
+            resolver.delete(destination, null, null)
+            preview.delete()
+        }
+    }
+
     @Test fun saveReportsCancellationWriteFailureAndSuccessfulRetry() = withPdfEditor(examplePdf()) { activity ->
         val instrument = InstrumentationRegistry.getInstrumentation()
         val resolver = activity.contentResolver
@@ -167,7 +310,9 @@ class PdfTabConversionTest {
         }
     }
 
-    private fun withPdfEditor(pdf: ByteArray, check: (PdfConvertActivity) -> Unit) {
+    private fun withPdfEditor(pdf: ByteArray, check: (PdfConvertActivity) -> Unit) = withPdf(pdf) { uri -> inPdfEditor(uri, check) }
+
+    private fun withPdf(pdf: ByteArray, check: (Uri) -> Unit) {
         assumeTrue(Build.VERSION.SDK_INT >= 29)
         val instrument = InstrumentationRegistry.getInstrumentation()
         val context = instrument.targetContext
@@ -176,20 +321,23 @@ class PdfTabConversionTest {
             put(MediaStore.MediaColumns.DISPLAY_NAME, "stringpage-test-source.pdf")
             put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
         }))
+        val source = pdf + "\n%${UUID.randomUUID()}\n".toByteArray()
         try {
-            checkNotNull(resolver.openOutputStream(uri)).use { it.write(pdf) }
-            val activity = instrument.startActivitySync(Intent(context, PdfConvertActivity::class.java).apply {
-                data = uri
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }) as PdfConvertActivity
-            try {
-                check(activity)
-            } finally {
-                instrument.runOnMainSync { activity.finish() }
-            }
+            checkNotNull(resolver.openOutputStream(uri)).use { it.write(source) }
+            check(uri)
         } finally {
             resolver.delete(uri, null, null)
+            context.deleteSharedPreferences("pdf-review-${PdfReviewDrafts.id(source)}")
         }
+    }
+
+    private fun inPdfEditor(uri: Uri, check: (PdfConvertActivity) -> Unit) {
+        val instrument = InstrumentationRegistry.getInstrumentation()
+        val activity = instrument.startActivitySync(Intent(instrument.targetContext, PdfConvertActivity::class.java).apply {
+            data = uri
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }) as PdfConvertActivity
+        try { check(activity) } finally { instrument.runOnMainSync { activity.finish() } }
     }
 
     private fun tapSave(activity: PdfConvertActivity) = tapControl(activity, "保存 GP")
@@ -212,18 +360,22 @@ class PdfTabConversionTest {
                 ?.firstOrNull { it.isVisibleToUser && (it.text == value || prefix && it.text?.startsWith(value) == true) }
             if (node != null) {
                 val rect = Rect().also(node::getBoundsInScreen)
-                val time = SystemClock.uptimeMillis()
-                for (action in listOf(MotionEvent.ACTION_DOWN, MotionEvent.ACTION_UP)) {
-                    val event = MotionEvent.obtain(time, SystemClock.uptimeMillis(), action,
-                        rect.exactCenterX(), rect.exactCenterY(), 0)
-                    instrument.sendPointerSync(event)
-                    event.recycle()
-                }
+                tapAt(rect.exactCenterX(), rect.exactCenterY())
                 return
             }
             SystemClock.sleep(40)
         }
         fail("Correction dialog did not show: $value")
+    }
+
+    private fun tapAt(x: Float, y: Float) {
+        val instrument = InstrumentationRegistry.getInstrumentation()
+        val time = SystemClock.uptimeMillis()
+        for (action in listOf(MotionEvent.ACTION_DOWN, MotionEvent.ACTION_UP)) {
+            val event = MotionEvent.obtain(time, SystemClock.uptimeMillis(), action, x, y, 0)
+            instrument.sendPointerSync(event)
+            event.recycle()
+        }
     }
 
     private fun assertPreviewEnabled(activity: PdfConvertActivity) {
@@ -295,6 +447,17 @@ class PdfTabConversionTest {
     @Test fun rejectsRecursiveFormReferences() {
         val wrapped = VectorPdf(nestedForms(recursive = true))
         assertThrows(PdfConversionException::class.java) { wrapped.geometry(0) }
+    }
+
+    @Test fun outlinedInkUsesSeparateContoursAndIncludesCurveControls() {
+        val content = "30 300 m 25 297 25 290 30 287 c 31 287 l 28 293 31 300 v h " +
+            "36 287 5 12 re f\n"
+        val document = VectorPdf(wrapPdf(content))
+        val outlines = document.geometry(0, collectInkOutlines = true).inkOutlines
+        assertEquals(2, outlines.size)
+        assertEquals(25.0, outlines.first().left, 0.001)
+        assertEquals(36.0, outlines.last().left, 0.001)
+        assertTrue(document.geometry(0).inkOutlines.isEmpty())
     }
 
     @Test fun hybridIncrementalRevisionResolvesNewestObjectsAndRetainsFreeEntries() {
@@ -708,7 +871,8 @@ class PdfTabConversionTest {
         return "BT /$font $size Tf 1 0 0 -1 $x $y Tm <$encoded> Tj ET\n"
     }
 
-    private fun examplePdf(includeRest: Boolean = true, includeSettings: Boolean = true, includeMeter: Boolean = true): ByteArray {
+    private fun examplePdf(includeRest: Boolean = true, includeSettings: Boolean = true, includeMeter: Boolean = true,
+                           leadingCover: Boolean = false): ByteArray {
         val content = buildString {
             append("1 0 0 -1 0 400 cm\n")
             if (includeSettings) {
@@ -737,7 +901,7 @@ class PdfTabConversionTest {
             append(drawText("A", "6.6", "275", "126.2", "5"))
             append("277 120 m 281 120 283 123 283 127 c 283 132 281 135 277 135 c 273 135 271 132 271 127 c 271 123 273 120 277 120 c s\n")
         }
-        return wrapPdf(content)
+        return if (leadingCover) wrapPdf(drawText("A", "13", "56", "90", "Cover"), continuation = content) else wrapPdf(content)
     }
 
     private fun wrapPdf(content: String, continuation: String? = null, includeEffectFont: Boolean = false): ByteArray {

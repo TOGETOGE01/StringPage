@@ -27,15 +27,47 @@ internal fun pdfTrailingRests(beats: List<PdfTabBeat>, meter: PdfMeter): List<Pd
     return rests.takeIf { pdfBeatsFit(beats + it, meter) }.orEmpty()
 }
 
-internal fun pdfLongestReadyRange(bars: List<PdfTabBar>): IntRange? {
-    var best: IntRange? = null
+internal fun pdfRangeHasPageGap(bars: List<PdfTabBar>, range: IntRange): Boolean =
+    (range.first until range.last).any { index -> bars[index + 1].page > bars[index].page + 1 }
+
+internal fun pdfLongestReadyRange(bars: List<PdfTabBar>, hasNotes: (Int) -> Boolean = { index ->
+    bars[index].beats.any { it.notes.isNotEmpty() }
+}): IntRange? {
+    var bestAudible: IntRange? = null
+    var bestRest: IntRange? = null
+    var bestNoteCount = 0
     var start = 0
+    var firstAudible = -1
+    var audible = 0
     for (index in bars.indices) {
-        if (bars[index].issues.isNotEmpty()) start = index + 1
-        else if (index - start + 1 > (best?.count() ?: 0)) best = start..index
+        if (index > 0 && bars[index].page > bars[index - 1].page + 1) {
+            start = index
+            firstAudible = -1
+            audible = 0
+        }
+        if (bars[index].issues.isNotEmpty() || bars[index].beats.isEmpty()) {
+            start = index + 1
+            firstAudible = -1
+            audible = 0
+            continue
+        }
+        if (hasNotes(index)) {
+            if (firstAudible < 0) firstAudible = index
+            audible++
+            val range = firstAudible..index
+            if (audible > bestNoteCount || audible == bestNoteCount && range.count() < (bestAudible?.count() ?: 0)) {
+                bestNoteCount = audible
+                bestAudible = range
+            }
+        } else if (firstAudible < 0 && index - start + 1 > (bestRest?.count() ?: 0)) {
+            bestRest = start..index
+        }
     }
-    return best
+    return bestAudible ?: bestRest
 }
+
+internal fun isPdfMeasureLengthIssue(issue: String, meter: PdfMeter) =
+    issue == "识别出的节奏未填满 $meter 小节" || issue == "音符与休止符不足或超过 $meter 小节"
 
 /** A compact textual form for correcting the rhythm and fingering of one recognized measure. */
 internal object PdfTabCorrection {
@@ -43,7 +75,7 @@ internal object PdfTabCorrection {
     private val duration = Regex("""(1|2|4|8|16|32|64)(\.{0,2})(t?)(g!|g)?(?:r(8|16|32))?(?:w($pitch(?:>$pitch){1,2}))?""")
     private val tremoloDivisions = listOf(8, 16, 32)
     private val fingering = Regex(
-        """([1-9])-(\d{1,2}|X)(m?)(?:\^([0-6](?:\.5)?(?:>[0-6](?:\.5)?){0,2}))?(?:@((?:NH|AH|PH|TH|SH|FB)\d{1,2}(?:\.\d{1,2})?|0))?""",
+        """([1-9])-(\d{1,2}|X)(m?)(?:\^([0-6](?:\.5)?(?:>[0-6](?:\.5)?){0,2}))?(?:@((?:NH|AH|PH|TH|SH|FB)\d{1,2}(?:\.\d{1,2})?|0))?(~?)""",
         RegexOption.IGNORE_CASE
     )
 
@@ -75,6 +107,7 @@ internal object PdfTabCorrection {
                     append(it.kind.code)
                     append(it.node.toString().removeSuffix(".0"))
                 }
+                if (note.tied) append('~')
             }
         }
         "$value ${tokens.ifEmpty { "R" }}"
@@ -84,6 +117,12 @@ internal object PdfTabCorrection {
         val beats = parseBeats(original, strings, text)
         pdfRequire(pdfBeatsFit(beats, original.meter), "音符与休止符的时值需要填满 ${original.meter} 小节。")
         return original.copy(beats = beats, issues = emptyList(), review = emptyList())
+    }
+
+    fun review(original: PdfTabBar, strings: Int, text: String, confirmed: Boolean): PdfTabBar {
+        val corrected = correct(original, strings, text)
+        if (confirmed) return corrected
+        return corrected.copy(issues = original.issues.filterNot { isPdfMeasureLengthIssue(it, original.meter) }, review = original.review)
     }
 
     fun parseBeats(original: PdfTabBar, strings: Int, text: String): List<PdfTabBeat> {
@@ -123,7 +162,11 @@ internal object PdfTabCorrection {
                     3 -> PdfBend(values[0], values[2], values[1])
                     else -> null
                 }
-                (prior ?: PdfTabNote(string, fret, dead)).copy(palmMute = muted, bend = bend, harmonic = harmonic)
+                val note = prior ?: PdfTabNote(string, fret, dead)
+                val tied = match.groupValues[6].isNotEmpty()
+                pdfRequire(!tied || !dead, fail)
+                note.copy(palmMute = muted, bend = bend, harmonic = harmonic, tied = tied || note.tied,
+                    ghost = note.ghost && !tied)
             }
             pdfRequire(notes.distinctBy { it.string }.size == notes.size, "第 ${index + 1} 行的一根弦上有多个音。")
             pdfRequire(grace == null || notes.isNotEmpty() && index < rows.lastIndex, "装饰音需接到后面的主音。")

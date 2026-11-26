@@ -48,6 +48,7 @@ internal class PdfObjects(private val data: ByteArray) {
     private var indexEntries = 0
     private var objectStreamBytes = 0
     val root: Ref
+    private val info: Any?
 
     init {
         pdfRequire(data.size <= VectorPdf.MAX_FILE_BYTES, "PDF 超过 16 MB，请先拆分文件。")
@@ -57,6 +58,7 @@ internal class PdfObjects(private val data: ByteArray) {
         pdfRequire(marker >= 0)
         var start: Int? = PdfTokens(source, marker + "startxref".length).integer()
         var catalog: Ref? = null
+        var information: Any? = null
         val visited = HashSet<Int>()
         while (start != null) {
             checkCancelled()
@@ -78,6 +80,7 @@ internal class PdfObjects(private val data: ByteArray) {
                     catalog = candidate as? Ref ?: throw PdfConversionException("PDF 目录引用无效。")
                 }
             }
+            if (information == null) information = trailer["Info"] ?: supplement?.trailer?.get("Info")
             // A hybrid stream can supply an entry marked free in the compatibility table.
             for ((id, address) in section.entries) {
                 if (address is Address.Direct) addresses.putIfAbsent(id, address)
@@ -87,6 +90,19 @@ internal class PdfObjects(private val data: ByteArray) {
             start = trailer["Prev"]?.let(::integer)
         }
         root = catalog ?: throw PdfConversionException("PDF 缺少文件目录。")
+        info = information
+    }
+
+    fun title(): String? {
+        val title = resolve((resolve(info) as? Dictionary)?.get("Title"))
+        val bytes = when (title) {
+            is Literal -> title.value.toByteArray(Charsets.ISO_8859_1)
+            is Hex -> title.value.take(4096).chunked(2).map { it.padEnd(2, '0').toIntOrNull(16)?.toByte() ?: return null }.toByteArray()
+            else -> return null
+        }
+        return if (bytes.size >= 2 && bytes[0] == 0xfe.toByte() && bytes[1] == 0xff.toByte()) {
+            bytes.toString(Charsets.UTF_16BE).removePrefix("\uFEFF")
+        } else bytes.toString(Charsets.ISO_8859_1)
     }
 
     private fun readTable(reader: PdfTokens): Section {

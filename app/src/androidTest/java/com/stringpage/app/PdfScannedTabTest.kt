@@ -8,15 +8,23 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Rect
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.stringpage.app.pdf.PdfBend
+import com.stringpage.app.pdf.AndroidRasterGlyphs
 import com.stringpage.app.pdf.PdfBox
 import com.stringpage.app.pdf.PdfConversionDocument
 import com.stringpage.app.pdf.PdfConversionException
 import com.stringpage.app.pdf.PdfMeter
+import com.stringpage.app.pdf.PdfLine
+import com.stringpage.app.pdf.PdfPoint
+import com.stringpage.app.pdf.PdfRasterPrintLayout
+import com.stringpage.app.pdf.PdfPrintFrets
+import com.stringpage.app.pdf.PdfRasterTab
+import com.stringpage.app.pdf.RasterTabStaff
 import com.stringpage.app.pdf.PdfTabBar
 import com.stringpage.app.pdf.PdfTabCorrection
 import com.stringpage.app.pdf.PdfTabGp
@@ -101,5 +109,124 @@ class PdfScannedTabTest {
             PdfTabCorrection.correct(original, 6, "4 1-3")
             fail("Accepted a quarter note as a complete 4/4 measure")
         } catch (_: PdfConversionException) { }
+    }
+
+    @Test fun outlinedPrintUsesActualMeasureStrokesInsteadOfDarkInteriorColumns() {
+        val staff = RasterTabStaff(listOf(100, 120, 140, 160, 180, 200), listOf(40, 190, 215, 380))
+        fun vertical(x: Double, top: Double, bottom: Double) = PdfLine(PdfPoint(x, top), PdfPoint(x, bottom))
+        val drawn = listOf(vertical(40.0, 100.0, 200.0), vertical(190.0, 100.0, 200.0),
+            vertical(215.0, 105.0, 200.0), vertical(380.0, 100.0, 200.0))
+        assertEquals(listOf(40, 190, 380), PdfRasterPrintLayout(400.0, drawn).align(staff, 400)?.edges)
+        assertNull(PdfRasterPrintLayout(400.0, drawn.dropLast(1)).align(staff, 400))
+    }
+
+    @Test fun outlinedPrintReadsItsHeaderAndDoesNotTreatUnpairedRhythmAsASilentBar() {
+        val page = Bitmap.createBitmap(1000, 500, Bitmap.Config.ARGB_8888)
+        try {
+            page.eraseColor(Color.WHITE)
+            val canvas = Canvas(page)
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.BLACK; strokeWidth = 2f }
+            val top = 174f
+            val space = 24f
+            val bottom = top + space * 5
+            val left = 92f
+            val edges = listOf(left, 300f, 520f, 910f)
+            repeat(6) { i -> canvas.drawLine(left, top + i * space, edges.last(), top + i * space, paint) }
+            for (x in edges) canvas.drawLine(x, top, x, bottom, paint)
+            paint.typeface = Typeface.SANS_SERIF
+            paint.textSize = space * 3f
+            canvas.drawText("4", left + space * 2.15f, top + space * 2.30f, paint)
+            canvas.drawText("4", left + space * 2.15f, top + space * 4.74f, paint)
+            val tempoStart = left + space * 4.3f
+            canvas.drawOval(tempoStart, top - space * 2.28f, tempoStart + space * 0.56f, top - space * 1.86f, paint)
+            canvas.drawRect(tempoStart + space * 0.45f, top - space * 3.26f, tempoStart + space * 0.56f, top - space * 2.06f, paint)
+            canvas.drawRect(tempoStart + space * 1.08f, top - space * 2.82f, tempoStart + space * 1.63f, top - space * 2.72f, paint)
+            canvas.drawRect(tempoStart + space * 1.08f, top - space * 2.59f, tempoStart + space * 1.63f, top - space * 2.49f, paint)
+            paint.textSize = space * 1.15f
+            canvas.drawText("90", tempoStart + space * 2.02f, top - space * 2.12f, paint)
+            canvas.drawLine(650f, bottom + space * 0.9f, 650f, bottom + space * 2.7f, paint)
+
+            val layout = PdfRasterPrintLayout(page.width.toDouble(), edges.map { x ->
+                PdfLine(PdfPoint(x.toDouble(), top.toDouble()), PdfPoint(x.toDouble(), bottom.toDouble()))
+            })
+            val result = PdfRasterTab(AndroidRasterGlyphs.load(context.assets)).recognize(
+                AndroidRasterGlyphs.bitmapToInk(page), 1, 1, printLayout = layout).first
+            assertEquals(90, result.bpm)
+            assertFalse(result.meterNeedsConfirmation)
+            assertEquals(PdfMeter(4, 4), result.bars.first().meter)
+            assertEquals(3, result.bars.size)
+            assertTrue(result.bars.take(2).all { it.issues.isEmpty() && it.beats.single().notes.isEmpty() })
+            assertTrue(result.bars.last().issues.isNotEmpty())
+        } finally { page.recycle() }
+    }
+
+    @Test fun outlinedChordKeepsAnAlertForUnreadableInkOnAnotherString() {
+        val page = Bitmap.createBitmap(1000, 380, Bitmap.Config.ARGB_8888)
+        try {
+            page.eraseColor(Color.WHITE)
+            val canvas = Canvas(page)
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.BLACK; strokeWidth = 2f }
+            val top = 105f
+            val space = 24f
+            val bottom = top + space * 5
+            val left = 64f
+            val right = 936f
+            repeat(6) { i -> canvas.drawLine(left, top + i * space, right, top + i * space, paint) }
+            val edges = listOf(left, right)
+            for (x in edges) canvas.drawLine(x, top, x, bottom, paint)
+            paint.typeface = Typeface.SANS_SERIF
+            paint.textSize = space * 1.1f
+            paint.textAlign = Paint.Align.CENTER
+            for ((index, fret) in listOf("0", "3", "2", "7").withIndex()) {
+                val x = 180f + index * 160
+                paint.color = Color.WHITE
+                canvas.drawRect(x - 13, bottom - 15, x + 13, bottom + 12, paint)
+                paint.color = Color.BLACK
+                canvas.drawText(fret, x, bottom + space * 0.36f, paint)
+                canvas.drawLine(x, bottom + space * 0.68f, x, bottom + space * 2.5f, paint)
+            }
+            val y = top + space * 2
+            paint.color = Color.WHITE
+            canvas.drawRect(168f, y - 6f, 192f, y + 6f, paint)
+            paint.color = Color.BLACK
+            canvas.drawRect(178f, y - 4f, 182f, y + 5f, paint)
+            val layout = PdfRasterPrintLayout(page.width.toDouble(), edges.map { x ->
+                PdfLine(PdfPoint(x.toDouble(), top.toDouble()), PdfPoint(x.toDouble(), bottom.toDouble()))
+            })
+            val bar = PdfRasterTab(AndroidRasterGlyphs.load(context.assets)).recognize(
+                AndroidRasterGlyphs.bitmapToInk(page), 1, 1, printLayout = layout).first.bars.single()
+            assertEquals(listOf(0, 3, 2, 7), bar.beats.map { it.notes.single().fret })
+            assertTrue(bar.issues.toString(), "第 3 弦品位需确认" in bar.issues)
+        } finally { page.recycle() }
+    }
+
+    @Test fun aPrintedFretIsReadFromItsDigitOutlineInsideTheBrackets() {
+        val bitmap = Bitmap.createBitmap(210, 150, Bitmap.Config.ARGB_8888)
+        try {
+            val gap = 24.0
+            val center = 90.0
+            val row = 67.0
+            val canvas = Canvas(bitmap)
+            canvas.drawColor(Color.WHITE)
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+                textSize = (gap * 1.15).toFloat()
+            }
+            fun glyph(text: String, x: Double): PdfBox {
+                val bounds = Rect()
+                paint.getTextBounds(text, 0, text.length, bounds)
+                val originX = x - bounds.exactCenterX()
+                val originY = row - bounds.exactCenterY()
+                canvas.drawText(text, originX.toFloat(), originY.toFloat(), paint)
+                return PdfBox(originX + bounds.left, originY + bounds.top, originX + bounds.right, originY + bounds.bottom)
+            }
+            val digit = glyph("4", center)
+            val open = glyph("(", center - gap * 0.60)
+            val close = glyph(")", center + gap * 0.60)
+            val matcher = AndroidRasterGlyphs.load(context.assets)
+            val image = AndroidRasterGlyphs.bitmapToInk(bitmap)
+            assertEquals(PdfPrintFrets.Fingering(4, true), PdfPrintFrets(image, gap, listOf(open, digit, close), matcher).at(center, row))
+            assertNull(PdfPrintFrets(image, gap, listOf(open, digit), matcher).at(center, row))
+        } finally { bitmap.recycle() }
     }
 }

@@ -9,6 +9,40 @@ internal data class RasterTabStaff(val rows: List<Int>, val edges: List<Int>) {
     val gap get() = (bottom - top) / (rows.size - 1).toDouble()
 }
 
+/** In outlined web prints the barlines remain strokes, even though note labels are artwork. */
+internal class PdfRasterPrintLayout(private val pageWidth: Double, private val lines: List<PdfLine>,
+                                   private val outlines: List<PdfBox> = emptyList()) {
+    fun outlinesIn(staff: RasterTabStaff, imageWidth: Int, belowStaff: Boolean = false): List<PdfBox> {
+        val scale = imageWidth / pageWidth
+        val margin = staff.gap * 0.7
+        val top = if (belowStaff) staff.bottom + margin else staff.top - margin
+        val bottom = staff.bottom + if (belowStaff) staff.gap * 4.2 else margin
+        return outlines.asSequence().filter { box ->
+            box.left * scale > staff.edges.first() && box.right * scale < staff.edges.last() &&
+                box.top * scale >= top && box.bottom * scale <= bottom
+        }.map { PdfBox(it.left * scale, it.top * scale, it.right * scale, it.bottom * scale) }.toList()
+    }
+    fun align(staff: RasterTabStaff, imageWidth: Int): RasterTabStaff? {
+        val scale = imageWidth / pageWidth
+        val margin = staff.gap * 0.20
+        val left = staff.edges.first()
+        val right = staff.edges.last()
+        val edges = lines.mapNotNull { line ->
+            val x = line.from.x * scale
+            val top = minOf(line.from.y, line.to.y) * scale
+            val bottom = maxOf(line.from.y, line.to.y) * scale
+            x.roundToInt().takeIf {
+                abs(line.to.x - line.from.x) * scale < 0.5 && x in (left - margin)..(right + margin) &&
+                    abs(top - staff.top) <= margin && abs(bottom - staff.bottom) <= margin
+            }
+        }.distinct().sorted()
+        val end = edges.lastOrNull()?.takeIf { abs(it - right) <= margin } ?: return null
+        val start = edges.first().takeIf { abs(it - left) <= margin } ?: left
+        val aligned = listOf(start) + edges.filter { it > start + margin && it < end - margin } + end
+        return staff.copy(edges = aligned)
+    }
+}
+
 internal object PdfRasterLayout {
     private data class Grid(val rows: List<Int>, val strength: Double)
 
