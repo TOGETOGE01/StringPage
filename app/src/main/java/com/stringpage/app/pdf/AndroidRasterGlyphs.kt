@@ -48,6 +48,10 @@ internal object AndroidRasterGlyphs {
         for (token in (0..9).map(Int::toString) + "X") {
             glyph(RasterAlphabet.PRINT_DIGIT, token, token, bold, measure * 1.15f)
         }
+        for (number in 2..9) {
+            val token = number.toString()
+            glyph(RasterAlphabet.PRINT_TUPLET, token, token, bold, measure * 0.74f)
+        }
         for ((token, value) in PdfRasterGlyphs.rests) glyph(RasterAlphabet.REST, token, value, music, measure * 2.667f)
         for ((token, value) in PdfRasterGlyphs.flags) glyph(RasterAlphabet.FLAG, token, value, music, measure * 2.667f)
         for ((token, value) in PdfRasterGlyphs.meter) glyph(RasterAlphabet.METER, token, value, music, measure * 2.667f)

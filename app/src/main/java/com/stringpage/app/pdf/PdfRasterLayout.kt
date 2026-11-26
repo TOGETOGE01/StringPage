@@ -12,6 +12,35 @@ internal data class RasterTabStaff(val rows: List<Int>, val edges: List<Int>) {
 /** In outlined web prints the barlines remain strokes, even though note labels are artwork. */
 internal class PdfRasterPrintLayout(private val pageWidth: Double, private val lines: List<PdfLine>,
                                    private val outlines: List<PdfBox> = emptyList()) {
+    fun recoverStaves(detected: List<RasterTabStaff>, imageWidth: Int): List<RasterTabStaff> {
+        val frame = detected.maxByOrNull { it.edges.last() - it.edges.first() } ?: return detected
+        val scale = imageWidth / pageWidth
+        val left = frame.edges.first()
+        val right = frame.edges.last()
+        val margin = frame.gap * 0.21
+        val horizontal = lines.filter { abs(it.from.y - it.to.y) * scale < 0.5 }
+        val extra = lines.mapNotNull { edge ->
+            if (abs(edge.from.x - edge.to.x) * scale >= 0.5 || abs(edge.from.x * scale - left) > margin) return@mapNotNull null
+            val top = minOf(edge.from.y, edge.to.y) * scale
+            val bottom = maxOf(edge.from.y, edge.to.y) * scale
+            if ((bottom - top) / frame.gap !in 4.86..5.14 ||
+                detected.any { top <= it.bottom && bottom >= it.top }) return@mapNotNull null
+            // When digits cover a string, the line may survive only as short strokes between adjacent frets.
+            val gap = (bottom - top) / 5
+            val rows = (0..5).map { (top + gap * it).roundToInt() }
+            val coverage = rows.map { y ->
+                horizontal.filter { abs(it.from.y * scale - y) <= margin }.sumOf {
+                    val a = minOf(it.from.x, it.to.x) * scale
+                    val b = maxOf(it.from.x, it.to.x) * scale
+                    (minOf(b, right.toDouble()) - maxOf(a, left.toDouble())).coerceAtLeast(0.0)
+                } / (right - left)
+            }
+            if (coverage.any { it < 0.035 } || coverage.count { it >= 0.72 } < 4) return@mapNotNull null
+            align(RasterTabStaff(rows, listOf(left, right)), imageWidth)
+        }.distinctBy { it.top }
+        return (detected + extra).sortedBy { it.top }
+    }
+
     fun outlinesIn(staff: RasterTabStaff, imageWidth: Int, belowStaff: Boolean = false): List<PdfBox> {
         val scale = imageWidth / pageWidth
         val margin = staff.gap * 0.7
@@ -27,18 +56,30 @@ internal class PdfRasterPrintLayout(private val pageWidth: Double, private val l
         val margin = staff.gap * 0.20
         val left = staff.edges.first()
         val right = staff.edges.last()
+        val endMargin = staff.gap * 0.78
         val edges = lines.mapNotNull { line ->
             val x = line.from.x * scale
             val top = minOf(line.from.y, line.to.y) * scale
             val bottom = maxOf(line.from.y, line.to.y) * scale
             x.roundToInt().takeIf {
-                abs(line.to.x - line.from.x) * scale < 0.5 && x in (left - margin)..(right + margin) &&
+                abs(line.to.x - line.from.x) * scale < 0.5 && x in (left - margin)..(right + endMargin) &&
                     abs(top - staff.top) <= margin && abs(bottom - staff.bottom) <= margin
             }
         }.distinct().sorted()
-        val end = edges.lastOrNull()?.takeIf { abs(it - right) <= margin } ?: return null
+        // At a final double bar, raster detection may choose the inside stroke.
+        val outside = edges.lastOrNull()?.takeIf { it > right + margin }
+        val confirmedEnd = outside?.takeIf { x ->
+            staff.rows.count { y ->
+                lines.any { line ->
+                    abs(line.from.y - line.to.y) * scale < 0.5 && abs(line.from.y * scale - y) <= margin &&
+                        abs(maxOf(line.from.x, line.to.x) * scale - x) <= margin &&
+                        abs(line.to.x - line.from.x) * scale >= staff.gap * 2
+                }
+            } >= 4
+        }
+        val end = confirmedEnd ?: edges.lastOrNull { abs(it - right) <= margin } ?: return null
         val start = edges.first().takeIf { abs(it - left) <= margin } ?: left
-        val aligned = listOf(start) + edges.filter { it > start + margin && it < end - margin } + end
+        val aligned = listOf(start) + edges.filter { it > start + margin && it < end - endMargin } + end
         return staff.copy(edges = aligned)
     }
 }

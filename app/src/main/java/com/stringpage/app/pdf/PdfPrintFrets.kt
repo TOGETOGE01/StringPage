@@ -3,6 +3,7 @@ package com.stringpage.app.pdf
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
+import kotlin.math.roundToInt
 
 /** Read the independent digit outlines in a web print, even when nearby ink joins them in the raster. */
 internal class PdfPrintFrets(private val image: PdfRasterImage, private val gap: Double, private val outlines: List<PdfBox>,
@@ -12,6 +13,18 @@ internal class PdfPrintFrets(private val image: PdfRasterImage, private val gap:
     fun hasDigitNear(x: Double, y: Double): Boolean = outlines.any {
         isDigitBox(it) && abs((it.left + it.right) / 2 - x) <= gap * 0.68 &&
             abs((it.top + it.bottom) / 2 - y) < gap * 0.22
+    }
+
+    fun chordCenter(left: Int, right: Int, rows: List<Int>): Double? {
+        val digits = outlines.filter { box ->
+            box.left >= left - gap * 0.13 && box.right <= right + gap * 0.13 && isDigitBox(box) &&
+                rows.any { abs((box.top + box.bottom) / 2 - it) < gap * 0.20 }
+        }
+        val first = digits.minOfOrNull { it.left } ?: return null
+        val last = digits.maxOf { it.right }
+        if ((last - first) / gap !in 0.22..1.80) return null
+        val x = (first + last) / 2
+        return x.takeIf { rows.any { at(x, it.toDouble()) != null } }
     }
 
     fun at(x: Double, y: Double): Fingering? {
@@ -33,9 +46,10 @@ internal class PdfPrintFrets(private val image: PdfRasterImage, private val gap:
             val box = RasterBox(floor(digit.left - pad).toInt(), floor(digit.top - pad).toInt(),
                 ceil(digit.right + pad).toInt(), ceil(digit.bottom + pad).toInt())
             val patch = image.filter(box)
-            val match = glyphs.match(RasterAlphabet.PRINT_DIGIT, patch, digit.height / gap) ?: return null
-            val value = match.value.toIntOrNull() ?: return null
-            if (match.distance > 0.44 || match.separation < 0.045 || (digits.size == 2 && digit == digits.first() && value == 0)) return null
+            val match = glyphs.match(RasterAlphabet.PRINT_DIGIT, patch, digit.height / gap)
+            val value = match?.takeIf { it.distance <= 0.44 && it.separation >= 0.045 }?.value?.toIntOrNull()
+                ?: if (isZeroOutline(digit, nearby)) 0 else return null
+            if (digits.size == 2 && digit == digits.first() && value == 0) return null
             fret = fret * 10 + value
         }
         if (fret !in 0..36) return null
@@ -44,6 +58,20 @@ internal class PdfPrintFrets(private val image: PdfRasterImage, private val gap:
         val close = brackets.singleOrNull { (it.left - right) / gap in 0.0..0.34 }
         if ((open == null) != (close == null)) return null
         return Fingering(fret, open != null)
+    }
+
+    private fun isZeroOutline(digit: PdfBox, nearby: List<PdfBox>): Boolean {
+        if (digit.width / digit.height !in 0.51..0.75 || digit.height / gap !in 0.74..0.98) return false
+        val inside = nearby.filter { it != digit && digit.contains(it) }
+        val hole = inside.singleOrNull() ?: return false
+        if (hole.width / digit.width !in 0.24..0.52 || hole.height / digit.height !in 0.58..0.78 ||
+            abs((hole.left + hole.right) - (digit.left + digit.right)) > digit.width * 0.13 ||
+            abs((hole.top + hole.bottom) - (digit.top + digit.bottom)) > digit.height * 0.13) return false
+        val y = ((hole.top + hole.bottom) / 2).roundToInt()
+        val center = ((hole.left + hole.right) / 2).roundToInt()
+        val left = ((digit.left + hole.left) / 2).roundToInt()
+        val right = ((hole.right + digit.right) / 2).roundToInt()
+        return image[center, y] < 80 && image[left, y] >= 105 && image[right, y] >= 105
     }
 
     private fun isDigitBox(box: PdfBox) = box.height / gap in 0.59..1.02 && box.width / gap in 0.22..0.77

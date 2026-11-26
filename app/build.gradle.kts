@@ -158,8 +158,8 @@ android {
         applicationId = "com.stringpage.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 58
-        versionName = "1.38.0"
+        versionCode = 59
+        versionName = "1.39.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64") }
         externalNativeBuild { cmake { arguments += "-DANDROID_STL=c++_static" } }
