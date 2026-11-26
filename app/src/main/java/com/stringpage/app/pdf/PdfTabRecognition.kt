@@ -139,7 +139,10 @@ internal object PdfTabRecognition {
                         val sustained = if (timed == null && previous != null && notation == null) {
                             readSustainedMeasure(drawings[track], staff.tab, bar, previous)
                         } else null
-                        val result = timed?.bar ?: sustained ?: if (system.size > 1 && isBlankStaffBar(geometry, staff, bar)) {
+                        val closing = page == pdf.pageCount && system === systems.last() && column == staff.edges.lastIndex - 1
+                        val blank = isBlankStaffBar(geometry, staff, bar) &&
+                            (system.size > 1 || closing && hasClosingDoubleBar(geometry, staff.tab, bar.bounds.right))
+                        val result = timed?.bar ?: sustained ?: if (blank) {
                             bar.copy(beats = listOf(PdfTabBeat(1, emptyList())), issues = emptyList())
                         } else bar
                         val onsets = if (result === bar) fromTab.onsets else timed?.onsets.orEmpty()
@@ -165,6 +168,19 @@ internal object PdfTabRecognition {
         return geometry.text.none { span ->
             span.x > bar.bounds.left && span.x < bar.bounds.right && span.y in top..bottom &&
                 (fretLabel(span, staff.tab.gap) || span.text.any { it in '\ue0a0'..'\ue0ff' || it in '\ue4e0'..'\ue50f' })
+        }
+    }
+
+    private fun hasClosingDoubleBar(geometry: PdfGeometry, staff: PdfStaff, right: Double): Boolean {
+        val gap = staff.gap
+        val marks = geometry.fills.filter {
+            abs(it.top - staff.top) <= gap * 0.10 && abs(it.bottom - staff.bottom) <= gap * 0.10
+        }
+        val heavy = marks.singleOrNull {
+            abs((it.left + it.right) / 2 - right) <= gap * 0.18 && (it.right - it.left) / gap in 0.24..0.52
+        } ?: return false
+        return marks.any {
+            (it.right - it.left) / gap in 0.06..0.21 && (heavy.left - it.right) / gap in 0.12..0.55
         }
     }
 
@@ -254,15 +270,16 @@ internal object PdfTabRecognition {
         }
         PdfTabHarmonics.apply(g, staff, gap, anchors, precedingNotes, review)
         for (stem in stems.filter { candidate -> anchors.none { it.stem == candidate } }) {
-            for ((start, end) in ties.filter { (_, end) -> stem.x - end.x in (gap * 0.16)..(gap * 1.1) }) {
+            for ((start, end) in ties.filter { (_, end) -> (stem.x - end.x) / gap in -0.08..1.28 }) {
                 val origin = anchors.filter {
-                    val reachesFret = tieReachesAnchor(start, it, gap)
+                    val reachesCenter = abs(start.x - it.stem.x) < gap * 0.12 && abs(end.x - stem.x) < gap * 0.12
+                    val reachesFret = tieReachesAnchor(start, it, gap) || reachesCenter
                     val reachesHarmonic = it.note.harmonic?.kind?.let { kind -> kind != PdfHarmonicKind.NATURAL } == true &&
                         spans.any { label ->
                         label.x - it.right in 0.0..gap && abs(start.x - label.right) < gap * 0.4 &&
                             abs(label.y - it.line) < gap / 2 && harmonicPattern.matches(label.text.trim())
                     }
-                    (reachesFret || reachesHarmonic) && abs(it.line - start.y) < gap * 0.6
+                    it.stem.x < stem.x && (reachesFret || reachesHarmonic) && abs(it.line - start.y) < gap * 0.6
                 }.singleOrNull() ?: continue
                 anchors.add(PdfTabAnchor(stem, stem.x, origin.line, origin.note.copy(tied = true, ghost = false, bend = null)))
             }
@@ -365,19 +382,29 @@ internal object PdfTabRecognition {
         val frets = spans.filter { fretLabel(it, tab.gap) }
         if (frets.size != prior.size || frets.any { !it.text.trim().startsWith('(') || it.x > bar.bounds.left + tab.gap * 4 }) return null
         val strokes = g.text.filter { '\ueab2' in it.text && it.y in (tab.top - tab.gap * 6)..tab.top }
-        if (strokes.none { it.x in (bar.bounds.left - tab.gap)..(bar.bounds.left + tab.gap * 4) } ||
-            strokes.none { it.right >= bar.bounds.right - tab.gap * 2 && it.x < bar.bounds.right }) return null
+        val sustainedEffect = strokes.any { it.x in (bar.bounds.left - tab.gap)..(bar.bounds.left + tab.gap * 4) } &&
+            strokes.any { it.right >= bar.bounds.right - tab.gap * 2 && it.x < bar.bounds.right }
         val candidate = frets.map { span ->
             val string = tab.rows.indices.minBy { abs(tab.rows[it] + tab.gap * 0.367 - span.y) }
             val fret = span.text.trim().removeSurrounding("(", ")").toIntOrNull() ?: return null
+            if (!sustainedEffect && !hasIncomingSustain(g, tab.rows[string], tab.gap, bar.bounds.left, span.x)) return null
             prior.singleOrNull { it.string == tab.rows.size - string && it.fret == fret } ?: return null
         }
         if (candidate.distinctBy { it.string }.size != prior.size) return null
         val continued = candidate.map { it.copy(tied = true, ghost = false, bend = it.bend?.end?.takeIf { level -> level > 0 }?.let(PdfBend::hold),
             slideIn = null, slideOut = null, hammerPull = false) }
+        val review = if (sustainedEffect) (bar.review + "跨小节延音的时值按小节长度还原").distinct() else bar.review
         return bar.copy(beats = listOf(PdfTabBeat(1, continued)), issues = emptyList(),
-            review = (bar.review + "跨小节延音的时值按小节长度还原").distinct())
+            review = review)
     }
+
+    private fun hasIncomingSustain(g: PdfGeometry, row: Double, gap: Double, left: Double, fretX: Double): Boolean =
+        g.filledArcs.any { arc ->
+            val start = minOf(arc.from.x, arc.to.x)
+            val end = maxOf(arc.from.x, arc.to.x)
+            start < left && end > left && (fretX - end) / gap in -0.09..0.55 &&
+                abs(arc.from.y - row) < gap * 0.60 && abs(arc.to.y - arc.from.y) < gap * 0.08
+        }
 
     private fun readWithStandardRhythm(
         g: PdfGeometry, tabGeometry: PdfGeometry, tab: PdfStaff, notation: PdfStaff, bar: PdfTabBar,
@@ -446,10 +473,11 @@ internal object PdfTabRecognition {
             .map { it - '\ue220' + 1 }.distinct().singleOrNull()
 
     private fun fretLabel(span: PdfText, gap: Double) =
-        span.font.startsWith("Arial", true) && span.size in (gap * 1.02)..(gap * 1.17)
+        span.size in (gap * 1.02)..(gap * 1.17) &&
+            (notePattern.matches(span.text.trim()) || span.font.startsWith("Arial", true))
 
     private fun isSmallFret(span: PdfText, rows: List<Double>, gap: Double) =
-        span.font.startsWith("Arial", true) && span.size in (gap * 0.64)..(gap * 0.96) &&
+        span.size in (gap * 0.64)..(gap * 0.96) &&
             span.text.trim().toIntOrNull()?.let { it in 0..36 } == true && rows.any { abs(it + gap * 0.275 - span.y) < gap * 0.105 }
 
     private fun readFret(
@@ -462,7 +490,7 @@ internal object PdfTabRecognition {
         val fret = match.groups[1]?.value?.toIntOrNull() ?: harmonic?.toInt() ?: parenthesized ?: 0
         if (fret !in 0..36) return null
         val artificial = if (harmonic == null) spans.asSequence().filter {
-            it.font.startsWith("Arial", true) && it.size < gap && it.x - span.right in 0.01..gap &&
+            it.size < gap && it.x - span.right in 0.01..gap &&
                 abs(it.y - staff[stringIndex]) < gap / 2
         }.mapNotNull { harmonicPattern.matchEntire(it.text.trim())?.groupValues?.get(1)?.toDoubleOrNull() }.singleOrNull() else null
         val tied = parenthesized != null && ties.any { (_, end) -> span.x - end.x in (-gap * 0.1)..(gap * 0.55) &&

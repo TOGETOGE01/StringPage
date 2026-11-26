@@ -1,6 +1,7 @@
 package com.stringpage.app.pdf
 
 import kotlin.math.abs
+import kotlin.math.ceil
 import kotlin.math.roundToInt
 
 internal data class RasterTabStaff(val rows: List<Int>, val edges: List<Int>) {
@@ -41,32 +42,52 @@ internal class PdfRasterPrintLayout(private val pageWidth: Double, private val l
     }
 
     fun recoverStaves(detected: List<RasterTabStaff>, imageWidth: Int): List<RasterTabStaff> {
-        val frame = detected.maxByOrNull { it.edges.last() - it.edges.first() } ?: return detected
         val scale = imageWidth / pageWidth
-        val left = frame.edges.first()
-        val right = frame.edges.last()
-        val margin = frame.gap * 0.21
-        val horizontal = lines.filter { abs(it.from.y - it.to.y) * scale < 0.5 }
-        val extra = lines.mapNotNull { edge ->
-            if (abs(edge.from.x - edge.to.x) * scale >= 0.5 || abs(edge.from.x * scale - left) > margin) return@mapNotNull null
-            val top = minOf(edge.from.y, edge.to.y) * scale
-            val bottom = maxOf(edge.from.y, edge.to.y) * scale
-            if ((bottom - top) / frame.gap !in 4.86..5.14 ||
-                detected.any { top <= it.bottom && bottom >= it.top }) return@mapNotNull null
-            // When digits cover a string, the line may survive only as short strokes between adjacent frets.
-            val gap = (bottom - top) / 5
-            val rows = (0..5).map { (top + gap * it).roundToInt() }
-            val coverage = rows.map { y ->
-                horizontal.filter { abs(it.from.y * scale - y) <= margin }.sumOf {
-                    val a = minOf(it.from.x, it.to.x) * scale
-                    val b = maxOf(it.from.x, it.to.x) * scale
-                    (minOf(b, right.toDouble()) - maxOf(a, left.toDouble())).coerceAtLeast(0.0)
-                } / (right - left)
+        val paintedRows = lines.asSequence().filter { abs(it.from.y - it.to.y) * scale < 0.5 }
+            .groupBy({ ((it.from.y + it.to.y) * scale / 2).roundToInt() }) {
+                (minOf(it.from.x, it.to.x) * scale)..(maxOf(it.from.x, it.to.x) * scale)
             }
-            if (coverage.any { it < 0.035 } || coverage.count { it >= 0.72 } < 4) return@mapNotNull null
-            align(RasterTabStaff(rows, listOf(left, right)), imageWidth)
-        }.distinctBy { it.top }
-        return (detected + extra).sortedBy { it.top }
+        val frames = lines.asSequence().filter { abs(it.from.x - it.to.x) * scale < 0.5 }
+            .map { (minOf(it.from.y, it.to.y) * scale).roundToInt() to (maxOf(it.from.y, it.to.y) * scale).roundToInt() }
+            .filter { (top, bottom) -> (bottom - top).toDouble() / imageWidth in 0.027..0.32 }
+            .distinct()
+        val recovered = detected.toMutableList()
+        val aligned = detected.filter { align(it, imageWidth) != null }.toMutableList()
+        for ((top, bottom) in frames) {
+            checkCancelled()
+            if (aligned.any { top <= it.bottom && bottom >= it.top }) continue
+            val gap = (bottom - top) / 5.0
+            val rows = (0..5).map { (top + gap * it).roundToInt() }
+            val margin = ceil(gap * 0.19).toInt()
+            val fragments = rows.map { y -> (y - margin..y + margin).flatMap { paintedRows[it].orEmpty() } }
+            val extents = fragments.mapNotNull { strokes ->
+                val left = strokes.minOfOrNull { it.start } ?: return@mapNotNull null
+                val right = strokes.maxOf { it.endInclusive }
+                (left..right).takeIf { right - left >= imageWidth * 0.26 }
+            }
+            if (extents.size < 4) continue
+            val left = extents.map { it.start }.sorted()[extents.size / 2].roundToInt()
+            val right = extents.map { it.endInclusive }.sorted()[extents.size / 2].roundToInt()
+            val coverage = fragments.map { coveredWidth(it, left, right) / (right - left) }
+            if (coverage.any { it < 0.035 } || coverage.count { it >= 0.72 } < 4) continue
+            val staff = align(RasterTabStaff(rows, listOf(left, right)), imageWidth) ?: continue
+            recovered.removeAll { top <= it.bottom && bottom >= it.top }
+            recovered.add(staff)
+            aligned.add(staff)
+        }
+        return recovered.sortedBy { it.top }
+    }
+
+    private fun coveredWidth(strokes: List<ClosedFloatingPointRange<Double>>, left: Int, right: Int): Double {
+        var end = left.toDouble()
+        var total = 0.0
+        for (stroke in strokes.sortedBy { it.start }) {
+            val next = minOf(stroke.endInclusive, right.toDouble())
+            if (next <= end) continue
+            total += (next - maxOf(end, stroke.start)).coerceAtLeast(0.0)
+            end = next
+        }
+        return total
     }
 
     fun outlinesIn(staff: RasterTabStaff, imageWidth: Int, belowStaff: Boolean = false): List<PdfBox> {

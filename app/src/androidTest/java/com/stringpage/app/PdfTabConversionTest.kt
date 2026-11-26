@@ -93,6 +93,49 @@ class PdfTabConversionTest {
         } catch (_: PdfConversionException) { }
     }
 
+    @Test fun printedFretNumbersDoNotRequireTheArialFont() {
+        val source = examplePdf()
+        val otherFont = classicPdf(exampleObjects(source).values.map {
+            it.trimEnd().replace("/BaseFont /ArialRegular", "/BaseFont /TimesNewRomanRegular")
+        })
+        val original = PdfTabRecognition.read(VectorPdf(source), 1)
+        val changedFont = PdfTabRecognition.read(VectorPdf(otherFont), 1)
+        assertEquals(original.tracks, changedFont.tracks)
+        assertEquals(2.0, load(PdfTabGp.encode("Serif TAB", 120, changedFont.bars)).masterBars.length, 0.0)
+    }
+
+    @Test fun tabPrintExportsHiddenTiedNotesWholeBarTiesAndTheClosingRest() {
+        for (centered in listOf(true, false)) {
+            val content = buildString {
+                append("1 0 0 -1 0 400 cm\n")
+                for (y in 100..130 step 6) append("28 $y m 370 $y l S\n")
+                for (x in listOf(28, 136, 260)) append("$x 100 m $x 130 l S\n")
+                append("367.5 100 0.7 30 re f\n369 100 2 30 re f\n")
+                append(drawText("G", "17", "31", "115", "\ue06d"))
+                append(drawText("G", "17", "42", "111", "\ue084"))
+                append(drawText("G", "17", "42", "118", "\ue084"))
+                append(drawText("A", "6.6", "72", "102.2", "3"))
+                append(drawText("A", "6.6", "108", "102.2", "0"))
+                append(drawText("A", "6.6", "122", "102.2", "5"))
+                for (x in listOf(74, 96, 110, 124)) append("$x 133 m $x 150 l S\n")
+                val (from, to) = if (centered) 74 to 96 else 77 to 89
+                append("$from 100 m 81 95 84 95 $to 100 c 84 96 81 96 $from 100 c f\n")
+                append("129 100 m 133 95 139 95 143 100 c 139 96 133 96 129 100 c f\n")
+                append(drawText("A", "6.6", "144", "102.2", "(5)"))
+            }
+            val converted = PdfTabRecognition.read(VectorPdf(wrapPdf(content)), 1)
+            assertTrue(converted.bars.toString(), converted.bars.all { it.issues.isEmpty() })
+            val score = load(PdfTabGp.encode("Printed ties", 90, converted.bars))
+            val bars = score.tracks[0].staves[0].bars
+            assertEquals(3.0, bars.length, 0.0)
+            assertTrue(bars[0].voices[0].beats[1].notes[0].isTieDestination)
+            assertEquals(3.0, bars[0].voices[0].beats[1].notes[0].fret, 0.0)
+            assertEquals(Duration.Whole, bars[1].voices[0].beats[0].duration)
+            assertTrue(bars[1].voices[0].beats[0].notes[0].isTieDestination)
+            assertTrue(bars[2].voices[0].beats[0].isFullBarRest)
+        }
+    }
+
     @Test fun saveExplainsWhichMeasureNeedsCorrection() = withPdfEditor(examplePdf(includeRest = false)) { activity ->
         waitForText(activity, "无法保存 GP · 第 1 小节待校对")
         tapSave(activity)

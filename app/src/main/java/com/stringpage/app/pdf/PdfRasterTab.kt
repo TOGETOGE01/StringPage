@@ -24,11 +24,18 @@ internal class PdfRasterTab(private val glyphs: PdfRasterGlyphs) {
     fun recognize(source: PdfRasterImage, page: Int, start: Int, inherited: MeterResult? = null,
                   printLayout: PdfRasterPrintLayout? = null, preceding: List<PdfTabNote> = emptyList()): Pair<PdfTabResult, MeterResult> {
         val slope = source.detectSlope()
-        val straight = source.deskew(slope)
+        // Lines outside the score can dominate the raster's estimate even on a straight digital page.
+        val print = printLayout?.takeIf { hints ->
+            slope == 0.0 || hints.recoverStaves(emptyList(), source.width).let { frames ->
+                frames.isNotEmpty() && hints.matches(frames, source.width)
+            }
+        }
+        val straight = if (print != null) source else source.deskew(slope)
         val detected = PdfRasterLayout.staves(straight)
-        pdfRequire(detected.isNotEmpty(), "这一页没有找到成组的六根弦线。请选用清晰、平直的六线谱扫描件。")
-        val layout = printLayout?.takeIf { slope == 0.0 && it.matches(detected, straight.width) }
-        val systems = layout?.recoverStaves(detected, straight.width) ?: detected
+        val reconstructed = print?.recoverStaves(detected, straight.width).orEmpty()
+        val layout = print?.takeIf { it.matches(reconstructed, straight.width) }
+        val systems = if (layout == null) detected else reconstructed
+        pdfRequire(systems.isNotEmpty(), "这一页没有找到成组的六根弦线。请选用清晰、平直的六线谱扫描件。")
         val strips = systems.mapIndexed { index, original ->
             val aligned = layout?.align(original, straight.width)
             val staff = aligned ?: original

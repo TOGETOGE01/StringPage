@@ -24,6 +24,7 @@ import com.stringpage.app.pdf.PdfMeter
 import com.stringpage.app.pdf.PdfLine
 import com.stringpage.app.pdf.PdfPoint
 import com.stringpage.app.pdf.PdfRasterPrintLayout
+import com.stringpage.app.pdf.PdfRasterLayout
 import com.stringpage.app.pdf.PdfRasterRescan
 import com.stringpage.app.pdf.PdfRasterGlyphs
 import com.stringpage.app.pdf.PdfPrintFrets
@@ -219,6 +220,78 @@ class PdfScannedTabTest {
         assertEquals(listOf(detected), PdfRasterPrintLayout(400.0, frame + continuous).recoverStaves(listOf(detected), 400))
         assertEquals(listOf(detected), PdfRasterPrintLayout(400.0, frame.dropLast(1) + continuous + fragments)
             .recoverStaves(listOf(detected), 400))
+    }
+
+    @Test fun printedFramesFindRowsOfDifferentWidthsAndDoNotNeedARasterAnchor() {
+        fun line(x: Double, y: Double, endX: Double, endY: Double) = PdfLine(PdfPoint(x, y), PdfPoint(endX, endY))
+        fun system(top: Int, left: Int, inside: Int, right: Int): Pair<RasterTabStaff, List<PdfLine>> {
+            val rows = (0..5).map { top + 20 * it }
+            val edges = listOf(left, inside, right)
+            val strings = rows.map { y -> line(left.toDouble(), y.toDouble(), right.toDouble(), y.toDouble()) }
+            val bars = edges.drop(1).map { x -> line(x.toDouble(), top.toDouble(), x.toDouble(), rows.last().toDouble()) }
+            return RasterTabStaff(rows, edges) to (strings + bars)
+        }
+        val (first, firstStrokes) = system(90, 40, 210, 565)
+        val (last, lastStrokes) = system(257, 45, 170, 380)
+        val formDivider = line(80.0, 440.0, 80.0, 540.0)
+        val layout = PdfRasterPrintLayout(600.0, firstStrokes + lastStrokes + formDivider)
+        assertEquals(listOf(first, last), layout.recoverStaves(listOf(first), 600))
+        assertEquals(listOf(first, last), layout.recoverStaves(emptyList(), 600))
+    }
+
+    @Test fun exportedPrintedNotesSurviveWhenRasterStaffLinesAreTooFaint() {
+        val bitmap = Bitmap.createBitmap(780, 350, Bitmap.Config.ARGB_8888)
+        try {
+            bitmap.eraseColor(Color.WHITE)
+            val canvas = Canvas(bitmap)
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.rgb(240, 240, 240); strokeWidth = 1f }
+            val rows = (0..5).map { 92 + it * 24 }
+            val left = 61
+            val right = 719
+            fun line(x: Int, y: Int, endX: Int, endY: Int) =
+                PdfLine(PdfPoint(x.toDouble(), y.toDouble()), PdfPoint(endX.toDouble(), endY.toDouble()))
+            val strokes = rows.map { y -> line(left, y, right, y) }.toMutableList()
+            strokes.add(line(right, rows.first(), right, rows.last()))
+            for (stroke in strokes) canvas.drawLine(stroke.from.x.toFloat(), stroke.from.y.toFloat(),
+                stroke.to.x.toFloat(), stroke.to.y.toFloat(), paint)
+            paint.color = Color.BLACK
+            paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+            paint.textSize = 27.6f
+            paint.strokeWidth = 2f
+            val frets = listOf(2, 3, 5, 7)
+            val outlines = frets.mapIndexed { index, fret ->
+                val x = 142 + 135 * index
+                val stem = line(x, rows.last() + 22, x, rows.last() + 60)
+                strokes.add(stem)
+                canvas.drawLine(x.toFloat(), stem.from.y.toFloat(), x.toFloat(), stem.to.y.toFloat(), paint)
+                val value = fret.toString()
+                val box = Rect()
+                paint.getTextBounds(value, 0, value.length, box)
+                val glyphX = x - box.exactCenterX()
+                val glyphY = rows[2] - box.exactCenterY()
+                canvas.drawText(value, glyphX, glyphY, paint)
+                PdfBox((glyphX + box.left).toDouble(), (glyphY + box.top).toDouble(),
+                    (glyphX + box.right).toDouble(), (glyphY + box.bottom).toDouble())
+            }
+            val image = AndroidRasterGlyphs.bitmapToInk(bitmap)
+            assertTrue(PdfRasterLayout.staves(image).isEmpty())
+            val layout = PdfRasterPrintLayout(bitmap.width.toDouble(), strokes, outlines, previouslyConfirmed = false)
+            val result = PdfRasterTab(AndroidRasterGlyphs.load(context.assets)).recognize(image, 1, 1,
+                PdfRasterTab.MeterResult(PdfMeter(4, 4), false), layout).first
+            assertTrue(result.bars.toString(), result.bars.single().issues.isEmpty())
+            val output = PdfTabGp.encode("Faint lines", 90, result.bars)
+            val score = ScoreLoader.loadScoreFromBytes(Uint8Array(output.asUByteArray()), Settings())
+            val beats = score.tracks[0].staves[0].bars[0].voices[0].beats.asSequence().toList()
+            assertEquals(frets.map(Int::toDouble), beats.map { it.notes[0].fret })
+
+            for (y in 7..55 step 12) canvas.drawLine(4f, y.toFloat(), 767f, y + 30f, paint)
+            val falseSkew = AndroidRasterGlyphs.bitmapToInk(bitmap)
+            assertTrue(falseSkew.detectSlope() != 0.0)
+            val rereadLayout = PdfRasterPrintLayout(bitmap.width.toDouble(), strokes, outlines, previouslyConfirmed = false)
+            val reread = PdfRasterTab(AndroidRasterGlyphs.load(context.assets)).recognize(falseSkew, 1, 1,
+                PdfRasterTab.MeterResult(PdfMeter(4, 4), false), rereadLayout).first
+            assertEquals(result.bars, reread.bars)
+        } finally { bitmap.recycle() }
     }
 
     @Test fun outlinedPrintReadsItsHeaderAndDoesNotTreatUnpairedRhythmAsASilentBar() {
