@@ -9,13 +9,14 @@ internal class VectorPdf(bytes: ByteArray) {
         private const val MAX_PAGES = 200
     }
 
-    private data class Page(val resources: Dictionary, val contents: Any?, val bounds: PdfBox)
+    private data class Page(val resources: Dictionary, val contents: Any?, val bounds: PdfBox, val rotation: Int)
     private val pdf = PdfObjects(bytes)
     private val pages = ArrayList<Page>()
     private val fontCache = HashMap<Ref, PdfFont?>()
     val pageCount get() = pages.size
     fun title() = pdf.title()
     fun pageWidth(index: Int) = pages[index].bounds.width
+    fun pageRotation(index: Int) = pages[index].rotation
 
     init {
         val catalog = dictionary(pdf.root)
@@ -41,10 +42,11 @@ internal class VectorPdf(bytes: ByteArray) {
             "Page" -> {
                 pdfRequire(pages.size < MAX_PAGES, "PDF 超过 200 页，请先拆分文件。")
                 pdfRequire(media != null && pageResources != null)
-                pdfRequire((pageRotation ?: 0) % 360 == 0, "请先将 PDF 页面转回正向。")
+                val angle = Math.floorMod(pageRotation ?: 0, 360)
+                pdfRequire(angle % 90 == 0, "PDF 的页面旋转角度无效。")
                 val bounds = if (crop == null) media!! else crop.intersect(media!!)
                     ?: throw PdfConversionException("PDF 页面裁切范围无效。")
-                pages.add(Page(pageResources!!, node["Contents"], bounds))
+                pages.add(Page(pageResources!!, node["Contents"], bounds, angle))
             }
             else -> throw PdfConversionException("PDF 的页目录无效。")
         }

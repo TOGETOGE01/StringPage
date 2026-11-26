@@ -31,7 +31,7 @@ internal class PdfRasterTab(private val glyphs: PdfRasterGlyphs) {
             }
         }
         val straight = if (print != null) source else source.deskew(slope)
-        val detected = PdfRasterLayout.staves(straight)
+        val detected = PdfRasterLayout.staves(straight, recoverFaintStrings = print == null)
         val reconstructed = print?.recoverStaves(detected, straight.width).orEmpty()
         val layout = print?.takeIf { it.matches(reconstructed, straight.width) }
         val systems = if (layout == null) detected else reconstructed
@@ -50,17 +50,23 @@ internal class PdfRasterTab(private val glyphs: PdfRasterGlyphs) {
                 ?: maxRhythmY
             Strip(straight, staff, outlined, frets, boxes, rhythm, rhythmEnd.roundToInt())
         }
-        val outlinedFirst = strips.first().outlined && inherited == null
-        val printedMeter = if (outlinedFirst) readPrintMeter(strips.first()) else null
-        val meter = inherited ?: (printedMeter?.value ?: readMeter(strips.first()))?.let { MeterResult(it, false) }
+        val first = strips.first()
+        val standardMeter = if (inherited == null && !first.outlined) readMeter(first) else null
+        val printedMeter = if (inherited == null && standardMeter == null) readPrintMeter(first) else null
+        val meter = inherited ?: (standardMeter ?: printedMeter?.value ?: if (first.outlined) readMeter(first) else null)
+            ?.let { MeterResult(it, false) }
             ?: MeterResult(PdfMeter(4, 4), true)
-        val bpm = if (outlinedFirst) readPrintTempo(strips.first()) else null
+        val bpm = if (inherited == null && (first.outlined || printedMeter != null)) readPrintTempo(first) else null
         val bars = ArrayList<PdfTabBar>()
         var pendingTies = emptySet<Pair<Int, Int>>()
         for (strip in strips) {
             if (Thread.currentThread().isInterrupted) throw InterruptedException()
             val mutes = palmMutes(strip, strip.staff.edges.first(), strip.staff.edges.last())
-            for ((index, pair) in strip.staff.edges.zipWithNext().withIndex()) {
+            val edges = if (strip === first && !strip.outlined && printedMeter != null) {
+                // The aligned downstrokes in a printed time signature can look like a barline.
+                strip.staff.edges.filterIndexed { index, x -> index == 0 || x >= printedMeter.end }
+            } else strip.staff.edges
+            for ((index, pair) in edges.zipWithNext().withIndex()) {
                 val (left, right) = pair
                 val hasSignature = inherited == null && bars.isEmpty() && !meter.needsConfirmation
                 val previous = bars.lastOrNull()?.beats?.lastOrNull()?.notes ?: preceding.takeIf { bars.isEmpty() }.orEmpty()
@@ -87,13 +93,15 @@ internal class PdfRasterTab(private val glyphs: PdfRasterGlyphs) {
         val staff = strip.staff
         val g = staff.gap
         val left = staff.edges.first() + (g * 0.4).roundToInt()
-        val right = minOf(staff.edges[1] - 1, staff.edges.first() + (g * 4.2).roundToInt())
+        val searchEnd = if (strip.outlined) staff.edges[1] else staff.edges.last()
+        val right = minOf(searchEnd - 1, staff.edges.first() + (g * 4.65).roundToInt())
         if (right <= left) return null
         val middle = (staff.top + g * 2.5).roundToInt()
         fun number(top: Int, bottom: Int): Pair<Int, Int>? {
             val patch = strip.cleaned(RasterBox(left, top, right, bottom))
             val bounds = patch.bounds() ?: return null
             if (bounds.height / g !in 1.50..2.50) return null
+            if ((bounds.left - staff.edges.first()) / g !in 0.6..3.6 || bounds.width / g !in 0.55..1.64) return null
             return printDigit(patch, bounds.height / g)?.let { it to bounds.right }
         }
         val (numerator, upperEnd) = number(staff.top, middle) ?: return null
@@ -188,19 +196,20 @@ internal class PdfRasterTab(private val glyphs: PdfRasterGlyphs) {
                 (box.left - left < g * 0.72 || right - box.right < g * 0.72)
             patch.takeUnless { outsideStrings || boundaryStroke || box.height < 0.22 * g || box.width < 0.08 * g }
         }
-        val withoutRhythm = outlined && onsets.isEmpty() && stems.isEmpty() &&
+        val withoutRhythm = onsets.isEmpty() && stems.isEmpty() &&
             strip.image.filter(RasterBox(innerLeft, high, innerRight, strip.rhythmEnd), 105).bounds() == null
         val wholeRest = PdfTabBeat(1, emptyList())
-        if (withoutRhythm && patches.isEmpty()) {
+        if (withoutRhythm && patches.isEmpty() &&
+            (outlined || field.bounds(105) == null && hasClosedStaffBar(strip, left, right))) {
             return BarReading(PdfTabBar(number, page, bounds, listOf(wholeRest), emptyList(), emptyList(), meter))
         }
-        val mayBeWhole = withoutRhythm && pdfBeatsFit(listOf(wholeRest), meter)
+        val mayBeWhole = outlined && withoutRhythm && pdfBeatsFit(listOf(wholeRest), meter)
         val used = HashSet<Stem>()
         fun addFretted(patch: RasterPatch, stem: Stem?, center: Double? = null) {
             val x = center ?: stem?.x?.toDouble() ?: patch.bounds()?.midX ?: return
             val previous = onsets.asSequence().filter { it.x < x }.maxByOrNull { it.x }
             val beat = fingeredBeat(strip, patch, stem, mutes, issues, review, uncertainFrets, outlined,
-                previous?.beat?.notes ?: preceding, previous?.x, center) ?: return
+                previous?.beat?.notes ?: preceding, previous?.x, center, left) ?: return
             onsets.add(beat)
             if (stem != null) used.add(stem)
         }
@@ -236,6 +245,21 @@ internal class PdfRasterTab(private val glyphs: PdfRasterGlyphs) {
         val outgoing = if (outlined) unmatched.map { outgoingTie(strip, it, sorted.lastOrNull(), right) } else emptyList()
         val pending = if (outgoing.any { it == null }) emptySet() else outgoing.filterNotNull().toSet()
         return BarReading(PdfTabBar(number, page, bounds, beats, issues.toList(), review.toList(), meter), pending)
+    }
+
+    private fun hasClosedStaffBar(strip: Strip, left: Int, right: Int): Boolean {
+        val staff = strip.staff
+        val band = (staff.gap * 0.17).roundToInt().coerceAtLeast(1)
+        val rows = staff.top until staff.bottom
+        // A missing crop or a faint fragment is insufficient evidence for silence.
+        val borders = listOf(left, right).all { edge ->
+            (edge - band..edge + band).any { x -> rows.count { y -> strip.image[x, y] >= 82 } >= rows.count() * 0.77 }
+        }
+        if (!borders) return false
+        val columns = left + band..right - band
+        return staff.rows.all { y ->
+            columns.count { x -> (y - band..y + band).any { row -> strip.image[x, row] >= 82 } } >= columns.count() * 0.85
+        }
     }
 
     private fun outgoingTie(strip: Strip, patch: RasterPatch, origin: Onset?, right: Int): Pair<Int, Int>? {
@@ -321,7 +345,14 @@ internal class PdfRasterTab(private val glyphs: PdfRasterGlyphs) {
     private fun findDottedRests(strip: Strip, left: Int, right: Int, stems: List<Stem>): List<DottedRest> {
         val staff = strip.staff
         val g = staff.gap
-        val shapes = strip.artwork.filter { it.left >= left && it.right <= right }
+        val shapes = if (strip.artwork.isEmpty()) {
+            val area = RasterBox(left, (staff.top + g * 0.32).roundToInt(), right, (staff.top + 3.8 * g).roundToInt())
+            val ink = strip.cleaned(area)
+            ink.columns(0).mapNotNull { column ->
+                val box = ink.crop(column)?.bounds(105) ?: return@mapNotNull null
+                PdfBox(box.left.toDouble(), box.top.toDouble(), box.right.toDouble(), box.bottom.toDouble())
+            }
+        } else strip.artwork.filter { it.left >= left && it.right <= right }
         if (shapes.isEmpty()) return emptyList()
         val dots = shapes.filter { box ->
             val w = box.right - box.left
@@ -356,7 +387,7 @@ internal class PdfRasterTab(private val glyphs: PdfRasterGlyphs) {
         strip: Strip, patch: RasterPatch, stem: Stem?, mutes: List<ClosedFloatingPointRange<Double>>,
         issues: MutableSet<String>, review: MutableSet<String>, uncertainFrets: MutableList<FretInk>, outlined: Boolean,
         preceding: List<PdfTabNote>, previousX: Double?,
-        center: Double?
+        center: Double?, barLeft: Int
     ): Onset? {
         val staff = strip.staff
         val g = staff.gap
@@ -367,14 +398,20 @@ internal class PdfRasterTab(private val glyphs: PdfRasterGlyphs) {
         for ((index, line) in staff.rows.withIndex()) {
             val y = line - g * 0.02
             val string = staff.rows.size - index
-            val printed = strip.frets?.at(x, y)
+            val scanned = if (strip.frets == null && stem != null) scannedFrets(strip, x, y) else null
+            val printed = strip.frets?.at(x, y) ?: scanned?.at(x, y)
             if (printed != null) {
-                val tied = printed.parenthesized && preceding.any { it.string == string && it.fret == printed.fret && !it.dead }
-                if (printed.parenthesized && !tied) issues.add("第 ${index + 1} 弦的括号音缺少明确的前音")
-                notes.add(PdfTabNote(string, printed.fret, palmMute = mutes.any { x in it }, tied = tied))
+                val samePitch = preceding.any { it.string == string && it.fret == printed.fret && !it.dead }
+                val tied = printed.parenthesized && samePitch && (strip.outlined || hasIncomingRasterTie(strip, x, y, barLeft))
+                if (printed.parenthesized && !tied) {
+                    if (strip.outlined) issues.add("第 ${index + 1} 弦的括号音缺少明确的前音")
+                    else review.add("括号音需要核对延音或轻触奏法")
+                }
+                notes.add(PdfTabNote(string, printed.fret, palmMute = mutes.any { x in it }, tied = tied,
+                    ghost = printed.parenthesized && !tied && !strip.outlined))
                 continue
             }
-            if (stem != null && previousX != null && strip.frets?.hasDigitNear(x, y) == false) {
+            if (stem != null && previousX != null && (strip.frets ?: scanned)?.hasDigitNear(x, y) == false) {
                 val origin = preceding.singleOrNull { it.string == string && !it.dead }
                 if (origin != null && hasPrintedTie(strip, previousX, x, y)) {
                     notes.add(origin.copy(tied = true, ghost = false, bend = null, slideIn = null, slideOut = null, hammerPull = false))
@@ -430,6 +467,30 @@ internal class PdfRasterTab(private val glyphs: PdfRasterGlyphs) {
             else -> 4 shl flagOrBeam(strip, stem)
         }
         return Onset(x, PdfTabBeat(duration, notes.sortedBy { it.string }))
+    }
+
+    private fun scannedFrets(strip: Strip, x: Double, y: Double): PdfPrintFrets {
+        val g = strip.staff.gap
+        val window = RasterBox((x - g * 1.43).roundToInt(), (y - g * 0.68).roundToInt(),
+            (x + g * 1.43).roundToInt() + 1, (y + g * 0.69).roundToInt() + 1)
+        val ink = strip.cleaned(window)
+        val boxes = ink.columns(0).mapNotNull { column ->
+            val box = ink.crop(column)?.bounds(105) ?: return@mapNotNull null
+            PdfBox(box.left.toDouble(), box.top.toDouble(), box.right.toDouble(), box.bottom.toDouble())
+        }
+        return PdfPrintFrets(strip.image, g, boxes, glyphs)
+    }
+
+    private fun hasIncomingRasterTie(strip: Strip, x: Double, row: Double, barLeft: Int): Boolean {
+        val g = strip.staff.gap
+        val region = RasterBox((x - 3.1 * g).roundToInt(), (row + 0.05 * g).roundToInt(),
+            (x - 0.62 * g).roundToInt(), (row + 0.94 * g).roundToInt())
+        val arc = strip.cleaned(region) { px, _ -> abs(px - barLeft) <= g * 0.10 }
+        val box = arc.bounds(105) ?: return false
+        if (box.width / g !in 0.60..2.5 || box.height / g !in 0.13..0.67 || region.right - box.right > g * 0.55) return false
+        val curve = thinCurve(arc.crop(box) ?: return false, g) ?: return false
+        val rise = maxOf(curve.start, curve.middle) - curve.end
+        return rise > g * 0.15 && curve.end < row + g * 0.56
     }
 
     /** The print omits the repeated fret only when the rhythm stem is joined from the same string by a tie. */

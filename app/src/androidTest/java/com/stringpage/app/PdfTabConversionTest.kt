@@ -16,6 +16,7 @@ import android.content.ContentValues
 import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.Rect
+import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.SystemClock
@@ -29,6 +30,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.stringpage.app.pdf.PdfBox
 import com.stringpage.app.pdf.PdfBend
 import com.stringpage.app.pdf.PdfConversionException
+import com.stringpage.app.pdf.PdfConversionDocument
 import com.stringpage.app.pdf.PdfConvertActivity
 import com.stringpage.app.pdf.PdfPreviewActivity
 import com.stringpage.app.pdf.PdfReviewDrafts
@@ -83,6 +85,35 @@ class PdfTabConversionTest {
         assertEquals(Duration.Whole, sustained[0].duration)
         assertEquals(2.0, sustained[0].notes.length, 0.0)
     }
+
+    @Test fun rotatedElectronicPageUsesTheSameCoordinatesForPreviewAndExport() {
+        val instrument = InstrumentationRegistry.getInstrumentation()
+        val context = instrument.targetContext
+        val objects = exampleObjects(examplePdf()).values.map {
+            it.trimEnd().replace("/MediaBox [0 0 400 400]", "/MediaBox [0 0 400 460]")
+        }
+        val ordinary = classicPdf(objects)
+        val rotated = classicPdf(objects.mapIndexed { index, body ->
+            if (index == 1) body.replace("/Count 1", "/Count 1 /Rotate -270") else body
+        })
+        val file = File.createTempFile("rotated-tab-", ".pdf", context.cacheDir)
+        try {
+            file.writeBytes(rotated)
+            val document = PdfConversionDocument(file, rotated, context.assets)
+            assertEquals(PdfTabRecognition.read(VectorPdf(ordinary), 1), document.read(1))
+            val preview = document.preview(1)
+            try {
+                assertTrue(preview.height > preview.width)
+                val factor = preview.width / 400.0
+                val center = (160.0 * factor).toInt()
+                val dark = (480..503).count { x ->
+                    (center - 3..center + 3).any { y -> Color.red(preview.getPixel(x, y)) < 120 }
+                }
+                assertTrue("The TAB line is back in its upright preview position", dark > 12)
+            } finally { preview.recycle() }
+        } finally { file.delete() }
+    }
+
 
     @Test fun measuresWithUnmatchedRhythmAreFlagged() {
         val recognized = PdfTabRecognition.read(VectorPdf(examplePdf(includeRest = false)), 1)

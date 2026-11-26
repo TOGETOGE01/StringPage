@@ -3,6 +3,7 @@ package com.stringpage.app.pdf
 import android.content.res.AssetManager
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.graphics.Matrix
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
 import java.io.File
@@ -20,11 +21,15 @@ internal class PdfConversionDocument(private val file: File, bytes: ByteArray, a
     private val vector by lazy { graphics?.let { PdfTabRecognition.Document(it) } }
     private val raster by lazy { PdfRasterTab(AndroidRasterGlyphs.load(assets)) }
     private val pages = ArrayList<Result<PdfTabResult>>()
+    private val uprightRotation = IntArray(pageCount)
     private var meter: PdfRasterTab.MeterResult? = null
     private var rasterTempo: Int? = null
     private var nextBar = 1
 
-    fun preview(page: Int): Bitmap = render(page, 1_400)
+    fun preview(page: Int): Bitmap {
+        pdfRequire(page in 1..pageCount, "请选择有效页码。")
+        return render(page, 1_400)
+    }
 
     fun read(page: Int): PdfTabResult {
         pdfRequire(page in 1..pageCount, "请选择有效页码。")
@@ -48,11 +53,12 @@ internal class PdfConversionDocument(private val file: File, bytes: ByteArray, a
     }
 
     private fun readPage(page: Int): PdfTabResult {
+        val angle = graphics?.pageRotation(page - 1) ?: 0
         val geometry = geometry(page, printed)
         if (geometry != null && !geometry.containsExternalDrawing && geometry.text.any { it.text in PdfGeometry.TAB_CLEFS }) {
             meter = null
             rasterTempo = null
-            return checkNotNull(vector).read(page, geometry)
+            return checkNotNull(vector).read(page, geometry).also { uprightRotation[page - 1] = -angle }
         }
         val outlines = if (!printed && geometry != null && geometry.lines.size >= 12) geometry(page, true) else geometry
         val hints = if (outlines != null && graphics != null && (printed || outlines.inkOutlines.isNotEmpty())) {
@@ -60,6 +66,11 @@ internal class PdfConversionDocument(private val file: File, bytes: ByteArray, a
         } else null
         val preceding = pages.lastOrNull()?.getOrNull()?.takeIf { it.scanned }
             ?.bars?.lastOrNull()?.beats?.lastOrNull()?.notes.orEmpty()
+        val upright = angle != 0 && hints?.let { layout ->
+            val frames = layout.recoverStaves(emptyList(), 1600)
+            frames.isNotEmpty() && layout.matches(frames, 1600)
+        } == true
+        if (upright) uprightRotation[page - 1] = -angle
         val (original, signature) = recognizeRaster(page, 2_600, hints, preceding)
         var result = original
         if (hints?.confirmed == true && original.bars.any { it.issues.isNotEmpty() }) {
@@ -96,13 +107,17 @@ internal class PdfConversionDocument(private val file: File, bytes: ByteArray, a
     private fun render(page: Int, longestEdge: Int): Bitmap = withRenderer { renderer ->
         renderer.openPage(page - 1).use { original ->
             val scale = longestEdge.toFloat() / maxOf(original.width, original.height)
-            Bitmap.createBitmap((original.width * scale).toInt().coerceAtLeast(1),
+            val bitmap = Bitmap.createBitmap((original.width * scale).toInt().coerceAtLeast(1),
                 (original.height * scale).toInt().coerceAtLeast(1), Bitmap.Config.ARGB_8888).apply {
                 try {
                     eraseColor(Color.WHITE)
                     original.render(this, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
                 } catch (error: Exception) { recycle(); throw error }
             }
+            val angle = uprightRotation[page - 1]
+            if (angle == 0) bitmap else try {
+                Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, Matrix().apply { setRotate(angle.toFloat()) }, false)
+            } finally { bitmap.recycle() }
         }
     }
 

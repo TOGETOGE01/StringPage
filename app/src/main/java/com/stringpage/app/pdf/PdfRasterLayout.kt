@@ -134,44 +134,71 @@ internal class PdfRasterPrintLayout(private val pageWidth: Double, private val l
 }
 
 internal object PdfRasterLayout {
-    private data class Grid(val rows: List<Int>, val strength: Double)
+    private data class Grid(val rows: List<Int>, val strength: Double, val inferred: Boolean = false)
 
-    fun staves(image: PdfRasterImage): List<RasterTabStaff> {
+    fun staves(image: PdfRasterImage, recoverFaintStrings: Boolean = false): List<RasterTabStaff> {
         val contrast = DoubleArray(image.height) { y -> (0 until image.width).sumOf { x -> image[x, y] } / 255.0 }
         val peaks = peaks(contrast, image.width * 0.17, 3)
         val grids = ArrayList<Grid>()
         val minGap = (image.width * 0.0055).coerceAtLeast(7.0)
         val maxGap = (image.width * 0.045).coerceAtMost(110.0)
+        val patterns = if (recoverFaintStrings) listOf(5, 4) else listOf(5)
         for ((i, top) in peaks.withIndex()) {
             for (j in i + 1 until peaks.size) {
                 val gap = peaks[j] - top
                 if (gap > maxGap) break
                 if (gap < minGap) continue
                 // Use the first and last row to estimate the spacing at subpixel precision.
-                for (last in peaks.filter { abs(it - top - gap * 5) <= 8 }) {
-                    val step = (last - top) / 5.0
-                    val rows = (0..5).map { row ->
-                        val target = top + step * row
-                        peaks.minBy { abs(it - target) }
+                for (intervals in patterns) {
+                    for (last in peaks.filter { abs(it - top - gap * intervals) <= 8 }) {
+                        val step = (last - top).toDouble() / intervals
+                        val rows = (0..intervals).map { row -> peaks.minBy { abs(it - top - step * row) } }
+                        val errors = rows.mapIndexed { row, y -> abs(y - top - step * row) }
+                        if (rows.distinct().size != intervals + 1 || errors.any { it > maxOf(1.75, step * 0.1) }) continue
+                        val strength = rows.sumOf { contrast[it] / image.width } - errors.sum() * 0.15
+                        if (intervals == 5) {
+                            if (hasExtraLine(rows, step, peaks)) continue
+                            grids.add(Grid(rows, strength))
+                        } else {
+                            val ends = listOf((top - step).roundToInt(), (last + step).roundToInt())
+                            for ((endIndex, expected) in ends.withIndex()) {
+                                val y = (expected - 1..expected + 1).filter { it in 0 until image.height }
+                                    .maxByOrNull { contrast[it] } ?: continue
+                                if (contrast[y] < image.width * 0.014) continue
+                                val extended = if (endIndex == 0) listOf(y) + rows else rows + y
+                                if (!hasExtraLine(extended, step, peaks)) grids.add(Grid(extended, strength, inferred = true))
+                            }
+                        }
                     }
-                    val errors = rows.mapIndexed { row, y -> abs(y - top - step * row) }
-                    if (rows.distinct().size != 6 || errors.any { it > maxOf(1.75, step * 0.1) }) continue
-                    if (peaks.any { abs(it - (top - step)) < step * 0.13 || abs(it - (last + step)) < step * 0.13 }) continue
-                    val strength = rows.sumOf { contrast[it] / image.width } - errors.sum() * 0.15
-                    grids.add(Grid(rows, strength))
                 }
             }
         }
         val accepted = ArrayList<RasterTabStaff>()
-        for (grid in grids.sortedByDescending { it.strength }) {
+        for (grid in grids.sortedWith(compareBy<Grid> { it.inferred }.thenByDescending { it.strength })) {
             if (accepted.any { it.top <= grid.rows.last() && grid.rows.first() <= it.bottom }) continue
-            val edges = edges(image, grid.rows) ?: continue
-            accepted.add(RasterTabStaff(grid.rows, edges))
+            val edges = edges(image, grid.rows, recoverFaintStrings) ?: continue
+            val staff = RasterTabStaff(grid.rows, edges)
+            // An ordinary five-line staff must never qualify as a six-line TAB system.
+            if (grid.inferred && !listOf(edges.first(), edges.last()).all { fullHeightEdge(image, staff, it) }) continue
+            accepted.add(staff)
         }
         return accepted.sortedBy { it.top }
     }
 
-    private fun edges(image: PdfRasterImage, grid: List<Int>): List<Int>? {
+    private fun hasExtraLine(rows: List<Int>, gap: Double, peaks: List<Int>): Boolean =
+        peaks.any { abs(it - (rows.first() - gap)) < gap * 0.13 || abs(it - (rows.last() + gap)) < gap * 0.13 }
+
+    private fun fullHeightEdge(image: PdfRasterImage, staff: RasterTabStaff, edge: Int): Boolean {
+        val tolerance = (staff.gap * 0.15).roundToInt().coerceAtLeast(2)
+        return (edge - tolerance..edge + tolerance).any { x ->
+            val covered = (staff.top..staff.bottom).filter { y -> maxOf(image[x - 1, y], image[x, y], image[x + 1, y]) >= 75 }
+            covered.size >= (staff.bottom - staff.top) * 0.77 &&
+                covered.first() <= staff.top + tolerance && covered.last() >= staff.bottom - tolerance &&
+                covered.zipWithNext().none { (a, b) -> b - a > staff.gap * 0.45 }
+        }
+    }
+
+    private fun edges(image: PdfRasterImage, grid: List<Int>, verifyInterior: Boolean): List<Int>? {
         val top = grid.first()
         val bottom = grid.last()
         val gap = (bottom - top) / 5.0
@@ -194,7 +221,11 @@ internal object PdfRasterLayout {
         val left = vertical.minByOrNull { abs(it - staffStart) }?.takeIf { abs(it - staffStart) < gap } ?: staffStart
         val right = vertical.minByOrNull { abs(it - staffEnd) }?.takeIf { abs(it - staffEnd) < gap } ?: staffEnd
         if (right - left < image.width * 0.26) return null
-        return listOf(left) + vertical.filter { it >= left + gap * 3.3 && it < right - gap * 0.55 } + right
+        val staff = RasterTabStaff(grid, listOf(left, right))
+        val interior = vertical.filter {
+            it >= left + gap * 3.3 && it < right - gap * 0.55 && (!verifyInterior || fullHeightEdge(image, staff, it))
+        }
+        return listOf(left) + interior + right
     }
 
     fun peaks(values: DoubleArray, threshold: Double, separation: Int): List<Int> {

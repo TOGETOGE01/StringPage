@@ -117,13 +117,14 @@ class PdfScannedTabTest {
             paint.textSize = space * 2.667f
             canvas.drawText("\ue06d", 82f, staffTop + space * 2.5f, paint)
             canvas.drawText("\ue4e3", 249f, staffTop + space + 1, paint)
-            paint.typeface = Typeface.SANS_SERIF
+            paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
             paint.textSize = space * 1.1f
             paint.textAlign = Paint.Align.CENTER
-            for ((index, digit) in listOf("0", "3", "X", "7").withIndex()) {
+            for ((index, digit) in listOf("0", "3", "X", "12").withIndex()) {
                 val x = 466f + index * 81
+                val half = paint.measureText(digit) / 2 + 4f
                 paint.color = Color.WHITE
-                canvas.drawRect(x - 12, bottom - 15, x + 12, bottom + 12, paint)
+                canvas.drawRect(x - half, bottom - 15, x + half, bottom + 12, paint)
                 paint.color = Color.BLACK
                 canvas.drawText(digit, x, bottom + space * 0.36f, paint)
                 canvas.drawLine(x, bottom + space * 0.68f, x, bottom + space * 2.5f, paint)
@@ -148,7 +149,7 @@ class PdfScannedTabTest {
             val staff = score.tracks[0].staves[0]
             assertTrue(staff.bars[0].voices[0].beats[0].isFullBarRest)
             val notes = staff.bars[1].voices[0].beats.asSequence().map { it.notes[0] }.toList()
-            assertEquals(listOf(0.0, 3.0, 0.0, 7.0), notes.map { it.fret })
+            assertEquals(listOf(0.0, 3.0, 0.0, 12.0), notes.map { it.fret })
             assertTrue(notes[2].isDead)
             assertTrue(notes.all { it.string == 1.0 })
         } finally {
@@ -239,6 +240,90 @@ class PdfScannedTabTest {
         assertEquals(listOf(first, last), layout.recoverStaves(emptyList(), 600))
     }
 
+    @Test fun aFaintOuterStringReappearsOnlyWithFullHeightBarlines() {
+        val page = Bitmap.createBitmap(740, 320, Bitmap.Config.ARGB_8888)
+        try {
+            val canvas = Canvas(page)
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { strokeWidth = 2f }
+            val rows = (0..5).map { 80 + it * 24 }
+            fun draw(withTabBorders: Boolean) {
+                page.eraseColor(Color.WHITE)
+                for ((index, y) in rows.withIndex()) {
+                    paint.color = if (index == 0) Color.rgb(233, 233, 233) else Color.BLACK
+                    canvas.drawLine(52f, y.toFloat(), 687f, y.toFloat(), paint)
+                }
+                val top = if (withTabBorders) rows.first() else rows[1]
+                for (x in listOf(52f, 320f, 687f)) canvas.drawLine(x, top.toFloat(), x, rows.last().toFloat(), paint)
+            }
+            draw(true)
+            val recovered = PdfRasterLayout.staves(AndroidRasterGlyphs.bitmapToInk(page), recoverFaintStrings = true).single()
+            assertEquals(rows.size, recovered.rows.size)
+            assertTrue(kotlin.math.abs(recovered.top - rows.first()) <= 2)
+            draw(false)
+            assertTrue(PdfRasterLayout.staves(AndroidRasterGlyphs.bitmapToInk(page), recoverFaintStrings = true).isEmpty())
+        } finally { page.recycle() }
+    }
+
+    @Test fun rasterBlankMeasureRequiresIntactStaffAndNoRhythmInk() {
+        val page = Bitmap.createBitmap(760, 350, Bitmap.Config.ARGB_8888)
+        try {
+            page.eraseColor(Color.WHITE)
+            val canvas = Canvas(page)
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { strokeWidth = 2f }
+            val top = 96
+            val bottom = top + 24 * 5
+            for (y in top..bottom step 24) canvas.drawLine(66f, y.toFloat(), 695f, y.toFloat(), paint)
+            for (x in listOf(66f, 348f, 695f)) canvas.drawLine(x, top.toFloat(), x, bottom.toFloat(), paint)
+            canvas.drawLine(540f, top + 10f, 540f, top + 42f, paint)
+            canvas.drawLine(540f, top + 61f, 540f, bottom - 10f, paint)
+            canvas.drawLine(491f, bottom + 22f, 491f, bottom + 61f, paint)
+            val raster = PdfRasterTab(AndroidRasterGlyphs.load(context.assets))
+            val result = raster.recognize(AndroidRasterGlyphs.bitmapToInk(page), 1, 1,
+                PdfRasterTab.MeterResult(PdfMeter(4, 4), false)).first
+            assertEquals(2, result.bars.size)
+            assertTrue(result.bars.first().issues.isEmpty())
+            assertTrue(result.bars.first().beats.single().notes.isEmpty())
+            assertTrue(result.bars.last().issues.isNotEmpty())
+        } finally { page.recycle() }
+    }
+
+    @Test fun rasterOnlyDottedRestsKeepTheirDuration() {
+        val page = Bitmap.createBitmap(690, 340, Bitmap.Config.ARGB_8888)
+        try {
+            page.eraseColor(Color.WHITE)
+            val canvas = Canvas(page)
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                strokeWidth = 2f
+                typeface = Typeface.createFromAsset(context.assets, "Bravura.otf")
+                textSize = 64f
+            }
+            val top = 96f
+            val g = 24f
+            val bottom = top + 5 * g
+            for (row in 0..5) canvas.drawLine(63f, top + row * g, 628f, top + row * g, paint)
+            for (x in listOf(63f, 628f)) canvas.drawLine(x, top, x, bottom, paint)
+            val shape = "\ue4e5"
+            val bounds = Rect()
+            paint.getTextBounds(shape, 0, shape.length, bounds)
+            for (x in listOf(184f, 420f)) {
+                val centerY = top + g * 1.9f
+                val start = x - bounds.exactCenterX()
+                val baseline = centerY - bounds.exactCenterY()
+                val ending = start + bounds.right
+                paint.color = Color.WHITE
+                canvas.drawRect(start + bounds.left - 3, baseline + bounds.top - 2, ending + 14, baseline + bounds.bottom + 2, paint)
+                paint.color = Color.BLACK
+                canvas.drawText(shape, start, baseline, paint)
+                canvas.drawCircle(ending + 8f, centerY, 2.5f, paint)
+            }
+            val result = PdfRasterTab(AndroidRasterGlyphs.load(context.assets)).recognize(
+                AndroidRasterGlyphs.bitmapToInk(page), 1, 1, PdfRasterTab.MeterResult(PdfMeter(6, 8), false)).first
+            assertTrue(result.bars.toString(), result.bars.single().issues.isEmpty())
+            assertTrue(result.bars.single().beats.all { it.denominator == 4 && it.dots == 1 && it.notes.isEmpty() })
+            assertEquals(2, result.bars.single().beats.size)
+        } finally { page.recycle() }
+    }
+
     @Test fun exportedPrintedNotesSurviveWhenRasterStaffLinesAreTooFaint() {
         val bitmap = Bitmap.createBitmap(780, 350, Bitmap.Config.ARGB_8888)
         try {
@@ -323,14 +408,19 @@ class PdfScannedTabTest {
             val layout = PdfRasterPrintLayout(page.width.toDouble(), edges.map { x ->
                 PdfLine(PdfPoint(x.toDouble(), top.toDouble()), PdfPoint(x.toDouble(), bottom.toDouble()))
             })
-            val result = PdfRasterTab(AndroidRasterGlyphs.load(context.assets)).recognize(
-                AndroidRasterGlyphs.bitmapToInk(page), 1, 1, printLayout = layout).first
+            val raster = PdfRasterTab(AndroidRasterGlyphs.load(context.assets))
+            val image = AndroidRasterGlyphs.bitmapToInk(page)
+            val result = raster.recognize(image, 1, 1, printLayout = layout).first
             assertEquals(90, result.bpm)
             assertFalse(result.meterNeedsConfirmation)
             assertEquals(PdfMeter(4, 4), result.bars.first().meter)
             assertEquals(3, result.bars.size)
             assertTrue(result.bars.take(2).all { it.issues.isEmpty() && it.beats.single().notes.isEmpty() })
             assertTrue(result.bars.last().issues.isNotEmpty())
+            val pixelsOnly = raster.recognize(image, 1, 1).first
+            assertEquals(90, pixelsOnly.bpm)
+            assertEquals(3, pixelsOnly.bars.size)
+            assertFalse(pixelsOnly.meterNeedsConfirmation)
         } finally { page.recycle() }
     }
 

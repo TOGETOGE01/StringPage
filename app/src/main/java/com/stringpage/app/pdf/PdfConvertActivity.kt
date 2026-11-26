@@ -230,9 +230,10 @@ class PdfConvertActivity : AppCompatActivity() {
     }
 
     private fun scan(model: PdfConversionDocument, index: Int): PageData {
+        val result = try { Result.success(model.read(index)) }
+        catch (error: PdfConversionException) { Result.failure(error) }
         val preview = runCatching { model.preview(index) }.getOrNull()
-        return try { PageData(preview, model.read(index), null) }
-        catch (error: PdfConversionException) { PageData(preview, null, error.message) }
+        return PageData(preview, result.getOrNull(), result.exceptionOrNull()?.message)
     }
 
     private fun turnPage(change: Int, onShown: (() -> Unit)? = null) {
