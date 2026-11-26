@@ -27,7 +27,7 @@ internal class PdfRasterTab(private val glyphs: PdfRasterGlyphs) {
         val straight = source.deskew(slope)
         val detected = PdfRasterLayout.staves(straight)
         pdfRequire(detected.isNotEmpty(), "这一页没有找到成组的六根弦线。请选用清晰、平直的六线谱扫描件。")
-        val layout = printLayout?.takeIf { slope == 0.0 }
+        val layout = printLayout?.takeIf { slope == 0.0 && it.matches(detected, straight.width) }
         val systems = layout?.recoverStaves(detected, straight.width) ?: detected
         val strips = systems.mapIndexed { index, original ->
             val aligned = layout?.align(original, straight.width)

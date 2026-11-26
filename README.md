@@ -4,7 +4,9 @@
 
 An Android Guitar Pro score reader, practice player, and touch editor for phones and tablets.
 
-当前源码版本：**1.39.0** · 最低系统：**Android 8.0 / API 26** · 项目代码：[MIT](LICENSE)
+当前源码版本：**1.39.1** · 最低系统：**Android 8.0 / API 26** · 项目代码：[MIT](LICENSE)
+
+1.39.1 会自动换尺寸重扫识别不完整的打印谱，也能从谱线和符干识别没有内嵌标题的打印版式。[查看更新说明](docs/RELEASE_1.39.1.md)
 
 1.39.0 改进了 Songsterr 打印谱的品位、节奏、跨小节延音和击勾弦识别。《Jupiter》和《Graze》原始 PDF 的 158 个小节已验证可直接整谱导出。[查看更新说明](docs/RELEASE_1.39.0.md)
 
@@ -20,11 +22,11 @@ An Android Guitar Pro score reader, practice player, and touch editor for phones
 
 ## 下载与安装
 
-**[直接下载 StringPage 1.39.0 APK](https://github.com/TOGETOGE01/StringPage/releases/download/v1.39.0/StringPage-1.39.0.apk)** · [版本说明与附件](https://github.com/TOGETOGE01/StringPage/releases/tag/v1.39.0) · [所有版本](https://github.com/TOGETOGE01/StringPage/releases)
+**[直接下载 StringPage 1.39.1 APK](https://github.com/TOGETOGE01/StringPage/releases/download/v1.39.1/StringPage-1.39.1.apk)** · [版本说明与附件](https://github.com/TOGETOGE01/StringPage/releases/tag/v1.39.1) · [所有版本](https://github.com/TOGETOGE01/StringPage/releases)
 
 下载 `.apk` 文件到安卓设备安装，最低 Android 8.0。该安装包包含 ARM64、ARMv7、x86 和 x86_64，沿用项目发布签名。Release 页面中的 `Source code` 是源码压缩包，直接安装请选 APK 附件。
 
-SHA-256 为 `bcbbcb105a26d501adc0d2b1e9d7ea611086bc8adf2dc04e34ae5bcf745d4216`。可下载 [SHA-256 校验文件](https://github.com/TOGETOGE01/StringPage/releases/download/v1.39.0/SHA256-1.39.0.txt)。
+SHA-256 为 `4a0c0f7074890cd76dcfad8ddbda1463f2662a71c43318bd407e6dc70fb5bca8`。可下载 [SHA-256 校验文件](https://github.com/TOGETOGE01/StringPage/releases/download/v1.39.1/SHA256-1.39.1.txt)。
 
 **[下载 Strat-Guitar 电吉他音色库（.gp7bank，52.8 MiB）](https://github.com/TOGETOGE01/StringPage/releases/download/v1.35.0/Strat-Guitar.gp7bank)** · [音色库获取与导入指南](docs/USER_GUIDE.md#音色库管理与单音试听)
 

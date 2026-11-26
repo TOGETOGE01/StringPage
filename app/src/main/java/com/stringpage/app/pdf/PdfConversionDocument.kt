@@ -15,7 +15,7 @@ internal class PdfConversionDocument(private val file: File, bytes: ByteArray, a
     private val graphics = try { VectorPdf(bytes) }
     catch (error: InterruptedException) { throw error }
     catch (_: Exception) { null }
-    private val printed = try { graphics?.title()?.contains("Songsterr Tabs with Rhythm", ignoreCase = true) == true }
+    private var printed = try { graphics?.title()?.contains("Songsterr Tabs with Rhythm", ignoreCase = true) == true }
     catch (_: PdfConversionException) { false }
     private val vector by lazy { graphics?.let { PdfTabRecognition.Document(it) } }
     private val raster by lazy { PdfRasterTab(AndroidRasterGlyphs.load(assets)) }
@@ -48,28 +48,49 @@ internal class PdfConversionDocument(private val file: File, bytes: ByteArray, a
     }
 
     private fun readPage(page: Int): PdfTabResult {
-        val geometry = try { graphics?.geometry(page - 1, collectInkOutlines = printed) }
-        catch (error: InterruptedException) { throw error }
-        catch (_: Exception) { null }
+        val geometry = geometry(page, printed)
         if (geometry != null && !geometry.containsExternalDrawing && geometry.text.any { it.text in PdfGeometry.TAB_CLEFS }) {
             meter = null
             rasterTempo = null
             return checkNotNull(vector).read(page, geometry)
         }
-        val large = try { render(page, 2_600) }
+        val outlines = if (!printed && geometry != null && geometry.lines.size >= 12) geometry(page, true) else geometry
+        val hints = if (outlines != null && graphics != null && (printed || outlines.inkOutlines.isNotEmpty())) {
+            PdfRasterPrintLayout(graphics.pageWidth(page - 1), outlines.lines, outlines.inkOutlines, previouslyConfirmed = printed)
+        } else null
+        val preceding = pages.lastOrNull()?.getOrNull()?.takeIf { it.scanned }
+            ?.bars?.lastOrNull()?.beats?.lastOrNull()?.notes.orEmpty()
+        val (original, signature) = recognizeRaster(page, 2_600, hints, preceding)
+        var result = original
+        if (hints?.confirmed == true && original.bars.any { it.issues.isNotEmpty() }) {
+            val rescans = ArrayList<PdfTabResult>()
+            for (edge in listOf(3_200, 2_950, 3_500)) {
+                checkCancelled()
+                try { rescans.add(recognizeRaster(page, edge, hints, preceding).first) }
+                catch (_: PdfConversionException) { continue }
+                result = PdfRasterRescan.combine(original, rescans, preceding)
+                if (result.bars.none { it.issues.isNotEmpty() }) break
+            }
+        }
+        if (hints?.confirmed == true) printed = true
+        meter = signature
+        rasterTempo = result.bpm ?: rasterTempo
+        return result.copy(bpm = rasterTempo)
+    }
+
+    private fun geometry(page: Int, outlines: Boolean): PdfGeometry? =
+        try { graphics?.geometry(page - 1, collectInkOutlines = outlines) }
+        catch (error: InterruptedException) { throw error }
+        catch (_: Exception) { null }
+
+    private fun recognizeRaster(page: Int, edge: Int, hints: PdfRasterPrintLayout?, preceding: List<PdfTabNote>):
+        Pair<PdfTabResult, PdfRasterTab.MeterResult> {
+        val image = try { render(page, edge) }
         catch (_: java.io.IOException) { throw PdfConversionException("无法读取第 $page 页的谱面图像。") }
         catch (_: IllegalStateException) { throw PdfConversionException("无法渲染第 $page 页的谱面图像。") }
-        try {
-            val hints = if (printed && geometry != null && graphics != null) {
-                PdfRasterPrintLayout(graphics.pageWidth(page - 1), geometry.lines, geometry.inkOutlines)
-            } else null
-            val preceding = pages.lastOrNull()?.getOrNull()?.takeIf { it.scanned }
-                ?.bars?.lastOrNull()?.beats?.lastOrNull()?.notes.orEmpty()
-            val (result, signature) = raster.recognize(AndroidRasterGlyphs.bitmapToInk(large), page, nextBar, meter, hints, preceding)
-            meter = signature
-            rasterTempo = result.bpm ?: rasterTempo
-            return result.copy(bpm = rasterTempo)
-        } finally { large.recycle() }
+        return try {
+            raster.recognize(AndroidRasterGlyphs.bitmapToInk(image), page, nextBar, meter, hints, preceding)
+        } finally { image.recycle() }
     }
 
     private fun render(page: Int, longestEdge: Int): Bitmap = withRenderer { renderer ->

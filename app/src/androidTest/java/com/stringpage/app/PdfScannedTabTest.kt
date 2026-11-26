@@ -24,13 +24,18 @@ import com.stringpage.app.pdf.PdfMeter
 import com.stringpage.app.pdf.PdfLine
 import com.stringpage.app.pdf.PdfPoint
 import com.stringpage.app.pdf.PdfRasterPrintLayout
+import com.stringpage.app.pdf.PdfRasterRescan
 import com.stringpage.app.pdf.PdfRasterGlyphs
 import com.stringpage.app.pdf.PdfPrintFrets
 import com.stringpage.app.pdf.PdfRasterTab
 import com.stringpage.app.pdf.RasterTabStaff
 import com.stringpage.app.pdf.PdfTabBar
+import com.stringpage.app.pdf.PdfTabBeat
 import com.stringpage.app.pdf.PdfTabCorrection
 import com.stringpage.app.pdf.PdfTabGp
+import com.stringpage.app.pdf.PdfTabNote
+import com.stringpage.app.pdf.PdfTabResult
+import com.stringpage.app.pdf.PdfTabTrack
 import com.stringpage.app.pdf.PdfTabTuning
 import java.io.File
 import org.junit.Assert.*
@@ -40,6 +45,57 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class PdfScannedTabTest {
     private val context get() = InstrumentationRegistry.getInstrumentation().targetContext
+
+    @Test fun printedRescanOnlyUsesCompleteAlignedBarsWithEvidence() {
+        fun quarter(fret: Int, tied: Boolean = false) = PdfTabBeat(4, listOf(PdfTabNote(6, fret, tied = tied)))
+        val gap = listOf("未识别")
+        val first = PdfTabBar(1, 1, PdfBox(20.0, 30.0, 120.0, 200.0), listOf(quarter(12)), gap, emptyList(), PdfMeter(2, 4))
+        val second = first.copy(number = 2, bounds = PdfBox(120.0, 30.0, 220.0, 200.0),
+            beats = listOf(quarter(14, tied = true), quarter(10)), issues = emptyList())
+        fun result(width: Double, vararg bars: PdfTabBar) =
+            PdfTabResult(71, listOf(PdfTabTrack("TAB", 6, null, bars.toList())), width, scanned = true)
+        val original = result(240.0, first, second)
+        val firstRescan = first.copy(bounds = PdfBox(40.0, 60.0, 240.0, 400.0),
+            beats = listOf(quarter(12), quarter(14)), issues = emptyList())
+        val secondRescan = second.copy(bounds = PdfBox(240.0, 60.0, 440.0, 400.0),
+            beats = listOf(quarter(14, tied = true), quarter(8)))
+        val rescan = result(480.0, firstRescan, secondRescan)
+        val recovered = PdfRasterRescan.combine(original, listOf(rescan), emptyList())
+        assertEquals(firstRescan.beats, recovered.bars[0].beats)
+        assertEquals(first.bounds, recovered.bars[0].bounds)
+        assertTrue(recovered.bars[0].issues.isEmpty())
+        assertEquals(second, recovered.bars[1])
+
+        val misaligned = firstRescan.copy(bounds = firstRescan.bounds.copy(right = 232.0))
+        val wrongTie = firstRescan.copy(beats = listOf(quarter(12), quarter(15)))
+        for (unreliable in listOf(misaligned, wrongTie)) {
+            assertEquals(original, PdfRasterRescan.combine(original, listOf(result(480.0, unreliable, secondRescan)), emptyList()))
+        }
+        val noKnownNotes = result(240.0, first.copy(beats = emptyList()), second)
+        assertEquals(noKnownNotes, PdfRasterRescan.combine(noKnownNotes, listOf(rescan), emptyList()))
+        assertTrue(PdfRasterRescan.combine(noKnownNotes, listOf(rescan, rescan), emptyList()).bars[0].issues.isEmpty())
+        val silent = result(480.0, firstRescan.copy(beats = listOf(PdfTabBeat(2, emptyList()))), secondRescan)
+        val noTie = result(240.0, first, second.copy(beats = listOf(quarter(14), quarter(10))))
+        assertEquals(noTie, PdfRasterRescan.combine(noTie, listOf(silent, silent), emptyList()))
+    }
+
+    @Test fun confirmsAnUntitledPrintOnlyWhenFretOutlinesAlignWithItsStemLane() {
+        fun vertical(x: Double, top: Double, bottom: Double) = PdfLine(PdfPoint(x, top), PdfPoint(x, bottom))
+        val staff = RasterTabStaff(listOf(80, 100, 120, 140, 160, 180), listOf(40, 380))
+        val frame = listOf(vertical(40.0, 80.0, 180.0), vertical(380.0, 80.0, 180.0))
+        val fretPositions = listOf(98.0, 151.0, 203.0, 255.0)
+        val frets = fretPositions.map { x -> PdfBox(x - 5, 112.0, x + 5, 128.0) }
+        val stems = fretPositions.map { x -> vertical(x, 200.0, 230.0) }
+        val layout = PdfRasterPrintLayout(400.0, frame + stems, frets, previouslyConfirmed = false)
+        assertFalse(layout.confirmed)
+        assertTrue(layout.matches(listOf(staff), 400))
+        assertTrue(layout.confirmed)
+        val noPitches = PdfRasterPrintLayout(400.0, frame + stems, previouslyConfirmed = false)
+        val unrelatedLines = PdfRasterPrintLayout(400.0, frame + stems.map { vertical(it.from.x + 22, 200.0, 230.0) },
+            frets, previouslyConfirmed = false)
+        assertFalse(noPitches.matches(listOf(staff), 400))
+        assertFalse(unrelatedLines.matches(listOf(staff), 400))
+    }
 
     @Test fun readsImageOnlyPdfAndWritesPlayableFrettedNotes() {
         val picture = Bitmap.createBitmap(850, 920, Bitmap.Config.ARGB_8888)

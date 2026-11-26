@@ -11,7 +11,35 @@ internal data class RasterTabStaff(val rows: List<Int>, val edges: List<Int>) {
 
 /** In outlined web prints the barlines remain strokes, even though note labels are artwork. */
 internal class PdfRasterPrintLayout(private val pageWidth: Double, private val lines: List<PdfLine>,
-                                   private val outlines: List<PdfBox> = emptyList()) {
+                                   private val outlines: List<PdfBox> = emptyList(), previouslyConfirmed: Boolean = true) {
+    var confirmed = previouslyConfirmed
+        private set
+
+    fun matches(staves: List<RasterTabStaff>, imageWidth: Int): Boolean {
+        if (confirmed) return true
+        val scale = imageWidth / pageWidth
+        confirmed = staves.any { detected ->
+            val staff = align(detected, imageWidth) ?: return@any false
+            val g = staff.gap
+            val digits = outlinesIn(staff, imageWidth).filter { box ->
+                (box.bottom - box.top) / g in 0.62..1.04 && (box.right - box.left) / g in 0.23..0.81 &&
+                    staff.rows.any { y -> abs((box.bottom + box.top) / 2 - y) <= g * 0.22 }
+            }
+            if (digits.size < 4) return@any false
+            // Browser prints use the same stem lane below all six strings, independent of fret position.
+            lines.asSequence().filter { line ->
+                val x = line.from.x * scale
+                val top = minOf(line.from.y, line.to.y) * scale
+                val bottom = maxOf(line.from.y, line.to.y) * scale
+                abs(line.to.x - line.from.x) * scale < 0.5 && x > staff.edges.first() && x < staff.edges.last() &&
+                    (top - staff.bottom) / g in 0.65..2.15 && (bottom - staff.bottom) / g in 2.13..3.05 &&
+                    (bottom - top) / g in 0.65..2.20 &&
+                    digits.any { box -> abs((box.left + box.right) / 2 - x) <= g * 0.70 }
+            }.map { (it.from.x * scale).roundToInt() }.distinct().take(4).count() == 4
+        }
+        return confirmed
+    }
+
     fun recoverStaves(detected: List<RasterTabStaff>, imageWidth: Int): List<RasterTabStaff> {
         val frame = detected.maxByOrNull { it.edges.last() - it.edges.first() } ?: return detected
         val scale = imageWidth / pageWidth
