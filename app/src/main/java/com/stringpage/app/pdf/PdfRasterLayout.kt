@@ -198,6 +198,14 @@ internal object PdfRasterLayout {
         }
     }
 
+    private fun extendsIntoRhythmLane(image: PdfRasterImage, staff: RasterTabStaff, x: Int): Boolean {
+        val g = staff.gap
+        val from = staff.bottom + (g * 0.14).roundToInt().coerceAtLeast(2)
+        val to = staff.bottom + (g * 1.10).roundToInt()
+        return (from..to).count { y -> maxOf(image[x - 1, y], image[x, y], image[x + 1, y]) >= 75 } >=
+            (to - from + 1) * 0.87
+    }
+
     private fun edges(image: PdfRasterImage, grid: List<Int>, verifyInterior: Boolean): List<Int>? {
         val top = grid.first()
         val bottom = grid.last()
@@ -223,7 +231,8 @@ internal object PdfRasterLayout {
         if (right - left < image.width * 0.26) return null
         val staff = RasterTabStaff(grid, listOf(left, right))
         val interior = vertical.filter {
-            it >= left + gap * 3.3 && it < right - gap * 0.55 && (!verifyInterior || fullHeightEdge(image, staff, it))
+            it >= left + gap * 3.3 && it < right - gap * 0.55 &&
+                (!verifyInterior || fullHeightEdge(image, staff, it) && !extendsIntoRhythmLane(image, staff, it))
         }
         return listOf(left) + interior + right
     }

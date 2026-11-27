@@ -3,7 +3,9 @@ package com.stringpage.app.pdf
 import kotlin.math.abs
 import kotlin.math.ln
 
-internal enum class RasterAlphabet { FRET, REST, FLAG, METER, TECHNIQUE, TUPLET, PRINT_DIGIT, PRINT_TUPLET }
+internal enum class RasterAlphabet {
+    FRET, REST, FLAG, METER, TECHNIQUE, BEND_LABEL, HARMONIC_LABEL, HARMONIC_DIGIT, TUPLET, PRINT_DIGIT, SCORE_DIGIT, PRINT_TUPLET
+}
 
 internal data class RasterGlyph(
     val alphabet: RasterAlphabet,

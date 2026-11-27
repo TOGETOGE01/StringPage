@@ -74,6 +74,45 @@ internal class PdfRasterImage(val width: Int, val height: Int, private val ink: 
 }
 
 internal class RasterPatch(val box: RasterBox, val pixels: PdfRasterImage) {
+    fun components(threshold: Int, foreground: Boolean = true): List<RasterBox> {
+        val width = pixels.width
+        val height = pixels.height
+        val seen = BooleanArray(width * height)
+        val pending = IntArray(seen.size)
+        val result = ArrayList<RasterBox>()
+        for (index in seen.indices) {
+            if (seen[index] || (pixels[index % width, index / width] >= threshold) != foreground) continue
+            var count = 1
+            pending[0] = index
+            seen[index] = true
+            var left = width
+            var right = -1
+            var top = height
+            var bottom = -1
+            fun visit(position: Int) {
+                if (seen[position] || (pixels[position % width, position / width] >= threshold) != foreground) return
+                seen[position] = true
+                pending[count++] = position
+            }
+            var next = 0
+            while (next < count) {
+                val position = pending[next++]
+                val x = position % width
+                val y = position / width
+                left = minOf(left, x)
+                right = maxOf(right, x)
+                top = minOf(top, y)
+                bottom = maxOf(bottom, y)
+                if (x > 0) visit(position - 1)
+                if (x < width - 1) visit(position + 1)
+                if (y > 0) visit(position - width)
+                if (y < height - 1) visit(position + width)
+            }
+            result.add(RasterBox(box.left + left, box.top + top, box.left + right + 1, box.top + bottom + 1))
+        }
+        return result
+    }
+
     fun crop(area: RasterBox): RasterPatch? {
         if (area.width <= 0 || area.height <= 0) return null
         val a = RasterBox(area.left - box.left, area.top - box.top, area.right - box.left, area.bottom - box.top)

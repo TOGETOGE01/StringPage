@@ -73,13 +73,18 @@ internal class PdfConversionDocument(private val file: File, bytes: ByteArray, a
         if (upright) uprightRotation[page - 1] = -angle
         val (original, signature) = recognizeRaster(page, 2_600, hints, preceding)
         var result = original
-        if (hints?.confirmed == true && original.bars.any { it.issues.isNotEmpty() }) {
+        val outlined = hints?.confirmed == true
+        // A handful of recognized notes alone does not establish that a scanned page is rhythmic TAB.
+        val hasReadableRhythm = original.bars.count { bar ->
+            bar.issues.isEmpty() && bar.beats.any { it.notes.isNotEmpty() && it.denominator > 1 }
+        } >= 2
+        if ((outlined || hasReadableRhythm) && original.bars.any { it.issues.isNotEmpty() }) {
             val rescans = ArrayList<PdfTabResult>()
             for (edge in listOf(3_200, 2_950, 3_500)) {
                 checkCancelled()
                 try { rescans.add(recognizeRaster(page, edge, hints, preceding).first) }
                 catch (_: PdfConversionException) { continue }
-                result = PdfRasterRescan.combine(original, rescans, preceding)
+                result = PdfRasterRescan.combine(original, rescans, preceding, requireConsensus = !outlined)
                 if (result.bars.none { it.issues.isNotEmpty() }) break
             }
         }

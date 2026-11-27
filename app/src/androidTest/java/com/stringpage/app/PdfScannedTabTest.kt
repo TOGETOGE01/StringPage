@@ -5,6 +5,8 @@ import alphaTab.Settings
 import alphaTab.core.ecmaScript.Uint8Array
 import alphaTab.importer.ScoreLoader
 import alphaTab.model.Duration
+import alphaTab.model.HarmonicType
+import alphaTab.model.VibratoType
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -16,6 +18,8 @@ import android.graphics.pdf.PdfDocument
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.stringpage.app.pdf.PdfBend
+import com.stringpage.app.pdf.PdfRasterBends
+import com.stringpage.app.pdf.PdfSlideOut
 import com.stringpage.app.pdf.AndroidRasterGlyphs
 import com.stringpage.app.pdf.PdfBox
 import com.stringpage.app.pdf.PdfConversionDocument
@@ -30,6 +34,9 @@ import com.stringpage.app.pdf.PdfRasterGlyphs
 import com.stringpage.app.pdf.PdfPrintFrets
 import com.stringpage.app.pdf.PdfRasterTab
 import com.stringpage.app.pdf.RasterTabStaff
+import com.stringpage.app.pdf.RasterAlphabet
+import com.stringpage.app.pdf.RasterBox
+import com.stringpage.app.pdf.RasterGlyph
 import com.stringpage.app.pdf.PdfTabBar
 import com.stringpage.app.pdf.PdfTabBeat
 import com.stringpage.app.pdf.PdfTabCorrection
@@ -78,6 +85,50 @@ class PdfScannedTabTest {
         val silent = result(480.0, firstRescan.copy(beats = listOf(PdfTabBeat(2, emptyList()))), secondRescan)
         val noTie = result(240.0, first, second.copy(beats = listOf(quarter(14), quarter(10))))
         assertEquals(noTie, PdfRasterRescan.combine(noTie, listOf(silent, silent), emptyList()))
+    }
+
+    @Test fun imageRescanRequiresAgreementAndKeepsKnownNotesWhenOtherBarsSplit() {
+        fun beat(fret: Int) = PdfTabBeat(4, listOf(PdfTabNote(6, fret)))
+        val current = PdfTabBar(1, 1, PdfBox(20.0, 30.0, 120.0, 200.0), listOf(beat(12)), listOf("未识别"),
+            emptyList(), PdfMeter(2, 4))
+        val next = current.copy(number = 2, bounds = PdfBox(120.0, 30.0, 220.0, 200.0))
+        fun page(vararg bars: PdfTabBar) =
+            PdfTabResult(71, listOf(PdfTabTrack("TAB", 6, null, bars.toList())), 240.0, true)
+        val original = page(current, next)
+        val fixed = current.copy(beats = listOf(beat(12), beat(14)), issues = emptyList())
+        val split = next.copy(bounds = next.bounds.copy(right = 150.0))
+        val separated = page(fixed, split, next.copy(number = 3, bounds = next.bounds.copy(left = 150.0)))
+        val intact = page(fixed, next)
+        val changesKnownFret = page(fixed.copy(beats = listOf(beat(10), beat(14))), next)
+        val silence = page(fixed.copy(beats = listOf(PdfTabBeat(2, emptyList()))), next)
+        val result = PdfRasterRescan.combine(original, listOf(separated, intact), emptyList(), requireConsensus = true)
+        assertEquals(listOf(fixed, next), result.bars)
+        for (variants in listOf(listOf(separated), listOf(intact, changesKnownFret),
+            listOf(changesKnownFret, changesKnownFret), listOf(silence, silence))) {
+            assertEquals(original, PdfRasterRescan.combine(original, variants, emptyList(), requireConsensus = true))
+        }
+    }
+
+    @Test fun scanRestoresABarlineOnlyWhenItsPositionAndNotesAreCorroborated() {
+        fun beat(fret: Int, tied: Boolean = false) = PdfTabBeat(4, listOf(PdfTabNote(6, fret, tied = tied)))
+        fun bar(number: Int, left: Double, right: Double, vararg beats: PdfTabBeat) =
+            PdfTabBar(number, 1, PdfBox(left, 20.0, right, 160.0), beats.toList(), emptyList(), emptyList(), PdfMeter(2, 4))
+        fun page(vararg bars: PdfTabBar) = PdfTabResult(90, listOf(PdfTabTrack("TAB", 6, null, bars.toList())), 280.0, true)
+        val merged = bar(1, 20.0, 220.0, beat(10), beat(12), beat(14)).copy(issues = listOf("时值不符"))
+        val next = bar(2, 220.0, 260.0, beat(14, tied = true), beat(16))
+        val original = page(merged, next)
+        val one = bar(1, 20.0, 120.0, beat(10), beat(12))
+        val two = bar(2, 120.0, 220.0, beat(12, tied = true), beat(14))
+        val divided = page(one, two, next.copy(number = 3))
+        val partlyRead = page(one.copy(issues = listOf("品位不明")), two, next.copy(number = 3))
+        assertEquals(divided, PdfRasterRescan.combine(original, listOf(divided, partlyRead), emptyList(), requireConsensus = true))
+        val wrongFret = page(one, two.copy(beats = listOf(beat(12, tied = true), beat(15))), next.copy(number = 3))
+        val otherEdge = page(one.copy(bounds = one.bounds.copy(right = 130.0)),
+            two.copy(bounds = two.bounds.copy(left = 130.0)), next.copy(number = 3))
+        for (rescans in listOf(listOf(divided), listOf(divided, wrongFret), listOf(divided, otherEdge),
+            listOf(wrongFret, wrongFret))) {
+            assertEquals(original, PdfRasterRescan.combine(original, rescans, emptyList(), requireConsensus = true))
+        }
     }
 
     @Test fun confirmsAnUntitledPrintOnlyWhenFretOutlinesAlignWithItsStemLane() {
@@ -192,6 +243,327 @@ class PdfScannedTabTest {
         assertEquals(listOf(40, 190, 380), PdfRasterPrintLayout(400.0, strokes + strings + inside).align(detected, 400)?.edges)
     }
 
+    @Test fun aNoteStemContinuingBelowTheStringsDoesNotSplitTheMeasure() {
+        val bitmap = Bitmap.createBitmap(520, 280, Bitmap.Config.ARGB_8888)
+        try {
+            bitmap.eraseColor(Color.WHITE)
+            val canvas = Canvas(bitmap)
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.BLACK; strokeWidth = 2f }
+            for (row in 0..5) canvas.drawLine(40f, 72f + row * 20f, 480f, 72f + row * 20f, paint)
+            for (x in listOf(40f, 280f, 480f)) canvas.drawLine(x, 72f, x, 172f, paint)
+            canvas.drawLine(156f, 72f, 156f, 210f, paint)
+            val staff = PdfRasterLayout.staves(AndroidRasterGlyphs.bitmapToInk(bitmap), recoverFaintStrings = true).single()
+            assertEquals(3, staff.edges.size)
+            assertEquals(280.0, staff.edges[1].toDouble(), 2.0)
+        } finally { bitmap.recycle() }
+    }
+
+    @Test fun anUpperEnclosedBowlResolvesAnAmbiguousScannedNine() {
+        val bitmap = Bitmap.createBitmap(120, 110, Bitmap.Config.ARGB_8888)
+        try {
+            val canvas = Canvas(bitmap)
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.BLACK
+                typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+                textSize = 28f
+            }
+            fun read(input: String): Int? {
+                bitmap.eraseColor(Color.WHITE)
+                canvas.drawText(input, 48f, 66f, paint)
+                val image = AndroidRasterGlyphs.bitmapToInk(bitmap)
+                val area = image.filter(RasterBox(42, 36, 80, 72))
+                val ink = checkNotNull(area.bounds(105))
+                val shape = checkNotNull(area.crop(ink)?.shape())
+                val gap = 24.0
+                val size = ink.height / gap
+                val ambiguous = PdfRasterGlyphs(listOf(RasterGlyph(RasterAlphabet.PRINT_DIGIT, "9", shape, size),
+                    RasterGlyph(RasterAlphabet.PRINT_DIGIT, "6", shape, size * 1.05)))
+                val box = PdfBox(ink.left.toDouble(), ink.top.toDouble(), ink.right.toDouble(), ink.bottom.toDouble())
+                return PdfPrintFrets(image, gap, listOf(box), ambiguous, rasterDigits = true).at(ink.midX, ink.midY)?.fret
+            }
+            assertEquals(9, read("9"))
+            assertNull(read("6"))
+            assertNull(read("8"))
+        } finally { bitmap.recycle() }
+    }
+
+    @Test fun aThinSerifOneStaysPartOfATwoDigitFret() {
+        val bitmap = Bitmap.createBitmap(140, 110, Bitmap.Config.ARGB_8888)
+        try {
+            val canvas = Canvas(bitmap)
+            val paint = Paint().apply { color = Color.BLACK }
+            val gap = 21.0
+            fun read(serifs: Boolean): Int? {
+                bitmap.eraseColor(Color.WHITE)
+                for (x in listOf(61f, 72f)) {
+                    canvas.drawRect(x + 1, 48f, x + 3, 63f, paint)
+                    if (serifs) {
+                        canvas.drawRect(x, 49f, x + 3, 51f, paint)
+                        canvas.drawRect(x, 61f, x + 4, 63f, paint)
+                    }
+                }
+                val image = AndroidRasterGlyphs.bitmapToInk(bitmap)
+                val patch = image.filter(RasterBox(56, 44, 80, 69))
+                val boxes = patch.columns(0).map { checkNotNull(patch.crop(it)?.bounds(105)) }.map { ink ->
+                    PdfBox(ink.left.toDouble(), ink.top.toDouble(), ink.right.toDouble(), ink.bottom.toDouble())
+                }
+                return PdfPrintFrets(image, gap, boxes, PdfRasterGlyphs(emptyList()), rasterDigits = true,
+                    digitAlphabet = RasterAlphabet.SCORE_DIGIT).at(68.5, 55.5)?.fret
+            }
+            assertEquals(11, read(serifs = true))
+            assertNull(read(serifs = false))
+        } finally { bitmap.recycle() }
+    }
+
+    @Test fun aFaintSecondDigitCanBeReadWhenThePairIsCenteredOnItsStem() {
+        val bitmap = Bitmap.createBitmap(140, 110, Bitmap.Config.ARGB_8888)
+        try {
+            val canvas = Canvas(bitmap)
+            val paint = Paint().apply { color = Color.BLACK }
+            val gap = 21.0
+            bitmap.eraseColor(Color.WHITE)
+            canvas.drawRect(61f, 49f, 64f, 51f, paint)
+            canvas.drawRect(62f, 48f, 64f, 63f, paint)
+            canvas.drawRect(61f, 61f, 65f, 63f, paint)
+            paint.strokeWidth = 2f
+            canvas.drawLine(71f, 49f, 78f, 49f, paint)
+            canvas.drawLine(78f, 49f, 78f, 53f, paint)
+            canvas.drawLine(78f, 53f, 71f, 61f, paint)
+            canvas.drawLine(71f, 62f, 79f, 62f, paint)
+            val image = AndroidRasterGlyphs.bitmapToInk(bitmap)
+            val patch = image.filter(RasterBox(56, 44, 84, 69))
+            val boxes = patch.columns(0).map { checkNotNull(patch.crop(it)?.bounds(105)) }
+            val second = boxes.last()
+            val shape = checkNotNull(patch.crop(second)?.shape())
+            fun glyph(value: String, strength: Float) = RasterGlyph(RasterAlphabet.SCORE_DIGIT, value,
+                shape.copy(samples = FloatArray(shape.samples.size) { shape.samples[it] * strength }), second.height / gap)
+            val outlines = boxes.map { PdfBox(it.left.toDouble(), it.top.toDouble(), it.right.toDouble(), it.bottom.toDouble()) }
+            val frets = PdfPrintFrets(image, gap, outlines, PdfRasterGlyphs(listOf(glyph("2", .52f), glyph("7", .40f))),
+                rasterDigits = true, digitAlphabet = RasterAlphabet.SCORE_DIGIT)
+            val center = (boxes.first().left + second.right) / 2.0
+            assertEquals(12, frets.at(center, second.midY)?.fret)
+            assertNull(frets.at(center + gap * .21, second.midY))
+        } finally { bitmap.recycle() }
+    }
+
+    @Test fun aCircledHalfNotePreservesBothDigitsAndTheDetachedSlide() {
+        val bitmap = Bitmap.createBitmap(780, 400, Bitmap.Config.ARGB_8888)
+        try {
+            val canvas = Canvas(bitmap)
+            val gap = 24f
+            val top = 110f
+            val bottom = top + 5 * gap
+            val row = top + 2 * gap
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { strokeWidth = 2f }
+            bitmap.eraseColor(Color.WHITE)
+            for (index in 0..5) canvas.drawLine(58f, top + index * gap, 720f, top + index * gap, paint)
+            for (x in listOf(58f, 720f)) canvas.drawLine(x, top, x, bottom, paint)
+            for ((x, fret) in listOf(240f to "10", 480f to "14")) {
+                paint.color = Color.WHITE
+                canvas.drawRect(x - 1.08f * gap, row - 2, x + 1.98f * gap, row + 2, paint)
+                paint.color = Color.BLACK
+                paint.style = Paint.Style.STROKE
+                canvas.drawOval(x - 0.77f * gap, row - 0.77f * gap, x + 0.77f * gap, row + 0.77f * gap, paint)
+                canvas.drawLine(x + gap * 0.96f, row - gap * 0.33f, x + gap * 1.63f, row + gap * 0.33f, paint)
+                canvas.drawLine(x, bottom + gap * 1.40f, x, bottom + gap * 2.40f, paint)
+                paint.style = Paint.Style.FILL
+                paint.typeface = Typeface.SERIF
+                paint.textSize = gap * 1.10f
+                paint.textAlign = Paint.Align.CENTER
+                val size = Rect()
+                paint.getTextBounds(fret, 0, fret.length, size)
+                canvas.drawText(fret, x, row - size.exactCenterY(), paint)
+            }
+            val ink = AndroidRasterGlyphs.bitmapToInk(bitmap)
+            val result = PdfRasterTab(AndroidRasterGlyphs.load(context.assets))
+                .recognize(ink, 1, 1, PdfRasterTab.MeterResult(PdfMeter(4, 4), false)).first.bars.single()
+            assertTrue(result.toString(), result.issues.isEmpty())
+            assertEquals(listOf(2, 2), result.beats.map { it.denominator })
+            assertEquals(listOf(10, 14), result.beats.map { it.notes.single().fret })
+            assertEquals(listOf(PdfSlideOut.DOWN, PdfSlideOut.DOWN), result.beats.map { it.notes.single().slideOut })
+        } finally { bitmap.recycle() }
+    }
+
+    @Test fun aPalmMuteMarkNextToAMeasureNumberAppliesToItsDashedRange() {
+        val bitmap = Bitmap.createBitmap(730, 420, Bitmap.Config.ARGB_8888)
+        try {
+            val canvas = Canvas(bitmap)
+            val gap = 24f
+            val top = 124f
+            val bottom = top + 5 * gap
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.BLACK; strokeWidth = 2f }
+            bitmap.eraseColor(Color.WHITE)
+            for (index in 0..5) canvas.drawLine(62f, top + index * gap, 682f, top + index * gap, paint)
+            for (x in listOf(62f, 682f)) canvas.drawLine(x, top, x, bottom, paint)
+            for (x in listOf(242f, 325f, 470f, 590f)) {
+                paint.color = Color.WHITE
+                canvas.drawRect(x - 16f, bottom - 11f, x + 16f, bottom + 12f, paint)
+                paint.color = Color.BLACK
+                paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+                paint.textAlign = Paint.Align.CENTER
+                paint.textSize = gap * 1.1f
+                canvas.drawText("3", x, bottom + gap * 0.35f, paint)
+                canvas.drawLine(x, bottom + gap * 0.68f, x, bottom + gap * 2.5f, paint)
+            }
+            paint.typeface = Typeface.create("serif", Typeface.BOLD)
+            paint.textSize = gap * 1.25f
+            canvas.drawText("P.M.", 242f, 97f, paint)
+            for (x in listOf(285f, 304f, 323f)) canvas.drawLine(x, 87f, x + 9f, 87f, paint)
+            paint.textSize = 12f
+            canvas.drawText("28", 226f, 115f, paint)
+            val ink = AndroidRasterGlyphs.bitmapToInk(bitmap)
+            val result = PdfRasterTab(AndroidRasterGlyphs.load(context.assets))
+                .recognize(ink, 1, 1, PdfRasterTab.MeterResult(PdfMeter(4, 4), false)).first.bars.single()
+            assertTrue(result.toString(), result.issues.isEmpty())
+            assertEquals(listOf(true, true, false, false), result.beats.map { it.notes.single().palmMute })
+        } finally { bitmap.recycle() }
+    }
+
+    @Test fun scannedVibratoAndHarmonicsSurviveGpExportWithoutMistakingLinesForVibrato() {
+        val bitmap = Bitmap.createBitmap(790, 390, Bitmap.Config.ARGB_8888)
+        try {
+            val canvas = Canvas(bitmap)
+            val gap = 24f
+            val top = 136f
+            val bottom = top + 5 * gap
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.BLACK; strokeWidth = 2f }
+            bitmap.eraseColor(Color.WHITE)
+            for (index in 0..5) canvas.drawLine(60f, top + index * gap, 740f, top + index * gap, paint)
+            for (x in listOf(60f, 740f)) canvas.drawLine(x, top, x, bottom, paint)
+            val notes = listOf(160f, 300f, 445f, 590f)
+            for (x in notes) {
+                paint.color = Color.WHITE
+                canvas.drawRect(x - 16f, bottom - 11f, x + 16f, bottom + 12f, paint)
+                paint.color = Color.BLACK
+                paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+                paint.textAlign = Paint.Align.CENTER
+                paint.textSize = gap * 1.1f
+                canvas.drawText("3", x, bottom + gap * 0.35f, paint)
+                canvas.drawLine(x, bottom + gap * 0.68f, x, bottom + gap * 2.5f, paint)
+            }
+            paint.textAlign = Paint.Align.LEFT
+            for ((x, node) in listOf(notes[1] to "<15>", notes[2] to "<20>")) {
+                paint.color = Color.WHITE
+                canvas.drawRect(x + 15f, bottom - 10f, x + 65f, bottom + 11f, paint)
+                paint.color = Color.BLACK
+                paint.typeface = Typeface.SANS_SERIF
+                paint.textSize = gap * 0.78f
+                canvas.drawText(node, x + gap * 0.64f, bottom + gap * 0.28f, paint)
+            }
+            paint.typeface = Typeface.SERIF
+            paint.textSize = gap * 1.14f
+            paint.textAlign = Paint.Align.CENTER
+            canvas.drawText("AH", notes[1], 68f, paint)
+            for (x in 329..456 step 15) canvas.drawLine(x.toFloat(), 58f, x + 7f, 58f, paint)
+            paint.textAlign = Paint.Align.LEFT
+            paint.typeface = Typeface.createFromAsset(context.assets, "Bravura.otf")
+            paint.textSize = 4.42f * gap
+            canvas.drawText("\ueab2".repeat(6), notes[0], 104f, paint)
+            canvas.drawText("\ueab3".repeat(5), notes[1], 104f, paint)
+            paint.style = Paint.Style.STROKE
+            val slur = Path().apply {
+                moveTo(444f, 105f)
+                quadTo(486f, 84f, 532f, 105f)
+            }
+            canvas.drawPath(slur, paint)
+            canvas.drawLine(589f, 99f, 695f, 99f, paint)
+            val ink = AndroidRasterGlyphs.bitmapToInk(bitmap)
+            val result = PdfRasterTab(AndroidRasterGlyphs.load(context.assets))
+                .recognize(ink, 1, 1, PdfRasterTab.MeterResult(PdfMeter(4, 4), false)).first
+            val track = result.tracks.single()
+            assertTrue(track.bars.toString(), track.bars.single().issues.isEmpty())
+            val output = PdfTabGp.encodeTracks("Vibrato", 90, listOf(track.copy(tuning = PdfTabTuning.standard(6))))
+            val score = ScoreLoader.loadScoreFromBytes(Uint8Array(output.asUByteArray()), Settings())
+            val beats = score.tracks[0].staves[0].bars[0].voices[0].beats
+            assertEquals(listOf(VibratoType.Slight, VibratoType.Wide, VibratoType.None, VibratoType.None),
+                beats.asSequence().map { it.notes[0].vibrato }.toList())
+            assertEquals(HarmonicType.Artificial, beats[1].notes[0].harmonicType)
+            assertEquals(12.0, beats[1].notes[0].harmonicValue, 0.0)
+            assertEquals(HarmonicType.Artificial, beats[2].notes[0].harmonicType)
+            assertEquals(17.0, beats[2].notes[0].harmonicValue, 0.0)
+        } finally { bitmap.recycle() }
+    }
+
+    @Test fun scannedDeadChordKeepsTheCrossOnEachString() {
+        val bitmap = Bitmap.createBitmap(690, 365, Bitmap.Config.ARGB_8888)
+        try {
+            val canvas = Canvas(bitmap)
+            val gap = 24f
+            val top = 120f
+            val bottom = top + 5 * gap
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.BLACK
+                strokeWidth = 2f
+                textAlign = Paint.Align.CENTER
+                textSize = gap * 1.1f
+            }
+            bitmap.eraseColor(Color.WHITE)
+            for (index in 0..5) canvas.drawLine(54f, top + index * gap, 646f, top + index * gap, paint)
+            for (x in listOf(54f, 646f)) canvas.drawLine(x, top, x, bottom, paint)
+            for ((x, token) in listOf(218f to "X", 480f to "8")) {
+                paint.typeface = if (token == "X") Typeface.SERIF else Typeface.SANS_SERIF
+                val bounds = Rect()
+                paint.getTextBounds(token, 0, token.length, bounds)
+                for (line in if (token == "X") 2..4 else 4..4) {
+                    val row = top + line * gap
+                    paint.color = Color.WHITE
+                    canvas.drawRect(x - 0.49f * gap, row - 3f, x + 0.49f * gap, row + 4f, paint)
+                    paint.color = Color.BLACK
+                    canvas.drawText(token, x, row - bounds.exactCenterY(), paint)
+                }
+                canvas.drawLine(x, bottom - gap * 0.36f, x, bottom + gap * 2.5f, paint)
+            }
+            val ink = AndroidRasterGlyphs.bitmapToInk(bitmap)
+            val result = PdfRasterTab(AndroidRasterGlyphs.load(context.assets))
+                .recognize(ink, 1, 1, PdfRasterTab.MeterResult(PdfMeter(2, 4), false)).first.bars.single()
+            assertTrue(result.toString(), result.issues.isEmpty())
+            assertEquals(listOf(2, 3, 4), result.beats.first().notes.map { it.string })
+            assertTrue(result.beats.first().notes.all { it.dead })
+            assertEquals(listOf(PdfTabNote(2, 8)), result.beats[1].notes)
+        } finally { bitmap.recycle() }
+    }
+
+    @Test fun aScannedBendNeedsItsAmountAndAPathBackToTheFret() {
+        val bitmap = Bitmap.createBitmap(360, 310, Bitmap.Config.ARGB_8888)
+        try {
+            val canvas = Canvas(bitmap)
+            val staff = RasterTabStaff((0..5).map { 125 + it * 22 }, listOf(40, 320))
+            val x = 110f
+            val head = 150f
+            val tip = 82f
+            val row = staff.rows[1]
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.BLACK; strokeWidth = 2f }
+            val glyphs = AndroidRasterGlyphs.load(context.assets)
+            fun read(label: Boolean, connected: Boolean): PdfRasterBends.Reading? {
+                bitmap.eraseColor(Color.WHITE)
+                paint.style = Paint.Style.STROKE
+                for (line in staff.rows) canvas.drawLine(40f, line.toFloat(), 320f, line.toFloat(), paint)
+                val shaft = Path().apply {
+                    moveTo(if (connected) x + 14f else x + 30f, row - 4f)
+                    cubicTo(x + 32f, row - 4f, head, row - 13f, head, tip + 7f)
+                }
+                canvas.drawPath(shaft, paint)
+                paint.style = Paint.Style.FILL
+                canvas.drawPath(Path().apply {
+                    moveTo(head, tip)
+                    lineTo(head - 4.5f, tip + 9f)
+                    lineTo(head + 4.5f, tip + 9f)
+                    close()
+                }, paint)
+                if (label) {
+                    paint.typeface = Typeface.SERIF
+                    paint.textSize = 24.2f
+                    paint.textAlign = Paint.Align.CENTER
+                    canvas.drawText("full", head, tip - 11f, paint)
+                }
+                return PdfRasterBends.upward(AndroidRasterGlyphs.bitmapToInk(bitmap), staff, glyphs, x.toDouble(), row, 169.0)
+            }
+            assertEquals(PdfBend.up(4), read(label = true, connected = true)?.bend)
+            assertEquals(PdfRasterBends.Reading(null), read(label = false, connected = true))
+            assertEquals(PdfRasterBends.Reading(null), read(label = true, connected = false))
+        } finally { bitmap.recycle() }
+    }
+
     @Test fun outlinedDigitsRecognizeAnOpenStringOnlyWithAVisibleCentralHole() {
         val bitmap = Bitmap.createBitmap(120, 110, Bitmap.Config.ARGB_8888)
         try {
@@ -205,8 +577,13 @@ class PdfScannedTabTest {
             val hole = PdfBox(53.0, 48.0, 58.0, 62.0)
             val image = AndroidRasterGlyphs.bitmapToInk(bitmap)
             val matcher = PdfRasterGlyphs(emptyList())
-            assertEquals(PdfPrintFrets.Fingering(0, false), PdfPrintFrets(image, 24.0, listOf(outer, hole), matcher).at(55.5, 55.0))
+            assertEquals(PdfPrintFrets.Fingering(0, outer, false), PdfPrintFrets(image, 24.0, listOf(outer, hole), matcher).at(55.5, 55.0))
             assertNull(PdfPrintFrets(image, 24.0, listOf(outer, hole.copy(top = 55.0)), matcher).at(55.5, 55.0))
+            assertEquals(0, PdfPrintFrets(image, 24.0, listOf(outer), matcher, rasterDigits = true).at(55.5, 55.0)?.fret)
+            paint.color = Color.BLACK
+            canvas.drawRect(53f, 48f, 58f, 55f, paint)
+            val lowHole = AndroidRasterGlyphs.bitmapToInk(bitmap)
+            assertNull(PdfPrintFrets(lowHole, 24.0, listOf(outer), matcher, rasterDigits = true).at(55.5, 55.0))
         } finally { bitmap.recycle() }
     }
 
@@ -698,7 +1075,9 @@ class PdfScannedTabTest {
             val close = glyph(")", center + gap * 0.60)
             val matcher = AndroidRasterGlyphs.load(context.assets)
             val image = AndroidRasterGlyphs.bitmapToInk(bitmap)
-            assertEquals(PdfPrintFrets.Fingering(4, true), PdfPrintFrets(image, gap, listOf(open, digit, close), matcher).at(center, row))
+            val recognized = PdfPrintFrets(image, gap, listOf(open, digit, close), matcher).at(center, row)
+            assertEquals(4, recognized?.fret)
+            assertEquals(true, recognized?.parenthesized)
             assertNull(PdfPrintFrets(image, gap, listOf(open, digit), matcher).at(center, row))
         } finally { bitmap.recycle() }
     }

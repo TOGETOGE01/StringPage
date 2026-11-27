@@ -48,6 +48,12 @@ internal object AndroidRasterGlyphs {
         for (token in (0..9).map(Int::toString) + "X") {
             glyph(RasterAlphabet.PRINT_DIGIT, token, token, bold, measure * 1.15f)
         }
+        for (font in listOf(Typeface.SERIF, Typeface.create("serif", Typeface.BOLD)) + sans) {
+            for (number in 0..9) {
+                val token = number.toString()
+                glyph(RasterAlphabet.SCORE_DIGIT, token, token, font, measure * 1.07f)
+            }
+        }
         for (number in 2..9) {
             val token = number.toString()
             glyph(RasterAlphabet.PRINT_TUPLET, token, token, bold, measure * 0.74f)
@@ -58,6 +64,21 @@ internal object AndroidRasterGlyphs {
         glyph(RasterAlphabet.TUPLET, "3", "3", Typeface.create("serif", Typeface.ITALIC), measure * 1.41f)
         for (label in listOf("P.M.", "AH", "PH", "H", "P", "½", "¼", "full")) {
             glyph(RasterAlphabet.TECHNIQUE, label, label, Typeface.create("serif", Typeface.BOLD), measure * if (label == "P.M.") 1.25f else 1.1f)
+        }
+        for (label in listOf("H", "P")) glyph(RasterAlphabet.TECHNIQUE, label, label, Typeface.SERIF, measure * 0.96f)
+        for (font in listOf(Typeface.SERIF, Typeface.create("serif", Typeface.BOLD))) {
+            for (kind in PdfHarmonicKind.entries.filterNot { it == PdfHarmonicKind.NATURAL }) {
+                glyph(RasterAlphabet.HARMONIC_LABEL, kind.code, kind.code, font, measure * 1.14f)
+                glyph(RasterAlphabet.HARMONIC_LABEL, kind.code.map { "$it." }.joinToString(""), kind.code, font, measure * 1.14f)
+            }
+            glyph(RasterAlphabet.HARMONIC_LABEL, "FDBK", "FB", font, measure * 1.14f)
+        }
+        for (font in sans) for (value in 0..9) {
+            val digit = value.toString()
+            glyph(RasterAlphabet.HARMONIC_DIGIT, digit, digit, font, measure * 0.78f)
+        }
+        for (label in listOf("¼", "½", "¾", "full", "1½", "2", "2½", "3")) {
+            glyph(RasterAlphabet.BEND_LABEL, label, label, Typeface.SERIF, measure * 1.1f)
         }
         return PdfRasterGlyphs(glyphs).also { cached = it }
     }

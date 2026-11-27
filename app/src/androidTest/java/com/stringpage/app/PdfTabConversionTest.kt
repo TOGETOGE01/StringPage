@@ -431,7 +431,11 @@ class PdfTabConversionTest {
         val deadline = SystemClock.uptimeMillis() + 5_000
         while (SystemClock.uptimeMillis() < deadline) {
             val node = instrument.uiAutomation.rootInActiveWindow?.findAccessibilityNodeInfosByText(value)
-                ?.firstOrNull { it.isVisibleToUser && (it.text == value || prefix && it.text?.startsWith(value) == true) }
+                ?.firstOrNull { candidate ->
+                    candidate.isVisibleToUser && listOf(candidate.text, candidate.contentDescription).any { label ->
+                        label == value || prefix && label?.startsWith(value) == true
+                    }
+                }
             if (node != null) {
                 val rect = Rect().also(node::getBoundsInScreen)
                 tapAt(rect.exactCenterX(), rect.exactCenterY())
